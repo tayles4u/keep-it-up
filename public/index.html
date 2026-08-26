@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="de" data-theme="midnight">
 <head>
@@ -553,7 +554,7 @@ html.overlay-mode,body.overlay-mode{background:transparent!important;}
 
 <script>
 /* ===================== STATE / PERSISTENCE (connected to a real backend) ===================== */
-const API_BASE = (function(){ try{ return localStorage.getItem('kiu_api_base_override'); }catch(e){ return null; } })() || window.KIU_API_BASE || 'http://localhost:8787';
+const API_BASE = (function(){ try{ return localStorage.getItem('kiu_api_base_override'); }catch(e){ return null; } })() || window.KIU_API_BASE || 'https://keepitup-api-4fky.onrender.com';
 const THEME_KEY = 'kiu_theme_v1';
 const TOKEN_KEY = 'kiu_token_v1'; // ok to keep in localStorage — it's a session credential, not user data
 const PINS_KEY = 'kiu_pins_v1';
