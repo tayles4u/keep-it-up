@@ -1,0 +1,2147 @@
+<!DOCTYPE html>
+<html lang="de" data-theme="midnight">
+<head>
+<!-- ============================================================================
+     No file editing needed. Once your API is live on Render, just OPEN this
+     website one single time with ?api=YOUR-API-URL appended, e.g.:
+     https://your-web-url.onrender.com/?api=https://your-api-url.onrender.com
+     It saves the address in this browser and cleans the link bar right after.
+     Do this once per browser/device you host from. See DEPLOY.md step 5.
+     ============================================================================ -->
+<script>
+(function(){
+  var params = new URLSearchParams(location.search);
+  var apiParam = params.get('api');
+  if(apiParam){
+    try{ localStorage.setItem('kiu_api_base_override', apiParam); }catch(e){}
+    params.delete('api');
+    var clean = location.pathname + (params.toString() ? '?'+params.toString() : '') + location.hash;
+    history.replaceState({}, '', clean);
+  }
+})();
+</script>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Keep it up! — live song reactions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Sora:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root, [data-theme="midnight"]{
+  --bg:#0A090D;--bg-1:#121016;--bg-2:#17141C;--bg-3:#1E1924;
+  --line:rgba(244,239,228,.06);--line-strong:rgba(244,239,228,.13);
+  --ink:#F1ECE3;--ink-dim:#9A90AC;--ink-faint:#5C5470;
+  --gold:#F4B740;--gold-ink:#1C1404;--gold-dim:rgba(244,183,64,.14);
+  --coral:#FF5D72;--coral-dim:rgba(255,93,114,.14);
+  --violet:#8C6FF7;--violet-dim:rgba(140,111,247,.14);
+  --mint:#4ED69B;--mint-dim:rgba(78,214,155,.14);
+}
+[data-theme="blackout"]{
+  --bg:#080808;--bg-1:#101010;--bg-2:#151515;--bg-3:#1C1C1C;
+  --line:rgba(255,255,255,.06);--line-strong:rgba(255,255,255,.14);
+  --ink:#EDEDED;--ink-dim:#9C9C9C;--ink-faint:#5E5E5E;
+  --gold:#E7E7E7;--gold-ink:#111111;--gold-dim:rgba(231,231,231,.12);
+  --coral:#D9536B;--coral-dim:rgba(217,83,107,.15);
+  --violet:#7C8592;--violet-dim:rgba(124,133,146,.17);
+  --mint:#6FBFA0;--mint-dim:rgba(111,191,160,.15);
+}
+[data-theme="afterhours"]{
+  --bg:#0D0808;--bg-1:#170D0D;--bg-2:#1E1112;--bg-3:#271617;
+  --line:rgba(255,224,214,.07);--line-strong:rgba(255,224,214,.15);
+  --ink:#F6ECE6;--ink-dim:#B08A85;--ink-faint:#6B4F4C;
+  --gold:#FF8A4C;--gold-ink:#1F0D02;--gold-dim:rgba(255,138,76,.15);
+  --coral:#FF3E67;--coral-dim:rgba(255,62,103,.16);
+  --violet:#D24FA0;--violet-dim:rgba(210,79,160,.16);
+  --mint:#37C1AE;--mint-dim:rgba(55,193,174,.16);
+}
+[data-theme="underground"]{
+  --bg:#07090A;--bg-1:#0E1210;--bg-2:#131917;--bg-3:#1A211D;
+  --line:rgba(214,255,214,.06);--line-strong:rgba(214,255,214,.14);
+  --ink:#E9F5EA;--ink-dim:#8FAE94;--ink-faint:#526A56;
+  --gold:#B6FF3C;--gold-ink:#111A05;--gold-dim:rgba(182,255,60,.14);
+  --coral:#FF3D9A;--coral-dim:rgba(255,61,154,.16);
+  --violet:#4CC2FF;--violet-dim:rgba(76,194,255,.16);
+  --mint:#7CFFC4;--mint-dim:rgba(124,255,196,.16);
+}
+:root{--r-lg:18px;--r-md:12px;--r-sm:8px;}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{background:var(--bg);color:var(--ink);height:100%;}
+body{font-family:'Sora',-apple-system,sans-serif;font-size:14px;-webkit-font-smoothing:antialiased;}
+h1,h2,.display{font-family:'Bebas Neue',sans-serif;letter-spacing:.02em;}
+.mono{font-family:'IBM Plex Mono',monospace;}
+a{color:inherit;text-decoration:none;}
+button{font-family:inherit;cursor:pointer;}
+input,textarea{font-family:inherit;}
+.view{display:none;}
+.view.active{display:block;}
+::placeholder{color:var(--ink-faint);}
+::selection{background:var(--gold);color:var(--gold-ink);}
+@media (prefers-reduced-motion: reduce){ *{animation:none!important;transition:none!important;} }
+
+.badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;letter-spacing:.04em;white-space:nowrap;text-transform:uppercase;}
+.badge-gold{background:var(--gold-dim);color:var(--gold);}
+.badge-mint{background:var(--mint-dim);color:var(--mint);}
+.badge-coral{background:var(--coral-dim);color:var(--coral);}
+.badge-violet{background:var(--violet-dim);color:var(--violet);}
+.plat-badge{font-size:9.5px;font-weight:700;padding:2px 7px;border:1px solid;border-radius:12px;text-transform:uppercase;letter-spacing:.03em;margin-left:6px;white-space:nowrap;}
+
+.btn{border-radius:10px;padding:11px 20px;font-size:13px;font-weight:700;border:1.5px solid transparent;transition:transform .12s,opacity .12s;text-transform:uppercase;letter-spacing:.03em;}
+.btn:hover{transform:translateY(-1px);}
+.btn:active{transform:translateY(0);}
+.btn:disabled{opacity:.35;cursor:not-allowed;transform:none;}
+.btn-gold{background:var(--gold);color:var(--gold-ink);}
+.btn-outline{background:transparent;color:var(--ink);border-color:var(--line-strong);}
+.btn-coral{background:var(--coral);color:#1a0006;}
+.btn-ghost{background:var(--bg-2);color:var(--ink-dim);border-color:var(--line);}
+.btn-block{width:100%;text-align:center;display:block;}
+.btn-xs{border-radius:8px;padding:6px 12px;font-size:10.5px;font-weight:700;border:1px solid var(--line-strong);background:var(--bg-3);color:var(--ink);text-transform:uppercase;letter-spacing:.03em;}
+.icon-btn{width:36px;height:36px;border-radius:10px;background:var(--bg-2);border:1px solid var(--line-strong);color:var(--ink-dim);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:.15s;}
+.icon-btn:hover{color:var(--ink);background:var(--bg-3);}
+.icon-btn.active{color:var(--gold);border-color:var(--gold);}
+
+#toast{position:fixed;bottom:22px;left:22px;z-index:500;background:var(--gold);color:var(--gold-ink);padding:12px 18px;border-radius:10px;font-size:13px;font-weight:700;box-shadow:0 14px 34px rgba(0,0,0,.6);transform:translateY(20px);opacity:0;transition:.2s;pointer-events:none;max-width:320px;}
+#toast.show{transform:translateY(0);opacity:1;}
+
+.modal-overlay{position:fixed;inset:0;background:rgba(2,2,3,.75);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;z-index:600;}
+.modal{background:var(--bg-1);border:1px solid var(--line-strong);border-radius:18px;padding:24px;width:400px;max-width:90vw;}
+.modal h3{font-size:22px;margin-bottom:4px;}
+.modal .msub{font-size:12.5px;color:var(--ink-faint);margin-bottom:16px;line-height:1.5;}
+.link-box{display:flex;gap:8px;align-items:center;background:var(--bg-2);border:1px dashed var(--line-strong);border-radius:9px;padding:10px 12px;font-size:12px;color:var(--ink-dim);word-break:break-all;}
+.modal-actions{display:flex;gap:8px;margin-top:16px;}
+
+.help-fab{position:fixed;bottom:22px;right:22px;z-index:200;background:var(--bg-2);border:1px solid var(--line-strong);color:var(--ink);padding:10px 16px;border-radius:30px;font-size:12px;font-weight:700;display:flex;align-items:center;gap:6px;text-transform:uppercase;letter-spacing:.03em;}
+.help-fab .q{width:16px;height:16px;border-radius:50%;border:1.5px solid var(--gold);color:var(--gold);display:flex;align-items:center;justify-content:center;font-size:10px;}
+body.overlay-mode .help-fab,body.overlay-mode #toast{display:none!important;}
+
+.eq-mark{display:flex;align-items:flex-end;gap:2px;height:20px;}
+.eq-mark i{width:3.5px;background:var(--gold);border-radius:2px;display:block;}
+.eq-mark i:nth-child(1){height:38%;} .eq-mark i:nth-child(2){height:100%;} .eq-mark i:nth-child(3){height:62%;} .eq-mark i:nth-child(4){height:82%;}
+
+.ticker-strip{background:var(--gold);color:var(--gold-ink);overflow:hidden;white-space:nowrap;}
+.ticker-track{display:inline-block;padding:6px 0;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;letter-spacing:.06em;animation:tickerScroll 26s linear infinite;}
+.ticker-track span{margin:0 20px;}
+@keyframes tickerScroll{from{transform:translateX(0);}to{transform:translateX(-50%);}}
+@keyframes pulseDot{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.4;transform:scale(.7);}}
+.pulse-dot{width:7px;height:7px;border-radius:50%;background:var(--mint);animation:pulseDot 1.6s ease-in-out infinite;}
+
+.topnav{position:sticky;top:0;z-index:100;display:flex;align-items:center;gap:26px;padding:14px 30px;background:rgba(10,9,13,.85);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);}
+.topnav .tn-brand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:14px;cursor:pointer;flex-shrink:0;}
+.tn-links{display:flex;gap:6px;flex:1;}
+.tn-link{padding:8px 14px;border-radius:9px;font-size:12.5px;font-weight:700;color:var(--ink-faint);cursor:pointer;display:flex;align-items:center;gap:6px;text-transform:uppercase;letter-spacing:.02em;}
+.tn-link:hover{color:var(--ink);background:var(--bg-2);}
+.tn-link.active{color:var(--gold);background:var(--gold-dim);}
+.tn-link.dis{opacity:.4;cursor:default;}
+.tn-right{display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.tn-user{display:flex;align-items:center;gap:8px;padding:6px 10px 6px 6px;border-radius:30px;background:var(--bg-2);border:1px solid var(--line);}
+.tn-user .av{width:22px;height:22px;border-radius:50%;background:linear-gradient(140deg,var(--coral),var(--violet));}
+.tn-user span{font-size:12px;font-weight:700;color:var(--ink-dim);}
+.tn-reset{font-size:10px;color:var(--ink-faint);cursor:pointer;text-transform:uppercase;letter-spacing:.03em;}
+.tn-reset:hover{color:var(--coral);}
+@media (max-width:900px){ .tn-links{display:none;} }
+
+.theme-pop{position:absolute;top:56px;right:30px;background:var(--bg-1);border:1px solid var(--line-strong);border-radius:16px;padding:14px;width:230px;z-index:150;box-shadow:0 20px 50px rgba(0,0,0,.5);display:none;}
+.theme-pop.open{display:block;}
+.theme-pop .tp-h{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-faint);margin-bottom:10px;}
+.theme-opt{display:flex;align-items:center;gap:10px;padding:9px 8px;border-radius:10px;cursor:pointer;margin-bottom:2px;}
+.theme-opt:hover{background:var(--bg-2);}
+.theme-opt.sel{background:var(--bg-2);box-shadow:inset 0 0 0 1.5px var(--gold);}
+.theme-swatch{display:flex;gap:2px;flex-shrink:0;}
+.theme-swatch i{width:9px;height:16px;border-radius:2px;}
+.theme-opt b{font-size:12.5px;font-weight:700;}
+
+#landing{min-height:100vh;background:var(--bg);}
+.hero-split{display:grid;grid-template-columns:1.15fr 1fr;gap:40px;padding:70px 40px 30px;max-width:1240px;margin:0 auto;align-items:center;}
+.hero-left .eyebrow{display:inline-flex;align-items:center;gap:8px;background:var(--bg-1);border:1px solid var(--line-strong);padding:6px 14px;border-radius:30px;font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--gold);margin-bottom:22px;}
+.hero-left h1{font-size:78px;line-height:.96;font-weight:400;}
+.hero-left h1 .hl{color:var(--gold);}
+.hero-left p.sub{margin-top:20px;color:var(--ink-dim);font-size:16.5px;line-height:1.55;max-width:480px;font-weight:500;}
+.hero-left .cta-row{display:flex;gap:12px;margin-top:32px;}
+
+.ticket-stack{position:relative;height:380px;}
+.stack-ticket{position:absolute;left:50%;top:40%;width:280px;background:var(--bg-1);border:1px solid var(--line-strong);border-radius:16px;display:flex;padding:0;box-shadow:0 30px 60px rgba(0,0,0,.5);}
+.stack-ticket::before,.stack-ticket::after{content:"";position:absolute;width:16px;height:16px;background:var(--bg);border-radius:50%;left:58px;}
+.stack-ticket::before{top:-8px;} .stack-ticket::after{bottom:-8px;}
+.stack-ticket .st-stub{width:66px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:17px;border-right:2px dashed var(--line-strong);color:var(--gold);}
+.stack-ticket .st-body{padding:14px 16px;flex:1;min-width:0;}
+.stack-ticket .st-body b{font-size:13.5px;display:block;}
+.stack-ticket .st-body span{font-size:11px;color:var(--ink-faint);}
+.stack-ticket.t1{transform:translate(-50%,-70%) rotate(-9deg);z-index:1;opacity:.55;}
+.stack-ticket.t2{transform:translate(-50%,-45%) rotate(4deg);z-index:2;opacity:.8;}
+.stack-ticket.t3{transform:translate(-50%,-10%) rotate(-2deg);z-index:3;}
+.stack-ticket.t3 .st-stub{background:var(--gold);color:var(--gold-ink);}
+
+.feature-list{max-width:1240px;margin:20px auto 80px;padding:0 40px;}
+.site-footer{max-width:1240px;margin:0 auto 0;padding:24px 40px 90px;border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;}
+.footer-links{display:flex;gap:20px;}
+.footer-links a{color:var(--ink-faint);text-decoration:none;font-size:12.5px;}
+.footer-links a:hover{color:var(--ink);text-decoration:underline;}
+.legal-page{max-width:760px;margin:0 auto;padding:60px 24px 100px;}
+.legal-page h1{font-size:32px;margin-bottom:6px;}
+.legal-page .legal-back{display:inline-block;margin-bottom:28px;color:var(--ink-faint);text-decoration:underline;cursor:pointer;font-size:13px;}
+.legal-page h2{font-size:18px;margin:32px 0 10px;color:var(--gold);}
+.legal-page p{color:var(--ink-dim);line-height:1.65;margin-bottom:12px;font-size:14.5px;}
+.legal-page ul{color:var(--ink-dim);line-height:1.65;margin:0 0 12px 20px;font-size:14.5px;}
+.legal-page li{margin-bottom:6px;}
+.legal-page strong{color:var(--ink);}
+.legal-page a{color:var(--gold);}
+.legal-page .legal-note{background:var(--gold-dim);border:1px solid var(--line-strong);border-radius:12px;padding:14px 16px;font-size:13px;color:var(--ink-dim);margin-bottom:28px;}
+.feature-list .card{padding:0;overflow:hidden;}
+.feature-row{display:flex;align-items:center;gap:20px;padding:22px 26px;border-bottom:1px dashed var(--line-strong);}
+.feature-row:last-child{border-bottom:none;}
+.feature-row .fnum{font-family:'IBM Plex Mono',monospace;color:var(--gold);font-size:18px;font-weight:600;width:36px;flex-shrink:0;}
+.feature-row h4{font-size:16px;font-weight:700;margin-bottom:4px;}
+.feature-row p{font-size:13px;color:var(--ink-dim);line-height:1.5;}
+@media (max-width:900px){
+  .hero-split{grid-template-columns:1fr;padding-top:40px;}
+  .hero-left h1{font-size:50px;}
+  .ticket-stack{display:none;}
+}
+
+#app-content{max-width:1080px;margin:0 auto;padding:36px 30px 80px;}
+.page-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:22px;gap:12px;}
+.page-head h1{font-size:34px;}
+.subtabs{display:flex;gap:8px;margin-bottom:26px;}
+.subtab{padding:8px 16px;border-radius:9px;font-size:12px;font-weight:700;color:var(--ink-faint);cursor:pointer;text-transform:uppercase;letter-spacing:.03em;background:var(--bg-1);border:1px solid var(--line);}
+.subtab.active{color:var(--gold-ink);background:var(--gold);border-color:var(--gold);}
+
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;min-height:46vh;gap:14px;}
+.empty h2{font-size:32px;}
+.empty p{color:var(--ink-dim);font-size:14px;max-width:400px;line-height:1.5;}
+.empty .btn{margin-top:10px;}
+.sess-name-input{background:var(--bg-1);border:1.5px solid var(--line-strong);border-radius:10px;padding:12px 16px;font-size:14px;color:var(--ink);width:300px;text-align:center;margin-top:6px;}
+.sess-name-input:focus{outline:none;border-color:var(--gold);}
+.resume-card{background:var(--bg-1);border:1px solid var(--line-strong);border-radius:18px;padding:28px 32px;text-align:center;max-width:380px;}
+.resume-card b{font-size:20px;display:block;margin-bottom:4px;}
+.resume-card span{color:var(--ink-faint);font-size:12.5px;}
+
+.card{background:var(--bg-1);border:1px solid var(--line);border-radius:var(--r-lg);padding:20px;}
+.bento{display:grid;grid-template-columns:1.3fr 1fr;grid-template-rows:auto auto;gap:14px;}
+.bento .b-main{grid-row:span 2;display:flex;flex-direction:column;justify-content:space-between;}
+.stat-h{display:flex;justify-content:space-between;align-items:flex-start;}
+.stat-h h3{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-dim);}
+.stat-h p{color:var(--ink-faint);font-size:11.5px;margin-top:2px;}
+.b-main .sc-val{font-family:'IBM Plex Mono',monospace;font-size:46px;font-weight:600;margin-top:20px;}
+.b-side .sc-val{font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:600;margin-top:14px;}
+
+.chart-stack{display:flex;flex-direction:column;gap:14px;margin-top:14px;}
+.chart-head{display:flex;justify-content:space-between;align-items:flex-start;}
+.chart-sub h4{font-size:16px;font-weight:700;}
+.chart-sub p{font-size:12px;color:var(--ink-faint);margin-top:2px;}
+.bars{display:flex;align-items:flex-end;gap:22px;height:190px;margin-top:22px;border-top:1px dashed var(--line-strong);padding-top:10px;}
+.bars .grp{display:flex;gap:4px;align-items:flex-end;flex:1;justify-content:center;height:100%;}
+.bars .b{width:22px;border-radius:5px 5px 0 0;min-height:2px;}
+.bars .b.earn{background:var(--gold);}
+.bars .b.pay{background:var(--violet);}
+.bar-labels{display:flex;gap:22px;margin-top:8px;}
+.bar-labels span{flex:1;text-align:center;font-size:10.5px;color:var(--ink-faint);font-family:'IBM Plex Mono',monospace;}
+.legend{display:flex;gap:16px;margin-top:12px;font-size:12px;color:var(--ink-dim);}
+.legend span{display:flex;align-items:center;gap:6px;}
+.dot{width:8px;height:8px;border-radius:2px;display:inline-block;}
+.dot.earn{background:var(--gold);}
+.dot.pay{background:var(--violet);}
+.linechart{height:170px;margin-top:16px;}
+.linechart svg{width:100%;height:100%;}
+.chart-footer{display:flex;border-top:1px dashed var(--line-strong);margin-top:14px;padding-top:10px;}
+.chart-footer button{flex:1;background:transparent;border:none;color:var(--ink-faint);font-size:11px;font-weight:700;padding:6px;text-transform:uppercase;letter-spacing:.03em;}
+.chart-footer button.active{color:var(--gold);}
+
+.table{width:100%;border-collapse:collapse;}
+.table th{text-align:left;font-size:10.5px;color:var(--ink-faint);font-weight:700;padding:12px 16px;border-bottom:1px solid var(--line);text-transform:uppercase;letter-spacing:.03em;}
+.table td{padding:13px 16px;font-size:13px;border-bottom:1px solid var(--line);}
+.table tr:last-child td{border-bottom:none;}
+.status-pill{font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;text-transform:uppercase;}
+.status-pending{background:var(--violet-dim);color:var(--violet);}
+.status-available{background:var(--mint-dim);color:var(--mint);}
+.status-payout{background:var(--gold-dim);color:var(--gold);}
+
+.wallet-row{display:flex;align-items:center;justify-content:space-between;background:var(--bg-1);border:1px solid var(--line);border-radius:14px;padding:15px 18px;margin-bottom:10px;}
+.wallet-row b{font-size:13.5px;display:block;font-family:'IBM Plex Mono',monospace;}
+.wallet-row span{font-size:11px;color:var(--ink-faint);}
+.connect-form{display:flex;gap:8px;max-width:440px;}
+.connect-form input{flex:1;background:var(--bg-1);border:1.5px solid var(--line-strong);border-radius:10px;padding:11px 14px;font-size:13px;color:var(--ink);}
+.connect-form input:focus{outline:none;border-color:var(--gold);}
+
+.stage-top{position:sticky;top:0;z-index:90;display:flex;align-items:center;justify-content:space-between;padding:16px 30px;border-bottom:1px solid var(--line);background:rgba(10,9,13,.9);backdrop-filter:blur(10px);flex-wrap:wrap;gap:10px;}
+.st-left{display:flex;align-items:center;gap:16px;}
+.back-link{display:flex;align-items:center;gap:6px;color:var(--ink-dim);font-size:12px;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:.03em;}
+.stage-title{font-size:15px;font-weight:800;}
+.stage-timer{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--gold);letter-spacing:.05em;}
+.st-right{display:flex;align-items:center;gap:8px;}
+.livedot{width:7px;height:7px;border-radius:50%;background:var(--mint);display:inline-block;margin-right:6px;animation:pulseDot 1.6s ease-in-out infinite;}
+.userpill{font-size:12px;color:var(--ink-dim);font-weight:600;margin-right:6px;}
+
+.stage-body{display:flex;align-items:stretch;min-height:calc(100vh - 65px);}
+.pin-col{width:300px;flex-shrink:0;padding:20px;background:var(--bg-1);position:sticky;top:65px;max-height:calc(100vh - 65px);overflow-y:auto;}
+.pin-col.left{border-right:1px solid var(--line);}
+.pin-col.right{border-left:1px solid var(--line);}
+.stage-main{flex:1;min-width:0;max-width:860px;margin:0 auto;padding:34px 26px 70px;}
+
+.now-playing{background:linear-gradient(160deg,var(--bg-1),var(--bg-2));border:1px solid var(--line-strong);border-radius:22px;padding:32px;position:relative;overflow:hidden;}
+.now-playing .np-label{font-size:11px;font-weight:800;letter-spacing:.1em;color:var(--gold);text-transform:uppercase;display:flex;align-items:center;gap:8px;margin-bottom:16px;}
+.now-playing h2{font-size:36px;line-height:1.08;margin-bottom:6px;word-break:break-word;}
+.now-playing .np-by{font-size:14px;color:var(--ink-dim);font-weight:600;}
+.now-playing .np-note{font-size:13px;color:var(--ink-dim);margin-top:10px;font-style:italic;line-height:1.5;}
+.now-playing .np-paid{margin-top:16px;font-family:'IBM Plex Mono',monospace;font-size:14px;color:var(--gold);}
+.np-actions{display:flex;gap:10px;margin-top:22px;flex-wrap:wrap;}
+.np-empty{text-align:center;padding:20px 10px;}
+.np-empty .mic-orb{width:60px;height:60px;border-radius:50%;background:var(--bg-3);border:1px solid var(--line-strong);display:flex;align-items:center;justify-content:center;color:var(--gold);margin:0 auto 16px;}
+.np-empty h2{font-size:26px;}
+.np-empty p{color:var(--ink-dim);font-size:13px;max-width:400px;margin:8px auto 0;line-height:1.5;}
+.code-inline{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-faint);margin-top:14px;letter-spacing:.05em;text-align:center;}
+.code-inline b{color:var(--gold);}
+
+.embed-wrap{position:relative;width:100%;border-radius:12px;overflow:hidden;margin-top:16px;background:var(--bg-3);}
+.embed-wrap iframe{width:100%;height:190px;border:0;display:block;}
+.embed-wrap.sm iframe{height:120px;}
+.embed-wrap.spotify iframe{height:152px;}
+.embed-wrap.soundcloud iframe{height:120px;}
+audio{width:100%;margin-top:16px;}
+.ticket{position:relative;display:flex;background:var(--bg-2);border:1px solid var(--line-strong);border-radius:14px;margin-bottom:10px;overflow:visible;}
+.ticket::before,.ticket::after{content:"";position:absolute;width:14px;height:14px;background:var(--bg-1);border-radius:50%;left:52px;z-index:2;}
+.ticket::before{top:-7px;} .ticket::after{bottom:-7px;}
+.ticket .stub{width:60px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:15px;border-right:2px dashed var(--line-strong);color:var(--gold);}
+.ticket .body{flex:1;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0;}
+.ticket .binfo{min-width:0;}
+.ticket .binfo b{font-size:13.5px;display:block;}
+.ticket .binfo span{font-size:11.5px;color:var(--ink-faint);display:block;word-break:break-word;margin-top:2px;}
+.ticket .bactions{display:flex;gap:6px;flex-shrink:0;}
+.ticket.first{border-color:var(--gold);}
+.ticket.first .stub{background:var(--gold);color:var(--gold-ink);}
+.ticket-sm audio, .ticket-sm .embed-wrap{margin-top:8px;}
+.ticket-sm .embed-wrap iframe{height:110px;}
+
+.br-match{display:flex;align-items:stretch;gap:14px;margin-top:10px;}
+.br-side{flex:1;background:var(--bg-2);border:1.5px solid var(--line-strong);border-radius:16px;padding:16px;cursor:pointer;transition:.15s;min-width:0;}
+.br-side:hover{border-color:var(--gold);}
+.br-side-name{font-size:15px;font-weight:800;}
+.br-side-song{font-size:11.5px;color:var(--ink-faint);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.br-vs-big{display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--ink-faint);padding:0 2px;flex-shrink:0;}
+.br-round{margin-bottom:12px;}
+.br-round-label{font-size:10px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;font-weight:700;}
+.br-round-matches{display:flex;flex-direction:column;gap:6px;}
+.br-mini-match{display:flex;align-items:center;gap:8px;font-size:12px;background:var(--bg-2);border:1px solid var(--line);border-radius:8px;padding:7px 10px;color:var(--ink-dim);}
+.br-vs{color:var(--ink-faint);font-size:10px;flex-shrink:0;}
+.br-win{color:var(--gold);font-weight:700;}
+@media (max-width:640px){ .br-match{flex-direction:column;} }
+.ondeck-label{display:flex;justify-content:space-between;align-items:baseline;margin:30px 0 12px;}
+.ondeck-label h3{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-dim);}
+.ondeck-label span{font-size:11px;color:var(--ink-faint);}
+.ondeck-row{display:flex;gap:12px;overflow-x:auto;padding-bottom:8px;scroll-snap-type:x proximate;}
+.ondeck-row::-webkit-scrollbar{height:5px;}
+.ondeck-row::-webkit-scrollbar-thumb{background:var(--line-strong);border-radius:4px;}
+.ticket-sm{position:relative;flex-shrink:0;width:236px;scroll-snap-align:start;background:var(--bg-1);border:1px solid var(--line-strong);border-radius:14px;padding:14px;}
+.ticket-sm .ts-pos{font-family:'IBM Plex Mono',monospace;color:var(--ink-faint);font-size:11px;margin-bottom:6px;}
+.ticket-sm b{font-size:13.5px;display:block;}
+.ticket-sm span{font-size:11px;color:var(--ink-faint);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;}
+.ticket-sm .ts-actions{display:flex;gap:6px;margin-top:10px;}
+.ondeck-empty{color:var(--ink-faint);font-size:12.5px;padding:20px;text-align:center;border:1px dashed var(--line-strong);border-radius:14px;}
+
+.drawer-backdrop{position:fixed;inset:0;background:rgba(2,2,3,.55);z-index:400;display:none;}
+.drawer-backdrop.open{display:block;}
+.drawer{position:fixed;top:0;right:0;height:100vh;width:340px;max-width:88vw;background:var(--bg-1);border-left:1px solid var(--line-strong);z-index:401;transform:translateX(100%);transition:transform .28s ease;padding:22px;overflow-y:auto;}
+.drawer.open{transform:translateX(0);}
+.drawer-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;gap:8px;}
+.drawer-head b{font-size:16px;text-transform:uppercase;letter-spacing:.04em;}
+.drawer-head .dh-actions{display:flex;gap:6px;}
+.sub-label{font-size:11px;color:var(--ink-faint);font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin:16px 0 8px;}
+.mini-stat{background:var(--bg-2);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:10px;}
+.mini-stat .ms-top{display:flex;justify-content:space-between;align-items:flex-start;}
+.mini-stat b{font-size:12.5px;font-weight:700;text-transform:uppercase;letter-spacing:.02em;color:var(--ink-dim);}
+.mini-stat p{font-size:10.5px;color:var(--ink-faint);margin-top:2px;}
+.mini-stat .ms-val{font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;margin-top:12px;}
+.rec-banner{background:var(--coral-dim);border:1px solid rgba(255,93,114,.3);border-radius:12px;padding:13px;margin-top:6px;font-size:11.5px;line-height:1.5;}
+.rec-banner b{color:var(--coral);font-size:12px;display:block;margin-bottom:3px;text-transform:uppercase;}
+.small-chart{background:var(--bg-2);border:1px solid var(--line);border-radius:14px;padding:13px;}
+.livepill{background:var(--mint-dim);color:var(--mint);font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;text-transform:uppercase;}
+.not-enough{height:56px;display:flex;align-items:center;justify-content:center;color:var(--ink-faint);font-size:12px;border-radius:8px;background:var(--bg-2);text-align:center;padding:8px;}
+.small-chart .not-enough{background:var(--bg-3);margin-top:8px;}
+
+.set-block{margin-bottom:22px;}
+.set-h{font-size:12px;font-weight:800;margin-bottom:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-dim);}
+.set-h.danger{color:var(--coral);}
+.toggle-row{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:10px;}
+.toggle-row b{font-size:13px;font-weight:700;display:block;}
+.toggle-row span{font-size:11px;color:var(--ink-faint);}
+.switch{width:36px;height:20px;border-radius:20px;background:var(--bg-3);border:1px solid var(--line-strong);position:relative;flex-shrink:0;cursor:pointer;transition:background .15s;}
+.switch .knob{width:15px;height:15px;border-radius:50%;background:var(--ink-faint);position:absolute;top:2px;left:2px;transition:.15s;}
+.switch.on{background:rgba(78,214,155,.22);border-color:var(--mint);}
+.switch.on .knob{background:var(--mint);left:18px;}
+.slider-row{margin-top:4px;}
+.slider-row .sr-top{display:flex;justify-content:space-between;font-size:11px;color:var(--ink-faint);margin-bottom:8px;}
+.slider-row .sr-val{color:var(--gold);font-weight:700;font-family:'IBM Plex Mono',monospace;font-size:12.5px;}
+input[type=range]{width:100%;accent-color:var(--gold);height:3px;}
+.pill-row{display:flex;gap:8px;background:var(--bg-2);border:1px solid var(--line);border-radius:12px;padding:5px;}
+.pill-opt{flex:1;text-align:center;padding:10px 4px;border-radius:9px;color:var(--ink-dim);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;transition:.15s;}
+.pill-opt:hover{background:var(--bg-3);}
+.pill-opt .pill-label{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;}
+.pill-opt.active{background:var(--gold);color:var(--gold-ink);}
+.pill-opt.active:hover{background:var(--gold);}
+.pill-opt.soon{color:var(--ink-faint);opacity:.45;cursor:default;}
+.pill-opt.soon:hover{background:transparent;}
+.field-label{font-size:12px;font-weight:700;margin-bottom:8px;color:var(--ink-dim);}
+.text-input{width:100%;background:var(--bg-2);border:1.5px solid var(--line-strong);border-radius:9px;padding:11px 13px;font-size:13px;color:var(--ink);}
+.text-input:focus{outline:none;border-color:var(--gold);}
+.ctrl-overview{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px;}
+.ov-tile{background:var(--bg-3);border:1px solid var(--line);border-radius:11px;padding:10px 12px;transition:.15s;}
+.ov-tile.ov-click{cursor:pointer;}
+.ov-tile.ov-click:hover{border-color:var(--gold);background:var(--bg-2);}
+.ov-tile .ov-label{font-size:9.5px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.05em;}
+.ov-tile .ov-val{font-size:13.5px;font-weight:700;margin-top:3px;font-family:'IBM Plex Mono',monospace;}
+.ov-tile .ov-val.on{color:var(--mint);}
+.ov-tile .ov-val.off{color:var(--ink-faint);}
+.acc-section{border:1px solid var(--line);border-radius:14px;margin-bottom:10px;overflow:hidden;background:var(--bg-2);}
+.acc-head{display:flex;align-items:center;justify-content:space-between;padding:13px 14px;cursor:pointer;user-select:none;}
+.acc-title{display:flex;align-items:center;gap:9px;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-dim);}
+.acc-title svg{color:var(--gold);flex-shrink:0;}
+.acc-chev{transition:transform .2s;color:var(--ink-faint);flex-shrink:0;}
+.acc-chev.rot{transform:rotate(180deg);}
+.acc-body{padding:2px 14px 16px;}
+.closed-badge{background:var(--coral-dim);color:var(--coral);font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;text-transform:uppercase;margin-right:6px;}
+.sound-row{margin-bottom:14px;}
+.sound-row .sr-name{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+.file-chip{font-size:11px;color:var(--ink-dim);background:var(--bg-2);padding:7px 10px;border-radius:8px;border:1px solid var(--line);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.sound-actions{display:flex;gap:6px;align-items:center;}
+input[type=file]{font-size:11px;color:var(--ink-dim);max-width:100%;}
+
+#join.active{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:var(--bg);}
+#auth.active{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:var(--bg);}
+#overlay.active{min-height:100vh;display:flex;align-items:flex-end;justify-content:flex-start;padding:36px;background:transparent;}
+#legal.active{display:block;min-height:100vh;background:var(--bg);}
+html.overlay-mode,body.overlay-mode{background:transparent!important;}
+.ov-lower-third{background:linear-gradient(100deg, rgba(8,7,11,.94), rgba(8,7,11,.72));border-left:5px solid var(--gold);border-radius:0 16px 16px 0;padding:18px 26px;max-width:540px;box-shadow:0 14px 44px rgba(0,0,0,.55);backdrop-filter:blur(6px);}
+.ov-label{font-size:11px;font-weight:800;letter-spacing:.09em;color:var(--gold);text-transform:uppercase;display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+.ov-title{font-size:28px;font-weight:700;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,.7);word-break:break-word;font-family:'Bebas Neue',sans-serif;letter-spacing:.02em;line-height:1.05;}
+.ov-by{font-size:13.5px;color:rgba(255,255,255,.8);margin-top:6px;text-shadow:0 1px 4px rgba(0,0,0,.6);}
+.ov-next{font-size:11.5px;color:rgba(255,255,255,.6);margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.18);text-shadow:0 1px 4px rgba(0,0,0,.6);}
+.admit-card{width:420px;max-width:100%;background:var(--bg-1);border:1px solid var(--line-strong);border-radius:20px;padding:0;overflow:hidden;}
+.admit-head{padding:26px 28px 18px;text-align:center;}
+.admit-logo{display:flex;align-items:center;justify-content:center;gap:9px;font-weight:800;font-size:13px;margin-bottom:18px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-faint);}
+.admit-num{font-family:'IBM Plex Mono',monospace;font-size:56px;font-weight:600;color:var(--gold);line-height:1;}
+.admit-num.p1{color:var(--mint);}
+.admit-label{font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.1em;margin-top:4px;}
+.admit-perf{border-top:2px dashed var(--line-strong);position:relative;}
+.admit-perf::before,.admit-perf::after{content:"";position:absolute;width:16px;height:16px;background:var(--bg);border-radius:50%;top:-8px;}
+.admit-perf::before{left:-8px;} .admit-perf::after{right:-8px;}
+.admit-body{padding:22px 28px 28px;}
+.admit-body h2{font-size:22px;text-align:center;margin-bottom:4px;}
+.admit-body .jsub{font-size:12.5px;color:var(--ink-faint);text-align:center;margin-bottom:18px;}
+.seg-tabs{display:flex;gap:6px;background:var(--bg-2);border:1px solid var(--line);border-radius:10px;padding:4px;margin-bottom:16px;}
+.seg-btn{flex:1;background:transparent;border:none;color:var(--ink-faint);font-size:11.5px;font-weight:700;padding:9px;border-radius:8px;text-transform:uppercase;letter-spacing:.03em;cursor:pointer;}
+.seg-btn.active{background:var(--gold);color:var(--gold-ink);}
+.join-field{margin-bottom:14px;}
+.join-field label{font-size:11.5px;font-weight:700;color:var(--ink-dim);display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:.03em;}
+.join-field input[type=text],.join-field input[type=password],.join-field input[type=email]{width:100%;background:var(--bg-2);border:1.5px solid var(--line-strong);border-radius:10px;padding:12px 14px;font-size:13.5px;color:var(--ink);}
+.join-field input:focus{outline:none;border-color:var(--gold);}
+.join-note{font-size:11.5px;color:var(--ink-faint);margin:-4px 0 14px;}
+.join-actions{display:flex;flex-direction:column;gap:9px;margin-top:16px;}
+.join-hint{font-size:10.5px;color:var(--ink-faint);text-align:center;margin-top:16px;}
+
+@media (max-width:1000px){
+  .pin-col{display:none;}
+}
+@media (max-width:760px){
+  .bento{grid-template-columns:1fr;}
+  .bento .b-main{grid-row:auto;}
+}
+</style>
+</head>
+<body>
+
+<div id="landing" class="view">
+  <div class="ticker-strip"><div class="ticker-track">
+    <span>• LIVE SONG REACTIONS</span><span>• YOUR CROWD SENDS THE TRACKS</span><span>• NO SKIPPING THE LINE — UNLESS YOU PAY FOR IT</span><span>• KEEP IT UP!</span>
+    <span>• LIVE SONG REACTIONS</span><span>• YOUR CROWD SENDS THE TRACKS</span><span>• NO SKIPPING THE LINE — UNLESS YOU PAY FOR IT</span><span>• KEEP IT UP!</span>
+  </div></div>
+  <div class="topnav">
+    <div class="tn-brand" onclick="goLanding()"><div class="eq-mark"><i></i><i></i><i></i><i></i></div>Keep it up!</div>
+    <div class="tn-links"></div>
+    <div class="tn-right">
+      <div class="docs" style="cursor:pointer" onclick="showAuthScreen('login')">Log in</div>
+      <button class="btn btn-gold" onclick="goApp()">Go Live</button>
+    </div>
+  </div>
+
+  <div class="hero-split">
+    <div class="hero-left">
+      <div class="eyebrow"><span class="pulse-dot"></span>Made for live song reaction streams</div>
+      <h1>Keep It <span class="hl">Up!</span></h1>
+      <p class="sub">Fans send tracks — a Spotify link, a YouTube video, a SoundCloud demo, or their own mp3/wav straight from their phone. They queue up, they can pay to jump the line. You just react, live.</p>
+      <div class="cta-row">
+        <button class="btn btn-gold" onclick="goApp()">Start hosting</button>
+        <button class="btn btn-outline" onclick="goApp()">Watch a demo</button>
+      </div>
+    </div>
+    <div class="ticket-stack">
+      <div class="stack-ticket t1"><div class="st-stub">4</div><div class="st-body"><b>Mara K.</b><span>synthwave demo v2</span></div></div>
+      <div class="stack-ticket t2"><div class="st-stub">2</div><div class="st-body"><b>Deshawn</b><span>"Late Nights" — unreleased</span></div></div>
+      <div class="stack-ticket t3"><div class="st-stub">1</div><div class="st-body"><b>TJ Duisburg</b><span>New Poker — reaction req.</span></div></div>
+    </div>
+  </div>
+
+  <div class="feature-list">
+    <div class="card">
+      <div class="feature-row"><div class="fnum">01</div><div><h4>Any link, any format</h4><p>Spotify, YouTube, SoundCloud, Dropbox — or a straight-up mp3/wav upload. Fans send it however they've got it.</p></div></div>
+      <div class="feature-row"><div class="fnum">02</div><div><h4>Pay to play</h4><p>Set your own skip fee. Fans can jump ahead — or go all in and take the top spot.</p></div></div>
+      <div class="feature-row"><div class="fnum">03</div><div><h4>One link, every show</h4><p>Your queue link never changes. It's live the moment you are — no new link to drop in your bio each time.</p></div></div>
+    </div>
+  </div>
+
+  <div class="site-footer">
+    <div class="tn-brand"><div class="eq-mark"><i></i><i></i><i></i><i></i></div>Keep it up!</div>
+    <div class="footer-links">
+      <a href="?legal=impressum">Impressum</a>
+      <a href="?legal=datenschutz">Datenschutz</a>
+      <a href="?legal=agb">AGB</a>
+    </div>
+  </div>
+</div>
+
+<div id="legal" class="view"></div>
+
+<div id="app" class="view">
+  <div class="topnav">
+    <div class="tn-brand" onclick="goLanding()"><div class="eq-mark"><i></i><i></i><i></i><i></i></div>Keep it up!</div>
+    <div class="tn-links">
+      <div class="tn-link nav-link" data-view="sessions-host" id="nl-sessions">Sessions</div>
+      <div class="tn-link nav-link" data-view="finances-overview" id="nl-finances">Finances</div>
+      <div class="tn-link nav-link" data-view="analytics" id="nl-analytics">Analytics</div>
+    </div>
+    <div class="tn-right">
+      <button class="btn-xs" onclick="openShare()" id="nl-yourlink">Your link</button>
+      <div class="icon-btn" id="lang-btn" onclick="toggleLangPop(event)" title="Language">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 010 18M12 3a15 15 0 000 18"/></svg>
+      </div>
+      <div class="icon-btn" onclick="openAccountSettings()" title="Account settings">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.9l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.9-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1-1.6 1.7 1.7 0 00-1.9.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.9 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1 1.7 1.7 0 00-.3-1.9l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.9.3h0a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5h0a1.7 1.7 0 001.9-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.9v0a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/></svg>
+      </div>
+      <div class="icon-btn" id="theme-btn" onclick="toggleThemePop(event)" title="Change design">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><circle cx="9" cy="10" r="1.3" fill="currentColor" stroke="none"/><circle cx="14" cy="9" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.5" cy="13.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="10" cy="15" r="1.3" fill="currentColor" stroke="none"/></svg>
+      </div>
+      <div class="tn-user"><div class="av"></div><span id="tn-username">@tayles</span></div>
+      <div class="tn-reset" onclick="resetDemo()" id="nl-reset">Reset</div>
+    </div>
+  </div>
+  <div class="theme-pop" id="lang-pop">
+    <div class="tp-h">Language</div>
+    <div id="lang-list"></div>
+  </div>
+  <div class="theme-pop" id="theme-pop">
+    <div class="tp-h">Choose a design</div>
+    <div id="theme-list"></div>
+  </div>
+
+  <div id="app-content">
+    <section id="view-sessions-host" class="pageview"></section>
+    <section id="view-sessions-history" class="pageview" style="display:none"></section>
+    <section id="view-finances-overview" class="pageview" style="display:none"></section>
+    <section id="view-finances-transactions" class="pageview" style="display:none"></section>
+    <section id="view-finances-wallets" class="pageview" style="display:none"></section>
+    <section id="view-analytics" class="pageview" style="display:none"></section>
+  </div>
+
+  <section id="view-sessions-live" class="pageview" style="display:none"></section>
+</div>
+
+<div id="join" class="view"></div>
+
+<div id="auth" class="view"></div>
+
+<div id="overlay" class="view"></div>
+
+<div id="toast"></div>
+<button class="help-fab" onclick="openHelp()"><span class="q">?</span>Need help?</button>
+
+<script>
+/* ===================== STATE / PERSISTENCE (connected to a real backend) ===================== */
+const API_BASE = (function(){ try{ return localStorage.getItem('kiu_api_base_override'); }catch(e){ return null; } })() || window.KIU_API_BASE || 'http://localhost:8787';
+const THEME_KEY = 'kiu_theme_v1';
+const TOKEN_KEY = 'kiu_token_v1'; // ok to keep in localStorage — it's a session credential, not user data
+const PINS_KEY = 'kiu_pins_v1';
+const MY_ID_PREFIX = 'kiu_me_';
+const LASTSETTINGS_PREFIX = 'kiu_last_settings_'; // local-only convenience, not sensitive
+const WALLETS_PREFIX = 'kiu_wallets_'; // wallets aren't wired to the server yet — see README
+
+const THEMES = [
+  {id:'midnight', name:'Midnight', desc:'Gold · Coral · Violet · Mint'},
+  {id:'blackout', name:'Blackout', desc:'Mono grayscale'},
+  {id:'afterhours', name:'Afterhours', desc:'Amber · Red · Magenta'},
+  {id:'underground', name:'Underground', desc:'Acid green · Electric blue'}
+];
+const THEME_COLORS = {
+  midnight:['#F4B740','#FF5D72','#8C6FF7','#4ED69B'],
+  blackout:['#E7E7E7','#D9536B','#7C8592','#6FBFA0'],
+  afterhours:['#FF8A4C','#FF3E67','#D24FA0','#37C1AE'],
+  underground:['#B6FF3C','#FF3D9A','#4CC2FF','#7CFFC4']
+};
+
+/* ===================== LANGUAGE ===================== */
+const LANG_KEY = 'kiu_lang_v1';
+const LANGS = [{id:'en', name:'English', flag:'🇬🇧'}, {id:'de', name:'Deutsch', flag:'🇩🇪'}];
+const I18N = {
+  en: {
+    nav_sessions:'Sessions', nav_finances:'Finances', nav_analytics:'Analytics',
+    your_link:'Your link', reset:'Reset',
+    tab_host:'Host', tab_history:'History', tab_overview:'Overview', tab_transactions:'Transactions', tab_wallets:'Wallets',
+    page_sessions:'Sessions', page_finances:'Finances', page_analytics:'Analytics',
+    host_empty_title:'The stage is empty', host_empty_sub:'Name your reaction session and open the queue — fans can drop a link or a track the moment you go live.',
+    sess_name_ph:'Session name', btn_go_live:'Go Live', permanent_link:'Your permanent link:',
+    already_live:'Already on stage', queued_up:'queued up', back_to_stage:'Back to stage',
+    history_empty_title:'No shows yet', history_empty_sub:"Sessions you've hosted will line up here once you wrap one.",
+    th_session:'Session', th_date:'Date', th_duration:'Duration', th_crowd:'Crowd', th_earned:'Earned',
+    btn_share:'Share', btn_end_show:'End show', btn_payout:'Payout',
+    ready_cashout:'Ready to cash out', ready_cashout_sub:'Available for payout right now',
+    in_pot:'In the pot', in_pot_sub:'Being processed live',
+    on_way:'On its way', on_way_sub:'Sent to your bank',
+    earn_vs_payout:'Earnings vs. Payouts', last_6mo:'Last six months on stage',
+    running_total:'Running total', last_14d:'Last 14 days',
+    th_type:'Type', th_amount:'Amount', th_status:'Status', no_tx:'No transactions yet',
+    no_wallets_title:'No wallets yet', no_wallets_sub:'Connect one to actually receive your payouts.',
+    connect_new_wallet:'Connect a new wallet', wallet_ph:'IBAN or wallet address', btn_connect:'Connect',
+    stage_back:'Back', in_queue:'in queue', queue_closed:'Queue closed',
+    reacting_now:'Reacting now', on_now:'On now',
+    waiting_title:'Waiting for the first track…', waiting_sub:'Your queue link is always live at the same address — drop it in your bio once and forget about it.',
+    share_your_link:'Share your link',
+    mark_reacted:'Mark as reacted ✓', skip_remove:'Skip / remove',
+    on_deck:'On deck', waiting_count:'waiting', nobody_else:'Nobody else in line yet.',
+    preview:'Preview ▶', hide:'Hide', remove:'Remove',
+    stats:'Stats', tonight:'Tonight', crowd:'Crowd', crowd_desc:"Everyone who's queued",
+    earned:'Earned', earned_desc:'So far tonight',
+    tip_title:'Tip', tip_body:"Shout out the skip fee every 5–10 min — otherwise you're leaving money on the table.",
+    top_spender:'Top spender', most_paid:'Most paid', not_enough:'Not enough data yet.',
+    show_controls:'Show controls',
+    ov_queue:'Queue', ov_cap:'Cap', ov_skipfee:'Skip fee', ov_entryfee:'Entry fee', ov_order:'Order', ov_skips:'Skips',
+    open_w:'Open', closed_w:'Closed', unlimited_w:'Unlimited', on_w:'On', off_w:'Off',
+    acc_queue:'Queue', acc_pricing:'Pricing & skips', acc_audio:'Audio',
+    accepting:'Accepting submissions', accepting_desc:'Turn off to stop new people from joining — your current queue keeps going',
+    queue_cap:'Queue cap', order_type:'Order type', list_w:'List', trophy_w:'Trophy', bracket_w:'Bracket Wars',
+    skip_fee:'Skip fee', per_skip:'Per skip',
+    entry_fee:'Entry fee', entry_fee_desc:'Charge before joining the queue',
+    allow_skips:'Allow skips', allow_skips_desc:'Let people pay to jump the line',
+    notif_sounds:'Notification sounds', notif_sounds_desc:'Play a cue on queue events', volume:'Volume',
+    submission_sound:'Submission sound', submission_sound_hint:'Plays when a fan sends a track. Max 6 sec.',
+    skip_sound:'Skip sound', skip_sound_hint:'Plays when someone pays to jump the line. Max 6 sec.',
+    default_ding:'Default ding', unpin:'Unpin', pin:'Pin',
+    j_name:'Your name', j_song:'Song link', j_desc:'Description', j_desc_ph:'Anything the host should know',
+    j_paste_link:'Paste a link', j_upload_file:'Upload file', j_file:'Audio file (mp3 or wav)',
+    j_send:'Send it in', j_pay_join:'Pay & join', already_queued:'already queued for a reaction',
+    not_live_title:"This streamer isn't live right now.", not_live_sub:'Check back once they open the queue — this link will drop you straight in.',
+    closed_title:'The host has paused new submissions right now. Check back in a bit!',
+    full_title:'This queue is full right now.',
+    your_spot:'Your spot in line', reacting_to_you:'Reacting to you now', sent_by:'sent by',
+    jump_1:'Jump 1 spot —', take_1:'Take the #1 spot —',
+    skips_off:'Skips are turned off by the host right now.',
+    sim_note:'Payments here are simulated — no real money moves.',
+    an_total_earned:'Total earned', an_total_earned_sub:'Across every show, all-time',
+    an_shows:'Shows hosted', an_shows_sub:'Live + wrapped', an_crowd:'Total crowd', an_crowd_sub:'All fans, ever',
+    an_per_show:'Earnings per show', an_top_shows:'Top shows', an_by_earnings:'By earnings',
+    an_avg:'Average per show', an_avg_sub:'Earnings ÷ shows hosted', an_no_shows:'Host a show to see this fill in.',
+    an_no_wrapped:'No wrapped shows yet.',
+    br_title:'Bracket Wars', br_start:'Start bracket', br_need_two:'Need at least 2 tracks queued to start a bracket.',
+    br_round:'Round', br_match:'Match', br_pick_winner:'Pick the winner', br_champion:'Champion',
+    br_cancel:'Cancel bracket', br_vs:'vs', br_bye:'Bye'
+  },
+  de: {
+    nav_sessions:'Sessions', nav_finances:'Finanzen', nav_analytics:'Analytics',
+    your_link:'Dein Link', reset:'Zurücksetzen',
+    tab_host:'Host', tab_history:'Verlauf', tab_overview:'Übersicht', tab_transactions:'Transaktionen', tab_wallets:'Wallets',
+    page_sessions:'Sessions', page_finances:'Finanzen', page_analytics:'Analytics',
+    host_empty_title:'Die Bühne ist leer', host_empty_sub:'Benenne deine Reaction-Session und öffne die Queue — Fans können sofort einen Link oder Track schicken, sobald du live bist.',
+    sess_name_ph:'Session-Name', btn_go_live:'Live gehen', permanent_link:'Dein permanenter Link:',
+    already_live:'Bereits auf der Bühne', queued_up:'in der Warteschlange', back_to_stage:'Zurück zur Bühne',
+    history_empty_title:'Noch keine Shows', history_empty_sub:'Sessions, die du gehostet hast, tauchen hier auf, sobald du eine abschließt.',
+    th_session:'Session', th_date:'Datum', th_duration:'Dauer', th_crowd:'Crowd', th_earned:'Verdient',
+    btn_share:'Teilen', btn_end_show:'Show beenden', btn_payout:'Auszahlung',
+    ready_cashout:'Auszahlbar', ready_cashout_sub:'Gerade verfügbar für Auszahlung',
+    in_pot:'In Bearbeitung', in_pot_sub:'Wird live verarbeitet',
+    on_way:'Unterwegs', on_way_sub:'An deine Bank unterwegs',
+    earn_vs_payout:'Einnahmen vs. Auszahlungen', last_6mo:'Letzte sechs Monate',
+    running_total:'Laufende Summe', last_14d:'Letzte 14 Tage',
+    th_type:'Typ', th_amount:'Betrag', th_status:'Status', no_tx:'Noch keine Transaktionen',
+    no_wallets_title:'Noch keine Wallets', no_wallets_sub:'Verbinde eins, um Auszahlungen zu erhalten.',
+    connect_new_wallet:'Neues Wallet verbinden', wallet_ph:'IBAN oder Wallet-Adresse', btn_connect:'Verbinden',
+    stage_back:'Zurück', in_queue:'in der Queue', queue_closed:'Queue geschlossen',
+    reacting_now:'Reagiert gerade auf', on_now:'Gerade live',
+    waiting_title:'Warten auf den ersten Track…', waiting_sub:'Dein Queue-Link ist dauerhaft unter derselben Adresse live — einmal in die Bio, fertig.',
+    share_your_link:'Link teilen',
+    mark_reacted:'Als reagiert markieren ✓', skip_remove:'Skip / entfernen',
+    on_deck:'Als Nächstes', waiting_count:'warten', nobody_else:'Sonst niemand in der Reihe.',
+    preview:'Vorschau ▶', hide:'Verbergen', remove:'Entfernen',
+    stats:'Stats', tonight:'Heute Abend', crowd:'Crowd', crowd_desc:'Alle, die eingereiht haben',
+    earned:'Verdient', earned_desc:'Bisher heute Abend',
+    tip_title:'Tipp', tip_body:'Erwähne die Skip-Gebühr alle 5–10 Minuten — sonst lässt du Geld liegen.',
+    top_spender:'Top-Zahler', most_paid:'Meist bezahlt', not_enough:'Noch nicht genug Daten.',
+    show_controls:'Show-Einstellungen',
+    ov_queue:'Queue', ov_cap:'Limit', ov_skipfee:'Skip-Gebühr', ov_entryfee:'Eintritt', ov_order:'Reihenfolge', ov_skips:'Skips',
+    open_w:'Offen', closed_w:'Zu', unlimited_w:'Unbegrenzt', on_w:'An', off_w:'Aus',
+    acc_queue:'Queue', acc_pricing:'Preise & Skips', acc_audio:'Audio',
+    accepting:'Nimmt Einreichungen an', accepting_desc:'Ausschalten, damit niemand Neues mehr joint — die aktuelle Queue läuft weiter',
+    queue_cap:'Queue-Limit', order_type:'Reihenfolge', list_w:'Liste', trophy_w:'Trophy', bracket_w:'Bracket Wars',
+    skip_fee:'Skip-Gebühr', per_skip:'Pro Skip',
+    entry_fee:'Eintrittsgebühr', entry_fee_desc:'Vor dem Beitritt kassieren',
+    allow_skips:'Skips erlauben', allow_skips_desc:'Leute können sich vorkaufen',
+    notif_sounds:'Benachrichtigungstöne', notif_sounds_desc:'Ton bei Queue-Ereignissen', volume:'Lautstärke',
+    submission_sound:'Einreichungs-Sound', submission_sound_hint:'Spielt, wenn ein Fan einen Track schickt. Max. 6 Sek.',
+    skip_sound:'Skip-Sound', skip_sound_hint:'Spielt, wenn jemand für einen Skip bezahlt. Max. 6 Sek.',
+    default_ding:'Standard-Ton', unpin:'Lösen', pin:'Anpinnen',
+    j_name:'Dein Name', j_song:'Song-Link', j_desc:'Beschreibung', j_desc_ph:'Was der Host wissen sollte',
+    j_paste_link:'Link einfügen', j_upload_file:'Datei hochladen', j_file:'Audiodatei (mp3 oder wav)',
+    j_send:'Absenden', j_pay_join:'Zahlen & beitreten', already_queued:'bereits in der Warteschlange',
+    not_live_title:'Dieser Streamer ist gerade nicht live.', not_live_sub:'Schau später vorbei — der Link bringt dich direkt rein, sobald die Queue offen ist.',
+    closed_title:'Der Host hat neue Einreichungen pausiert. Schau gleich nochmal vorbei!',
+    full_title:'Die Queue ist gerade voll.',
+    your_spot:'Dein Platz in der Reihe', reacting_to_you:'Reagiert gerade auf dich', sent_by:'geschickt von',
+    jump_1:'1 Platz vorspringen —', take_1:'Platz 1 übernehmen —',
+    skips_off:'Skips sind gerade vom Host deaktiviert.',
+    sim_note:'Zahlungen hier sind simuliert — es fließt kein echtes Geld.',
+    an_total_earned:'Insgesamt verdient', an_total_earned_sub:'Über alle Shows, gesamt',
+    an_shows:'Shows gehostet', an_shows_sub:'Live + abgeschlossen', an_crowd:'Crowd gesamt', an_crowd_sub:'Alle Fans, jemals',
+    an_per_show:'Einnahmen pro Show', an_top_shows:'Top-Shows', an_by_earnings:'Nach Einnahmen',
+    an_avg:'Schnitt pro Show', an_avg_sub:'Einnahmen ÷ gehostete Shows', an_no_shows:'Hoste eine Show, damit sich das füllt.',
+    an_no_wrapped:'Noch keine abgeschlossenen Shows.',
+    br_title:'Bracket Wars', br_start:'Bracket starten', br_need_two:'Mindestens 2 Tracks in der Queue nötig, um ein Bracket zu starten.',
+    br_round:'Runde', br_match:'Match', br_pick_winner:'Gewinner auswählen', br_champion:'Champion',
+    br_cancel:'Bracket abbrechen', br_vs:'vs', br_bye:'Freilos'
+  }
+};
+function getLang(){ return localStorage.getItem(LANG_KEY) || 'en'; }
+function t(key){ const l=getLang(); return (I18N[l] && I18N[l][key]) || I18N.en[key] || key; }
+function setLang(l){ localStorage.setItem(LANG_KEY, l); document.documentElement.lang = l; renderLangList(); render(); }
+
+function freshDb(){ return { session:null, history:[], transactions:[], wallets:[], lastSettings:null }; }
+
+let db = freshDb();
+let currentView = 'sessions-host';
+let currentUser = null; // cached from GET /api/me, refreshed on login
+
+function uid(){ return Math.random().toString(36).slice(2,10); }
+function genCode(){ const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let s=''; for(let i=0;i<6;i++) s+=c[Math.floor(Math.random()*c.length)]; return s; }
+function money(n){ return '€' + (Math.round((n||0)*100)/100).toFixed(2); }
+function fmtDate(ts){ const d=new Date(ts); return d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'2-digit'})+' '+d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}); }
+function fmtDur(sec){ sec=Math.max(0,Math.floor(sec)); const h=Math.floor(sec/3600), m=Math.floor((sec%3600)/60), s=sec%60; return (h>0?h+':':'')+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0'); }
+function escapeHtml(str){ return String(str==null?'':str).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function csvEscape(str){ str = String(str==null?'':str); if(/[",\n]/.test(str)) return '"'+str.replace(/"/g,'""')+'"'; return str; }
+function downloadCSV(content, filename){
+  const blob = new Blob(['\uFEFF'+content], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url), 1000);
+  toast('Exported '+filename);
+}
+function exportTransactionsCSV(){
+  const rows = db.transactions.slice().sort((a,b)=>b.date-a.date);
+  if(!rows.length){ toast('No transactions to export yet.'); return; }
+  const lines = [['Date','Type','Session','Amount (EUR)','Status'].join(',')];
+  rows.forEach(tr=>{
+    lines.push([new Date(tr.date).toISOString(), tr.type, csvEscape(tr.sessionTitle||''), (tr.amount||0).toFixed(2), tr.status].join(','));
+  });
+  downloadCSV(lines.join('\n'), 'keep-it-up-transactions.csv');
+}
+function exportHistoryCSV(){
+  const rows = db.history.slice().reverse();
+  if(!rows.length){ toast('No sessions to export yet.'); return; }
+  const lines = [['Title','Ended at','Duration (sec)','Crowd','Earnings (EUR)'].join(',')];
+  rows.forEach(h=>{
+    lines.push([csvEscape(h.title), new Date(h.endedAt).toISOString(), h.durationSec, h.totalParticipants, (h.earnings||0).toFixed(2)].join(','));
+  });
+  downloadCSV(lines.join('\n'), 'keep-it-up-sessions.csv');
+}
+
+function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(window.__toastT); window.__toastT=setTimeout(()=>t.classList.remove('show'),3200); }
+function beep(vol){ try{ const ctx=new (window.AudioContext||window.webkitAudioContext)(); const o=ctx.createOscillator(), g=ctx.createGain(); o.type='triangle'; o.frequency.value=660; g.gain.value=(vol||50)/100*0.12; o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime+0.14); }catch(e){} }
+function playCue(kind){
+  const s = db.session; if(!s || !s.settings.notifSounds) return;
+  const clip = kind==='skip' ? s.settings.skipSound : s.settings.submissionSound;
+  const vol = (s.settings.notifVolume||50)/100;
+  if(clip){ try{ const a=new Audio(clip); a.volume=vol; a.play().catch(()=>{}); }catch(e){ beep(s.settings.notifVolume); } }
+  else beep(s.settings.notifVolume);
+}
+
+/* ===================== API CLIENT (real backend — see README for how to run/deploy it) ===================== */
+async function apiFetch(path, opts){
+  opts = opts || {};
+  const headers = Object.assign({'Content-Type':'application/json'}, opts.headers||{});
+  const token = localStorage.getItem(TOKEN_KEY);
+  if(token) headers['Authorization'] = 'Bearer '+token;
+  let body = opts.body;
+  if(body && typeof body !== 'string') body = JSON.stringify(body);
+  let res;
+  try{
+    res = await fetch(API_BASE + path, { method: opts.method||'GET', headers, body });
+  }catch(e){
+    toast('Cannot reach the server at '+API_BASE+' — is it running? (see README)');
+    throw e;
+  }
+  let data = null;
+  try{ data = await res.json(); }catch(e){ /* empty body is fine */ }
+  if(!res.ok){ throw new Error((data && data.error) || ('Request failed ('+res.status+')')); }
+  return data || {};
+}
+
+/* ===================== ACCOUNTS (real, server-backed — sign-up required to use the app) ===================== */
+function getCurrentAccount(){ return currentUser; }
+function getOrCreateAccountCode(){ return currentUser ? currentUser.joinCode : null; }
+function refreshUsernameDisplay(){
+  if(!currentUser) return;
+  document.querySelectorAll('#tn-username').forEach(s=>s.textContent = currentUser.name);
+}
+async function refreshCurrentShow(){
+  const data = await apiFetch('/api/shows/current');
+  db.session = data.show ? Object.assign({}, data.show, { queue: data.queue || [] }) : null;
+}
+async function refreshHistory(){
+  const data = await apiFetch('/api/shows/history');
+  db.history = data.history || [];
+}
+async function refreshTransactions(){
+  const data = await apiFetch('/api/transactions');
+  db.transactions = data.transactions || [];
+}
+// Wallets aren't wired to the server yet (no payment provider behind this demo) — kept local per account.
+function loadWallets(){
+  const key = WALLETS_PREFIX + (currentUser ? currentUser.id : 'anon');
+  try{ return JSON.parse(localStorage.getItem(key)) || []; }catch(e){ return []; }
+}
+function saveWallets(list){
+  const key = WALLETS_PREFIX + (currentUser ? currentUser.id : 'anon');
+  localStorage.setItem(key, JSON.stringify(list));
+}
+async function refreshCurrentUser(){
+  const token = localStorage.getItem(TOKEN_KEY);
+  if(!token){ currentUser = null; return null; }
+  try{ const data = await apiFetch('/api/me'); currentUser = data.user; return currentUser; }
+  catch(e){ localStorage.removeItem(TOKEN_KEY); currentUser = null; return null; }
+}
+async function handleSignup(){
+  const name = document.getElementById('auth-name') ? document.getElementById('auth-name').value : '';
+  const email = document.getElementById('auth-email').value;
+  const pass = document.getElementById('auth-pass').value;
+  if(!email || !pass){ toast('Enter an email and a password.'); return; }
+  try{
+    const data = await apiFetch('/api/signup', { method:'POST', body:{ name, email, password: pass } });
+    localStorage.setItem(TOKEN_KEY, data.token);
+    currentUser = data.user;
+    toast('Account created!');
+    await enterAppAfterAuth();
+  }catch(e){ toast(e.message); }
+}
+async function handleLogin(){
+  const email = document.getElementById('auth-email').value;
+  const pass = document.getElementById('auth-pass').value;
+  if(!email || !pass){ toast('Enter your email and password.'); return; }
+  try{
+    const data = await apiFetch('/api/login', { method:'POST', body:{ email, password: pass } });
+    localStorage.setItem(TOKEN_KEY, data.token);
+    currentUser = data.user;
+    toast('Welcome back!');
+    await enterAppAfterAuth();
+  }catch(e){ toast(e.message); }
+}
+async function handleLogout(){
+  if(!confirm('Log out of Keep it up!?')) return;
+  try{ await apiFetch('/api/logout', { method:'POST' }); }catch(e){}
+  localStorage.removeItem(TOKEN_KEY);
+  currentUser = null;
+  db = freshDb();
+  const m = document.querySelector('.modal-overlay'); if(m) m.remove();
+  toast('Logged out');
+  goLanding();
+}
+async function enterAppAfterAuth(){
+  if(!currentUser) return;
+  document.getElementById('auth').classList.remove('active');
+  document.getElementById('landing').classList.remove('active');
+  document.getElementById('app').classList.add('active');
+  refreshUsernameDisplay();
+  await refreshCurrentShow();
+  showView(db.session && db.session.status==='live' ? 'sessions-live' : 'sessions-host');
+}
+function showAuthScreen(mode){
+  document.getElementById('landing').classList.remove('active');
+  document.getElementById('app').classList.remove('active');
+  document.getElementById('join').classList.remove('active');
+  document.getElementById('auth').classList.add('active');
+  window.__authMode = mode || 'signup';
+  renderAuth();
+}
+function switchAuthMode(mode){ window.__authMode = mode; renderAuth(); }
+const LEGAL_CONTENT = {
+  impressum: {
+    title: 'Impressum',
+    html: `
+      <div class="legal-note">Vorlage — die eckigen Klammern [...] müssen noch mit echten Angaben ausgefüllt werden, bevor diese Seite live geht.</div>
+      <p>Angaben gemäß § 5 Digitale-Dienste-Gesetz (DDG)</p>
+      <p><strong>[Vollständiger Name / Firmenname]</strong><br>[Straße und Hausnummer]<br>[Postleitzahl und Ort]<br>[Land]</p>
+      <h2>Kontakt</h2>
+      <p>Telefon: [Deine Telefonnummer]<br>E-Mail: [deine@email-adresse.de]</p>
+      <h2>Vertretungsberechtigt</h2>
+      <p>[Dein Name] (siehe oben). Bei einer Gesellschaft zusätzlich: Vertretungsberechtigte Geschäftsführung und Handelsregistereintrag angeben.</p>
+      <h2>Umsatzsteuer-ID</h2>
+      <p>Umsatzsteuer-Identifikationsnummer gemäß § 27 a Umsatzsteuergesetz: [DE...], oder Hinweis auf Kleinunternehmerregelung nach § 19 UStG.</p>
+      <h2>Verantwortlich für den Inhalt nach § 18 Abs. 2 MStV</h2>
+      <p>[Dein Name], [Adresse wie oben]</p>
+      <h2>Streitschlichtung</h2>
+      <p>Die Europäische Kommission stellt eine Plattform zur Online-Streitbeilegung (OS) bereit: <a href="https://ec.europa.eu/consumers/odr/" target="_blank" rel="noopener">ec.europa.eu/consumers/odr</a>. Wir sind nicht verpflichtet und nicht bereit, an Streitbeilegungsverfahren vor einer Verbraucherschlichtungsstelle teilzunehmen.</p>
+      <h2>Haftung für Inhalte</h2>
+      <p>Als Diensteanbieter sind wir gemäß § 7 Abs. 1 DDG für eigene Inhalte auf diesen Seiten nach den allgemeinen Gesetzen verantwortlich. Nach §§ 8 bis 10 DDG sind wir als Diensteanbieter jedoch nicht verpflichtet, übermittelte oder gespeicherte fremde Informationen zu überwachen. Bei Bekanntwerden von Rechtsverletzungen werden wir die betroffenen Inhalte umgehend entfernen.</p>
+      <h2>Haftung für Links</h2>
+      <p>Unser Angebot enthält Links zu externen Websites Dritter (z. B. von Fans eingereichte Spotify-, YouTube- oder SoundCloud-Links), auf deren Inhalte wir keinen Einfluss haben. Für die Inhalte der verlinkten Seiten ist stets der jeweilige Anbieter verantwortlich.</p>`
+  },
+  datenschutz: {
+    title: 'Datenschutzerklärung',
+    html: `
+      <div class="legal-note">Vorlage — die eckigen Klammern [...] müssen noch mit echten Angaben ausgefüllt werden. Zahlungen sind aktuell simuliert; sobald ein echter Zahlungsanbieter eingebunden wird, muss Abschnitt 10 ergänzt werden.</div>
+      <h2>1. Verantwortlicher</h2>
+      <p>[Vollständiger Name / Firmenname], [Straße und Hausnummer], [PLZ und Ort]. E-Mail: [deine@email-adresse.de]</p>
+      <h2>2. Übersicht der Verarbeitungen</h2>
+      <p>Wir verarbeiten personenbezogene Daten von Streamer:innen mit Account und von Fans, die ohne eigenen Account eine Show besuchen, um den Dienst "Keep it up!" bereitzustellen.</p>
+      <h2>3. Welche Daten wir verarbeiten</h2>
+      <p><strong>Als Streamer:in mit Account:</strong> Name, E-Mail-Adresse, Passwort (nur als Hash gespeichert), deine Sessions, Warteschlangen-Einträge und Einnahmen-Historie, sowie deine IP-Adresse (kurzzeitig, zur Missbrauchsprävention).</p>
+      <p><strong>Als Fan (ohne Account):</strong> der von dir angegebene Name, der eingereichte Song-Link oder Songtitel, eine optionale Nachricht, sowie deine IP-Adresse (kurzzeitig). Wir verlangen von Fans keine E-Mail-Adresse und kein Passwort.</p>
+      <h2>4. Wofür wir diese Daten nutzen</h2>
+      <ul>
+        <li>Um dir dein Konto und deine Sessions bereitzustellen (Art. 6 Abs. 1 lit. b DSGVO)</li>
+        <li>Um die Warteschlangen-Funktion für Fans bereitzustellen (Art. 6 Abs. 1 lit. f DSGVO)</li>
+        <li>Um Missbrauch zu verhindern, z. B. durch Begrenzung von Login-Versuchen (Art. 6 Abs. 1 lit. f DSGVO)</li>
+      </ul>
+      <h2>5. Wo deine Daten gespeichert werden</h2>
+      <p><strong>Auf unserem Server:</strong> Accounts, Sessions, Transaktionen und Warteschlangen-Daten werden bei unserem Hosting-Anbieter gespeichert: Render Services, Inc., 525 Brannan Street, San Francisco, CA 94107, USA (<a href="https://render.com/privacy" target="_blank" rel="noopener">Datenschutzerklärung</a>). Da Render in den USA sitzt, kann eine Datenübermittlung außerhalb der EU/des EWR stattfinden; Render verpflichtet sich vertraglich zu den EU-Standardvertragsklauseln.</p>
+      <p><strong>In deinem Browser:</strong> Einige Einstellungen (Theme, Sprache, Anmelde-Token) werden zusätzlich lokal in deinem Browser gespeichert und nicht von selbst an uns übertragen.</p>
+      <p><strong>Für E-Mail-Versand</strong> (z. B. Passwort-Reset-Links), falls eingerichtet: Resend, Inc., 2261 Market Street #5039, San Francisco, CA 94114, USA (<a href="https://resend.com/legal/privacy-policy" target="_blank" rel="noopener">Datenschutzerklärung</a>).</p>
+      <h2>6. Wie wir deine Daten schützen</h2>
+      <p>Passwörter werden mit dem kryptografischen Verfahren scrypt gehasht und niemals im Klartext gespeichert. Die Verbindung zu unserer Website ist durchgängig verschlüsselt (HTTPS/TLS). Anmelde-Tokens können jederzeit serverseitig ungültig gemacht werden.</p>
+      <h2>7. Wie lange wir deine Daten speichern</h2>
+      <p>Deine Account-Daten speichern wir, solange dein Konto besteht. Du kannst jederzeit die Löschung beantragen. IP-Adressen zur Missbrauchsprävention werden automatisch nach kurzer Zeit verworfen.</p>
+      <h2>8. Deine Rechte</h2>
+      <ul>
+        <li>Auskunft (Art. 15 DSGVO)</li>
+        <li>Berichtigung (Art. 16 DSGVO)</li>
+        <li>Löschung (Art. 17 DSGVO)</li>
+        <li>Einschränkung der Verarbeitung (Art. 18 DSGVO)</li>
+        <li>Datenübertragbarkeit (Art. 20 DSGVO)</li>
+        <li>Widerspruch (Art. 21 DSGVO)</li>
+        <li>Beschwerde bei einer Aufsichtsbehörde</li>
+      </ul>
+      <p>Zur Ausübung dieser Rechte genügt eine formlose E-Mail an die oben genannte Adresse.</p>
+      <h2>9. Cookies und lokale Speicherung</h2>
+      <p>Wir verwenden keine Tracking- oder Werbe-Cookies. Die genutzte lokale Speicherung (localStorage) ist technisch notwendig (z. B. damit du eingeloggt bleibst) und fällt unter die Ausnahme nach § 25 Abs. 2 TTDSG — hierfür ist keine gesonderte Einwilligung erforderlich.</p>
+      <h2>10. Zahlungsdaten</h2>
+      <p>Aktuell werden auf der Plattform <strong>keine echten Zahlungen verarbeitet</strong> — Skip-Gebühren und Einnahmen sind zu Demonstrationszwecken simuliert. Es werden keine Kreditkarten- oder Bankdaten erhoben.</p>
+      <h2>11. Änderungen dieser Datenschutzerklärung</h2>
+      <p>Wir passen diese Erklärung bei Bedarf an. Die jeweils aktuelle Version findest du immer auf dieser Seite.</p>
+      <p>Stand: [Datum eintragen]</p>`
+  },
+  agb: {
+    title: 'AGB / Nutzungsbedingungen',
+    html: `
+      <div class="legal-note">Vorlage — die eckigen Klammern [...] müssen noch mit echten Angaben ausgefüllt werden. Diese AGB gehen von simulierten Zahlungen aus; vor Einbindung echter Zahlungen bitte rechtlich prüfen lassen.</div>
+      <h2>1. Geltungsbereich</h2>
+      <p>Diese Nutzungsbedingungen gelten für die Nutzung der Plattform "Keep it up!", betrieben von [Vollständiger Name / Firmenname], [Adresse]. Mit der Erstellung eines Kontos oder der Nutzung als Fan erklärst du dich mit diesen Bedingungen einverstanden.</p>
+      <h2>2. Leistungsbeschreibung</h2>
+      <p>Die Plattform ermöglicht es Streamer:innen ("Hosts"), Live-Sessions zu eröffnen, in denen Zuschauer:innen ("Fans") Songs zur Reaktion einreichen und optional dafür bezahlen können, in der Warteschlange vorzurücken ("Skip") oder direkt an die erste Stelle zu springen ("Overtake").</p>
+      <p><strong>Wichtiger Hinweis zum aktuellen Stand:</strong> Zahlungen innerhalb der Plattform sind derzeit <strong>simuliert</strong> — es fließt kein echtes Geld, und Hosts erhalten aktuell keine echten Auszahlungen.</p>
+      <h2>3. Registrierung und Konto</h2>
+      <p>Zur Nutzung als Host ist ein Konto mit E-Mail-Adresse und Passwort erforderlich. Du bist verpflichtet, wahrheitsgemäße Angaben zu machen und dein Passwort geheim zu halten. Die Nutzung als Fan erfordert kein eigenes Konto. Die Nutzung ist Personen ab [16/18] Jahren gestattet.</p>
+      <h2>4. Pflichten der Hosts</h2>
+      <ul>
+        <li>Eingereichte Inhalte nicht missbrauchen</li>
+        <li>Keine rechtswidrigen, beleidigenden oder diskriminierenden Inhalte verbreiten</li>
+        <li>Skip-/Overtake-Gebühren transparent kommunizieren</li>
+        <li>Bestimmungen der eigenen Streaming-Plattform (z. B. Twitch, YouTube) einhalten</li>
+      </ul>
+      <h2>5. Pflichten der Fans</h2>
+      <ul>
+        <li>Nur Songs/Links einreichen, an denen die erforderlichen Rechte bestehen oder die frei zugänglich sind</li>
+        <li>Keine rechtswidrigen oder urheberrechtsverletzenden Inhalte einreichen</li>
+        <li>Keine automatisierte Nutzung/Spam</li>
+      </ul>
+      <h2>6. Preise und Zahlungen</h2>
+      <p>Solange Zahlungen simuliert sind: alle angezeigten Beträge sind zu Demonstrationszwecken simuliert, es entstehen keine echten Zahlungsverpflichtungen. Sobald echte Zahlungen eingebunden werden, ist dieser Abschnitt um Zahlungsanbieter, Plattformgebühren, Auszahlungsbedingungen und Widerrufsrecht zu ergänzen.</p>
+      <h2>7. Inhalte Dritter</h2>
+      <p>Songs und Links stammen von externen Plattformen (Spotify, YouTube, SoundCloud, Dropbox u. a.) oder werden als eigene Dateien hochgeladen. Für deren Rechtmäßigkeit sind die einreichenden Fans verantwortlich. Wir behalten uns vor, Inhalte zu entfernen oder Konten zu sperren.</p>
+      <h2>8. Haftung</h2>
+      <p>Wir haften unbeschränkt für Vorsatz und grobe Fahrlässigkeit sowie nach dem Produkthaftungsgesetz. Für leichte Fahrlässigkeit haften wir nur bei Verletzung einer wesentlichen Vertragspflicht, begrenzt auf den vertragstypisch vorhersehbaren Schaden. Die Plattform wird ohne Zusicherung einer ununterbrochenen Verfügbarkeit bereitgestellt.</p>
+      <h2>9. Verfügbarkeit</h2>
+      <p>Wir bemühen uns um eine hohe Verfügbarkeit, garantieren jedoch keine bestimmte Verfügbarkeit. Wartungsarbeiten oder Ausfälle unseres Hosting-Anbieters können zu Unterbrechungen führen.</p>
+      <h2>10. Kündigung / Kontolöschung</h2>
+      <p>Du kannst dein Konto jederzeit per E-Mail an [deine@email-adresse.de] löschen lassen. Wir behalten uns vor, Konten bei Verstößen zu sperren oder zu löschen.</p>
+      <h2>11. Änderungen dieser Bedingungen</h2>
+      <p>Wir behalten uns vor, diese Bedingungen bei Bedarf anzupassen, insbesondere bei neuen Funktionen. Über wesentliche Änderungen informieren wir per E-Mail oder beim nächsten Login.</p>
+      <h2>12. Anwendbares Recht und Gerichtsstand</h2>
+      <p>Es gilt das Recht der Bundesrepublik Deutschland unter Ausschluss des UN-Kaufrechts. Zwingende verbraucherschützende Bestimmungen deines gewöhnlichen Aufenthaltsorts bleiben unberührt.</p>
+      <h2>13. Salvatorische Klausel</h2>
+      <p>Sollten einzelne Bestimmungen unwirksam sein, bleibt die Wirksamkeit der übrigen Bestimmungen unberührt.</p>
+      <p>Stand: [Datum eintragen]</p>`
+  }
+};
+function renderLegal(page){
+  const el = document.getElementById('legal');
+  const content = LEGAL_CONTENT[page];
+  if(!content){ el.innerHTML = `<div class="legal-page"><span class="legal-back" onclick="goLanding()">← Back to Keep it up!</span><h1>Not found</h1></div>`; return; }
+  el.innerHTML = `<div class="legal-page"><span class="legal-back" onclick="goLanding()">← Back to Keep it up!</span><h1>${content.title}</h1>${content.html}</div>`;
+}
+
+function renderAuth(){
+  const el = document.getElementById('auth');
+  const mode = window.__authMode || 'signup';
+  const isSignup = mode==='signup';
+  const isForgot = mode==='forgot';
+  if(isForgot){
+    el.innerHTML = `
+      <div class="admit-card" style="width:400px">
+        <div class="admit-head">
+          <div class="admit-logo" style="justify-content:center"><div class="eq-mark"><i></i><i></i><i></i><i></i></div>Keep it up!</div>
+          <h2 style="font-size:22px">Reset your password</h2>
+          <div class="jsub">We'll email you a link to set a new one.</div>
+        </div>
+        <div class="admit-body">
+          <div class="join-field"><label>Email</label><input id="forgot-email" type="text" placeholder="you@example.com" onkeydown="if(event.key==='Enter'){requestPasswordReset();}"></div>
+          <button class="btn btn-gold btn-block" onclick="requestPasswordReset()">Send reset link</button>
+          <div class="join-hint" style="margin-top:16px"><span style="text-decoration:underline;cursor:pointer;color:var(--gold)" onclick="switchAuthMode('login')">← Back to sign in</span></div>
+        </div>
+      </div>`;
+    return;
+  }
+  el.innerHTML = `
+    <div class="admit-card" style="width:400px">
+      <div class="admit-head">
+        <div class="admit-logo" style="justify-content:center"><div class="eq-mark"><i></i><i></i><i></i><i></i></div>Keep it up!</div>
+        <h2 style="font-size:22px">${isSignup ? 'Create your host account' : 'Welcome back'}</h2>
+        <div class="jsub">${isSignup ? 'You need an account to host a show.' : 'Sign in to keep the show going.'}</div>
+      </div>
+      <div class="admit-body">
+        <button class="btn btn-outline btn-block" disabled title="Needs real OAuth credentials configured on the server — not wired up yet" style="display:flex;align-items:center;justify-content:center;gap:9px;opacity:.45;cursor:not-allowed">
+          <svg width="16" height="16" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.9 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l6-6C34.9 5.1 29.7 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21 21-9.4 21-21c0-1.4-.1-2.7-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.9 18.9 13 24 13c3.1 0 5.8 1.1 8 3l6-6C34.9 5.1 29.7 3 24 3 16.3 3 9.6 7.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 45c5.6 0 10.7-2.1 14.5-5.6l-6.7-5.7C29.6 35.7 26.9 36.5 24 36.5c-5.3 0-9.7-3.6-11.3-8.5l-6.6 5.1C9.5 40.5 16.2 45 24 45z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.2 5.7l6.7 5.7C41.9 36 45 30.6 45 24c0-1.4-.1-2.7-.4-3.5z"/></svg>
+          Continue with Google
+        </button>
+        <div style="text-align:center;color:var(--ink-faint);font-size:11px;margin:16px 0;text-transform:uppercase;letter-spacing:.06em">use email instead</div>
+        ${isSignup ? `<div class="join-field"><label>Display name</label><input id="auth-name" type="text" placeholder="e.g. Tayles"></div>` : ''}
+        <div class="join-field"><label>Email</label><input id="auth-email" type="text" placeholder="you@example.com"></div>
+        <div class="join-field"><label>Password</label><input id="auth-pass" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter'){${isSignup?'handleSignup':'handleLogin'}();}"></div>
+        ${!isSignup ? `<div style="text-align:right;margin-top:-6px;margin-bottom:14px"><span style="font-size:11.5px;color:var(--ink-faint);text-decoration:underline;cursor:pointer" onclick="switchAuthMode('forgot')">Forgot password?</span></div>` : ''}
+        <button class="btn btn-gold btn-block" onclick="${isSignup?'handleSignup()':'handleLogin()'}">${isSignup?'Create account':'Sign in'}</button>
+        <div class="join-hint" style="margin-top:16px">${isSignup
+          ? `Already have an account? <span style="text-decoration:underline;cursor:pointer;color:var(--gold)" onclick="switchAuthMode('login')">Sign in</span>`
+          : `New here? <span style="text-decoration:underline;cursor:pointer;color:var(--gold)" onclick="switchAuthMode('signup')">Create an account</span>`}</div>
+        <div class="join-hint" style="margin-top:12px">Your account lives on a real server now (${escapeHtml(API_BASE)}) — but payments here are still simulated, no real money moves.</div>
+        <div style="text-align:center;margin-top:16px"><span style="font-size:11px;color:var(--ink-faint);text-decoration:underline;cursor:pointer" onclick="goLanding()">← Back to Keep it up!</span></div>
+      </div>
+    </div>`;
+}
+async function requestPasswordReset(){
+  const email = (document.getElementById('forgot-email').value||'').trim();
+  if(!email){ toast('Enter your email first.'); return; }
+  try{
+    await apiFetch('/api/request-password-reset', { method:'POST', body:{ email } });
+    toast('If that email has an account, a reset link is on its way.');
+  }catch(e){ toast(e.message); }
+}
+
+/* ===================== THEME SWITCHER ===================== */
+function applyTheme(id){ document.documentElement.setAttribute('data-theme', id); localStorage.setItem(THEME_KEY, id); renderThemeList(); }
+function renderThemeList(){
+  const current = localStorage.getItem(THEME_KEY) || 'midnight';
+  const el = document.getElementById('theme-list'); if(!el) return;
+  el.innerHTML = THEMES.map(t=>`<div class="theme-opt ${t.id===current?'sel':''}" onclick="applyTheme('${t.id}')"><div class="theme-swatch" data-p="${t.id}"></div><div><b>${t.name}</b><div style="font-size:10.5px;color:var(--ink-faint)">${t.desc}</div></div></div>`).join('');
+  el.querySelectorAll('[data-p]').forEach(sw=>{ sw.innerHTML = THEME_COLORS[sw.getAttribute('data-p')].map(c=>`<i style="background:${c}"></i>`).join(''); });
+}
+function toggleThemePop(e){ e.stopPropagation(); const lp=document.getElementById('lang-pop'); if(lp) lp.classList.remove('open'); document.getElementById('theme-pop').classList.toggle('open'); }
+function renderLangList(){
+  const current = getLang();
+  const el = document.getElementById('lang-list'); if(!el) return;
+  el.innerHTML = LANGS.map(l=>`<div class="theme-opt ${l.id===current?'sel':''}" onclick="setLang('${l.id}')"><span style="font-size:18px;width:18px;text-align:center">${l.flag}</span><div><b>${escapeHtml(l.name)}</b></div></div>`).join('');
+}
+function toggleLangPop(e){ e.stopPropagation(); const tp=document.getElementById('theme-pop'); if(tp) tp.classList.remove('open'); document.getElementById('lang-pop').classList.toggle('open'); }
+document.addEventListener('click', function(e){
+  const pop = document.getElementById('theme-pop');
+  const lpop = document.getElementById('lang-pop');
+  if(pop && pop.classList.contains('open') && !pop.contains(e.target) && !e.target.closest('#theme-btn')) pop.classList.remove('open');
+  if(lpop && lpop.classList.contains('open') && !lpop.contains(e.target) && !e.target.closest('#lang-btn')) lpop.classList.remove('open');
+});
+
+/* ===================== PIN STATE (stats/controls docked vs. drawer) ===================== */
+function getPins(){ try{ return JSON.parse(localStorage.getItem(PINS_KEY)) || {stats:false, controls:false}; }catch(e){ return {stats:false, controls:false}; } }
+function setPins(p){ localStorage.setItem(PINS_KEY, JSON.stringify(p)); }
+function togglePin(which){ const p=getPins(); p[which]=!p[which]; setPins(p); if(p[which]) closeDrawersInternal(); renderLive(); }
+function handlePanelIconClick(which){ const p=getPins(); if(p[which]) togglePin(which); else openDrawerPanel(which); }
+
+/* ===================== ROUTING ===================== */
+function joinUrl(code){
+  if(currentUser && currentUser.username){ return location.origin + '/' + currentUser.username; }
+  return location.origin + location.pathname + '?join=' + code;
+}
+function getJoinCode(){
+  const qp = new URLSearchParams(location.search).get('join');
+  if(qp) return qp;
+  // Pretty URL support: https://keep-it-up.app/tayles resolves the same as ?join=tayles
+  const seg = location.pathname.replace(/^\/+|\/+$/g, '');
+  if(seg && !seg.includes('/') && !/\.(html?|ico|png|jpg|svg|txt|json)$/i.test(seg)) return seg;
+  return null;
+}
+function overlayUrl(code){ return location.origin + location.pathname + '?overlay=' + code; }
+function getOverlayCode(){ return new URLSearchParams(location.search).get('overlay'); }
+function getResetToken(){ return new URLSearchParams(location.search).get('reset'); }
+function getLegalPage(){ return new URLSearchParams(location.search).get('legal'); }
+
+function renderResetPasswordScreen(token){
+  const el = document.getElementById('auth');
+  el.innerHTML = `
+    <div class="admit-card" style="width:400px">
+      <div class="admit-head">
+        <div class="admit-logo" style="justify-content:center"><div class="eq-mark"><i></i><i></i><i></i><i></i></div>Keep it up!</div>
+        <h2 style="font-size:22px">Set a new password</h2>
+        <div class="jsub">Make it something you don't use anywhere else.</div>
+      </div>
+      <div class="admit-body">
+        <div class="join-field"><label>New password</label><input id="reset-pass1" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter'){document.getElementById('reset-pass2').focus();}"></div>
+        <div class="join-field"><label>Confirm new password</label><input id="reset-pass2" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter'){submitNewPassword('${token.replace(/'/g,"\\'")}');}"></div>
+        <button class="btn btn-gold btn-block" onclick="submitNewPassword('${token.replace(/'/g,"\\'")}')">Set new password</button>
+        <div class="join-hint" style="margin-top:16px">This link works once and expires after an hour, for safety.</div>
+      </div>
+    </div>`;
+}
+async function submitNewPassword(token){
+  const p1 = document.getElementById('reset-pass1').value;
+  const p2 = document.getElementById('reset-pass2').value;
+  if(!p1 || p1.length<6){ toast('Password must be at least 6 characters.'); return; }
+  if(p1!==p2){ toast('Those two passwords don\'t match.'); return; }
+  try{
+    await apiFetch('/api/reset-password', { method:'POST', body:{ token, newPassword:p1 } });
+    toast('Password updated — sign in with your new password.');
+    history.replaceState({}, '', location.pathname);
+    showAuthScreen('login');
+  }catch(e){ toast(e.message); }
+}
+
+async function goApp(){
+  if(!currentUser) await refreshCurrentUser();
+  if(!getCurrentAccount()){ showAuthScreen('signup'); return; }
+  document.getElementById('landing').classList.remove('active');
+  document.getElementById('join').classList.remove('active');
+  document.getElementById('auth').classList.remove('active');
+  document.getElementById('app').classList.add('active');
+  refreshUsernameDisplay();
+  await refreshCurrentShow();
+  if(db.session && db.session.status==='live'){ showView('sessions-live'); } else { showView('sessions-host'); }
+}
+function goLanding(){ document.getElementById('app').classList.remove('active'); document.getElementById('auth').classList.remove('active'); document.getElementById('landing').classList.add('active'); }
+async function refreshForView(name){
+  try{
+    if(name==='sessions-host' || name==='sessions-live'){ await refreshCurrentShow(); }
+    else if(name==='sessions-history'){ await refreshHistory(); }
+    else if(name==='finances-overview' || name==='finances-transactions'){ await refreshTransactions(); }
+    else if(name==='finances-wallets'){ db.wallets = loadWallets(); await refreshTransactions(); }
+    else if(name==='analytics'){ await refreshHistory(); await refreshTransactions(); }
+  }catch(e){ /* apiFetch already shows a toast */ }
+}
+async function showView(name){
+  currentView = name;
+  document.querySelectorAll('.pageview').forEach(v=>v.style.display='none');
+  document.getElementById('view-'+name).style.display='block';
+  const appContentEl = document.getElementById('app-content');
+  if(appContentEl) appContentEl.style.display = (name==='sessions-live') ? 'none' : 'block';
+  document.querySelectorAll('.nav-link').forEach(l=>{
+    const base = l.getAttribute('data-view');
+    const group = (base==='sessions-host'||base==='sessions-history') ? 'sessions-host' : (base==='finances-overview'||base==='finances-transactions'||base==='finances-wallets') ? 'finances-overview' : base;
+    const curGroup = (name==='sessions-host'||name==='sessions-history'||name==='sessions-live') ? 'sessions-host' : (name==='finances-overview'||name==='finances-transactions'||name==='finances-wallets') ? 'finances-overview' : name;
+    l.classList.toggle('active', group===curGroup);
+  });
+  await refreshForView(name);
+  render();
+}
+document.addEventListener('click', function(e){ const l = e.target.closest('.nav-link'); if(l) showView(l.getAttribute('data-view')); });
+
+function resetDemo(){
+  if(!confirm("Clear locally-saved wallets and preferences on this device?\n\n(Your account, shows, and history live on the server now — this only clears the few things still stored in this browser.)")) return;
+  const uidKey = currentUser ? currentUser.id : 'anon';
+  localStorage.removeItem(WALLETS_PREFIX+uidKey);
+  localStorage.removeItem(LASTSETTINGS_PREFIX+uidKey);
+  db.wallets = loadWallets();
+  toast('Local data cleared');
+  render();
+}
+
+/* ===================== MASTER RENDER ===================== */
+function render(){
+  applyStaticTranslations();
+  const isOverlay = !!getOverlayCode();
+  if(isOverlay){
+    document.getElementById('landing').classList.remove('active');
+    document.getElementById('app').classList.remove('active');
+    document.getElementById('join').classList.remove('active');
+    document.getElementById('auth').classList.remove('active');
+    document.getElementById('overlay').classList.add('active');
+    renderOverlay();
+    return;
+  }
+  const isJoin = !!getJoinCode();
+  if(isJoin){
+    document.getElementById('landing').classList.remove('active');
+    document.getElementById('app').classList.remove('active');
+    document.getElementById('join').classList.add('active');
+    renderJoinSmart();
+    return;
+  }
+  if(document.getElementById('app').classList.contains('active')){
+    switch(currentView){
+      case 'sessions-host': renderSessionsHost(); break;
+      case 'sessions-history': renderSessionsHistory(); break;
+      case 'finances-overview': renderFinancesOverview(); break;
+      case 'finances-transactions': renderFinancesTransactions(); break;
+      case 'finances-wallets': renderFinancesWallets(); break;
+      case 'sessions-live': renderLive(); break;
+      case 'analytics': renderAnalytics(); break;
+    }
+  }
+}
+function applyStaticTranslations(){
+  const map = { 'nl-sessions':t('nav_sessions'), 'nl-finances':t('nav_finances'), 'nl-analytics':t('nav_analytics'), 'nl-yourlink':t('your_link'), 'nl-reset':t('reset') };
+  Object.keys(map).forEach(id=>{ const el=document.getElementById(id); if(el) el.textContent = map[id]; });
+}
+function renderAnalytics(){
+  const el = document.getElementById('view-analytics');
+  const totalShows = db.history.length + (db.session ? 1 : 0);
+  const historyEarnings = db.history.reduce((s,h)=>s+h.earnings,0);
+  const liveEarnings = db.session ? sessionEarnings(db.session) : 0;
+  const totalEarned = historyEarnings + liveEarnings;
+  const totalCrowd = db.history.reduce((s,h)=>s+h.totalParticipants,0) + (db.session ? db.session.totalParticipants : 0);
+  const avgEarnings = totalShows>0 ? totalEarned/totalShows : 0;
+
+  const rows = db.history.slice(-7).map(h=>({label:h.title, val:h.earnings}));
+  if(db.session){ rows.push({label:db.session.title+' •', val: liveEarnings}); }
+  const maxVal = Math.max(1, ...rows.map(r=>r.val));
+  const barsHtml = rows.map(r=>`<div class="grp"><div class="b earn" style="height:${Math.round(r.val/maxVal*100)}%"></div></div>`).join('');
+  const labelsHtml = rows.map(r=>`<span>${escapeHtml(r.label.slice(0,9))}</span>`).join('');
+
+  const topRows = db.history.slice().sort((a,b)=>b.earnings-a.earnings).slice(0,5);
+
+  el.innerHTML = `
+    <div class="page-head"><h1>${t('page_analytics')}</h1></div>
+    <div class="bento">
+      <div class="card b-main"><div class="stat-h"><div><h3>${t('an_total_earned')}</h3><p>${t('an_total_earned_sub')}</p></div><span class="badge badge-mint">All-time</span></div><div class="sc-val">${money(totalEarned)}</div></div>
+      <div class="card b-side"><div class="stat-h"><div><h3>${t('an_shows')}</h3><p>${t('an_shows_sub')}</p></div></div><div class="sc-val">${totalShows}</div></div>
+      <div class="card b-side"><div class="stat-h"><div><h3>${t('an_crowd')}</h3><p>${t('an_crowd_sub')}</p></div></div><div class="sc-val">${totalCrowd}</div></div>
+    </div>
+    <div class="chart-stack">
+      <div class="card">
+        <div class="chart-head"><div class="chart-sub"><h4>${t('an_per_show')}</h4><p>${rows.length} shows</p></div></div>
+        ${rows.length ? `<div class="bars">${barsHtml}</div><div class="bar-labels">${labelsHtml}</div>` : `<div class="not-enough" style="margin-top:16px">${t('an_no_shows')}</div>`}
+      </div>
+      <div class="card">
+        <div class="chart-head"><div class="chart-sub"><h4>${t('an_top_shows')}</h4><p>${t('an_by_earnings')}</p></div></div>
+        ${topRows.length ? `<table class="table" style="margin-top:6px"><thead><tr><th>${t('th_session')}</th><th>${t('th_crowd')}</th><th>${t('th_earned')}</th></tr></thead><tbody>${topRows.map(h=>`<tr><td>${escapeHtml(h.title)}</td><td>${h.totalParticipants}</td><td class="mono">${money(h.earnings)}</td></tr>`).join('')}</tbody></table>` : `<div class="not-enough" style="margin-top:16px">${t('an_no_wrapped')}</div>`}
+      </div>
+    </div>
+    <div class="card" style="margin-top:14px"><div class="stat-h"><div><h3>${t('an_avg')}</h3><p>${t('an_avg_sub')}</p></div></div><div class="sc-val" style="font-size:24px;margin-top:8px">${money(avgEarnings)}</div></div>`;
+}
+
+/* ===================== SESSIONS / HOST ===================== */
+function renderSessionsHost(){
+  const el = document.getElementById('view-sessions-host');
+  const subtabs = `<div class="subtabs"><div class="subtab active">${t('tab_host')}</div><div class="subtab nav-link" data-view="sessions-history">${t('tab_history')}</div></div>`;
+  const linkLine = `<div class="code-inline">${t('permanent_link')} <span onclick="openShare()" style="text-decoration:underline;cursor:pointer;color:var(--gold)">${escapeHtml(joinUrl(getOrCreateAccountCode()))}</span></div>`;
+  if(db.session && db.session.status==='live'){
+    el.innerHTML = `
+      <div class="page-head"><h1>${t('page_sessions')}</h1><button class="btn btn-ghost" onclick="openShare()">${t('btn_share')}</button></div>
+      ${subtabs}
+      <div class="empty">
+        <div class="resume-card"><b>${escapeHtml(db.session.title)}</b><span>${t('already_live')} · ${db.session.queue.length} ${t('queued_up')}</span></div>
+        <button class="btn btn-gold" onclick="showView('sessions-live')">${t('back_to_stage')}</button>
+        ${linkLine}
+      </div>`;
+  } else {
+    el.innerHTML = `
+      <div class="page-head"><h1>${t('page_sessions')}</h1></div>
+      ${subtabs}
+      <div class="empty">
+        <h2>${t('host_empty_title')}</h2>
+        <p>${t('host_empty_sub')}</p>
+        <input id="new-sess-name" class="sess-name-input" type="text" placeholder="${t('sess_name_ph')}" maxlength="40">
+        <button class="btn btn-gold" onclick="startSession()">${t('btn_go_live')}</button>
+        ${linkLine}
+      </div>`;
+  }
+}
+function defaultSettings(){
+  return { streamType:'list', skipFee:5, entryFeeEnabled:false, entryFee:2, cap:null, skipsEnabled:true, acceptingSubmissions:true, notifSounds:true, notifVolume:50, skipSound:null, skipSoundName:null, submissionSound:null, submissionSoundName:null };
+}
+function loadLastSettings(){
+  const key = LASTSETTINGS_PREFIX + (currentUser ? currentUser.id : 'anon');
+  try{ return JSON.parse(localStorage.getItem(key)) || null; }catch(e){ return null; }
+}
+function saveLastSettings(settings){
+  const key = LASTSETTINGS_PREFIX + (currentUser ? currentUser.id : 'anon');
+  localStorage.setItem(key, JSON.stringify(settings));
+}
+async function startSession(){
+  const input = document.getElementById('new-sess-name');
+  const title = (input && input.value.trim()) || 'Untitled Session';
+  const base = loadLastSettings() || defaultSettings();
+  base.acceptingSubmissions = true;
+  base.streamType = (base.streamType === 'bracket') ? 'list' : base.streamType; // Bracket Wars needs a newer backend — fall back to List
+  try{
+    const data = await apiFetch('/api/shows', { method:'POST', body:{ title, settings: base } });
+    db.session = Object.assign({}, data.show, { queue: [] });
+    showView('sessions-live');
+  }catch(e){ toast(e.message); }
+}
+
+/* ===================== SESSIONS / HISTORY ===================== */
+function renderSessionsHistory(){
+  const el = document.getElementById('view-sessions-history');
+  const rows = db.history.slice().reverse();
+  let body = rows.length ? `<div class="card" style="padding:0;overflow:hidden"><table class="table"><thead><tr><th>${t('th_session')}</th><th>${t('th_date')}</th><th>${t('th_duration')}</th><th>${t('th_crowd')}</th><th>${t('th_earned')}</th><th></th></tr></thead><tbody>` +
+    rows.map(h=>`<tr><td>${escapeHtml(h.title)}</td><td>${fmtDate(h.endedAt)}</td><td class="mono">${fmtDur(h.durationSec)}</td><td>${h.totalParticipants}</td><td class="mono">${money(h.earnings)}</td><td><button class="btn-xs" onclick="openSetlistModal('${h.id}')">Setlist</button></td></tr>`).join('') +
+    `</tbody></table></div>`
+    : `<div class="empty"><h2>${t('history_empty_title')}</h2><p>${t('history_empty_sub')}</p></div>`;
+  el.innerHTML = `<div class="page-head"><h1>${t('page_sessions')}</h1>${rows.length ? `<button class="btn-xs" onclick="exportHistoryCSV()">Export CSV</button>` : ''}</div><div class="subtabs"><div class="subtab nav-link" data-view="sessions-host">${t('tab_host')}</div><div class="subtab active">${t('tab_history')}</div></div>${body}`;
+}
+function openSetlistModal(historyId){
+  const h = db.history.find(x=>x.id===historyId); if(!h) return;
+  const overlayEl = document.createElement('div');
+  overlayEl.className='modal-overlay';
+  let inner = '';
+  if(h.bracket){
+    inner = `<div class="sub-label" style="margin-top:0">Bracket Wars result</div>`
+      + (h.bracket.champion ? `<div class="mini-stat"><div class="ms-top"><div><b>Champion</b><p>${escapeHtml(h.bracket.champion.name)}</p></div></div><div class="ms-val" style="font-size:15px">${h.bracket.champion.fileData ? escapeHtml(h.bracket.champion.fileName) : escapeHtml(h.bracket.champion.song||'')}</div></div>` : `<div class="not-enough">Bracket didn't finish.</div>`)
+      + bracketRoundsHtml(h.bracket);
+  } else if(h.songs && h.songs.length){
+    inner = h.songs.map((sng,i)=>`
+      <div class="ticket">
+        <div class="stub">${i+1}</div>
+        <div class="body">
+          <div class="binfo">
+            <b>${escapeHtml(sng.name)}</b>
+            <span>${sng.fileData ? escapeHtml(sng.fileName||'uploaded file') : escapeHtml(sng.song||'')}${sng.paidTotal>0 ? ' · '+money(sng.paidTotal)+' paid' : ''}</span>
+          </div>
+        </div>
+      </div>`).join('');
+  } else {
+    inner = `<div class="not-enough">No songs were marked as reacted during this show.</div>`;
+  }
+  overlayEl.innerHTML = `
+    <div class="modal" style="max-height:80vh;overflow-y:auto">
+      <h3>${escapeHtml(h.title)}</h3>
+      <div class="msub">${fmtDate(h.endedAt)} · ${fmtDur(h.durationSec)} · ${h.totalParticipants} crowd · ${money(h.earnings)} earned</div>
+      ${inner}
+      <div class="modal-actions"><button class="btn btn-gold btn-block" onclick="this.closest('.modal-overlay').remove()">Close</button></div>
+    </div>`;
+  overlayEl.addEventListener('click', e=>{ if(e.target===overlayEl) overlayEl.remove(); });
+  document.body.appendChild(overlayEl);
+}
+
+/* ===================== FINANCES ===================== */
+function financeTotals(){
+  let pending=0, available=0, payouts=0;
+  db.transactions.forEach(t=>{
+    if(t.status==='pending') pending += t.amount;
+    else if(t.status==='available') available += t.amount;
+    else if(t.status==='payout') payouts += Math.abs(t.amount);
+  });
+  return {pending, available, payouts};
+}
+function monthKey(ts){ const d=new Date(ts); return d.getFullYear()+'-'+d.getMonth(); }
+
+function renderFinancesOverview(){
+  const el = document.getElementById('view-finances-overview');
+  const fin = financeTotals();
+  const now = new Date();
+  const buckets = [];
+  for(let i=5;i>=0;i--){ const d = new Date(now.getFullYear(), now.getMonth()-i, 1); buckets.push({key:d.getFullYear()+'-'+d.getMonth(), label:d.toLocaleDateString('de-DE',{month:'short'}).replace('.',''), earn:0, pay:0}); }
+  db.transactions.forEach(tr=>{ const k = monthKey(tr.date); const b = buckets.find(x=>x.key===k); if(!b) return; if(tr.status==='payout') b.pay += Math.abs(tr.amount); else b.earn += tr.amount; });
+  const maxVal = Math.max(1, ...buckets.map(b=>Math.max(b.earn,b.pay)));
+  const barsHtml = buckets.map(b=>`<div class="grp"><div class="b earn" style="height:${Math.round(b.earn/maxVal*100)}%"></div><div class="b pay" style="height:${Math.round(b.pay/maxVal*100)}%"></div></div>`).join('');
+  const labelsHtml = buckets.map(b=>`<span>${b.label}</span>`).join('');
+
+  const days=[]; for(let i=13;i>=0;i--){ const d=new Date(); d.setDate(d.getDate()-i); d.setHours(0,0,0,0); days.push({ts:d.getTime(), val:0}); }
+  let running=0;
+  const sorted = db.transactions.filter(tr=>tr.status!=='payout').slice().sort((a,b)=>a.date-b.date);
+  days.forEach((day)=>{ const dayEnd = day.ts + 86400000; running = sorted.filter(tr=>tr.date < dayEnd).reduce((s,tr)=>s+tr.amount,0); day.val = running; });
+  const maxLine = Math.max(1, ...days.map(d=>d.val));
+  const pts = days.map((d,i)=> (i/(days.length-1)*400) + ',' + (160 - (d.val/maxLine*140)) ).join(' ');
+  const firstLabel = new Date(days[0].ts).toLocaleDateString('de-DE',{day:'2-digit',month:'long'});
+  const lastLabel = new Date(days[days.length-1].ts).toLocaleDateString('de-DE',{day:'2-digit',month:'long'});
+
+  el.innerHTML = `
+    <div class="page-head"><h1>${t('page_finances')}</h1><button class="btn btn-ghost" onclick="requestPayout()">${t('btn_payout')} ${money(fin.available)}</button></div>
+    <div class="subtabs"><div class="subtab active">${t('tab_overview')}</div><div class="subtab nav-link" data-view="finances-transactions">${t('tab_transactions')}</div><div class="subtab nav-link" data-view="finances-wallets">${t('tab_wallets')}</div></div>
+    <div class="bento">
+      <div class="card b-main"><div class="stat-h"><div><h3>${t('ready_cashout')}</h3><p>${t('ready_cashout_sub')}</p></div><span class="badge badge-mint">Ready</span></div><div class="sc-val">${money(fin.available)}</div></div>
+      <div class="card b-side"><div class="stat-h"><div><h3>${t('in_pot')}</h3><p>${t('in_pot_sub')}</p></div><span class="badge badge-violet">Pending</span></div><div class="sc-val">${money(fin.pending)}</div></div>
+      <div class="card b-side"><div class="stat-h"><div><h3>${t('on_way')}</h3><p>${t('on_way_sub')}</p></div><span class="badge badge-gold">Payout</span></div><div class="sc-val">${money(fin.payouts)}</div></div>
+    </div>
+    <div class="chart-stack">
+      <div class="card"><div class="chart-head"><div class="chart-sub"><h4>${t('earn_vs_payout')}</h4><p>${t('last_6mo')}</p></div></div><div class="bars">${barsHtml}</div><div class="bar-labels">${labelsHtml}</div><div class="legend"><span><i class="dot earn"></i>${t('th_earned')}</span><span><i class="dot pay"></i>${t('btn_payout')}</span></div></div>
+      <div class="card"><div class="chart-head"><div class="chart-sub"><h4>${t('running_total')}</h4><p>${t('last_14d')}</p></div></div>
+        <div class="linechart"><svg viewBox="0 0 400 160" preserveAspectRatio="none">
+          <defs><linearGradient id="lg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" style="stop-color:var(--gold);stop-opacity:.32"/><stop offset="100%" style="stop-color:var(--gold);stop-opacity:0"/></linearGradient></defs>
+          <polygon points="${pts} 400,160 0,160" style="fill:url(#lg)"/>
+          <polyline points="${pts}" style="fill:none;stroke:var(--gold);stroke-width:2.5"/>
+        </svg></div>
+        <div class="bar-labels" style="margin-top:0"><span>${firstLabel}</span><span>${lastLabel}</span></div>
+        <div class="chart-footer"><button class="active">${t('th_earned')}</button><button disabled>${t('btn_payout')}</button></div>
+      </div>
+    </div>`;
+}
+async function requestPayout(){
+  if(!db.wallets.length){ toast('Connect a wallet under Finances → Wallets first.'); return; }
+  try{
+    const data = await apiFetch('/api/payout', { method:'POST' });
+    toast('Payout of '+money(data.amount)+' requested (simulated)');
+    await refreshTransactions();
+    render();
+  }catch(e){ toast(e.message); }
+}
+function renderFinancesTransactions(){
+  const el = document.getElementById('view-finances-transactions');
+  const rows = db.transactions.slice().sort((a,b)=>b.date-a.date);
+  const typeLabel = {skip_fee:'Skip', overtake_fee:'Take #1', entry_fee:'Entry fee', payout:t('btn_payout')};
+  const body = rows.length ? rows.map(tr=>`
+    <tr><td class="mono">${fmtDate(tr.date)}</td><td>${typeLabel[tr.type]||tr.type}</td><td>${escapeHtml(tr.sessionTitle||'—')}</td>
+    <td class="mono" style="color:${tr.amount<0?'var(--coral)':'var(--ink)'}">${tr.amount<0?'−':''}${money(Math.abs(tr.amount))}</td>
+    <td><span class="status-pill status-${tr.status}">${tr.status==='pending'?'Pending':tr.status==='available'?'Ready':t('btn_payout')}</span></td></tr>`).join('')
+    : `<tr><td colspan="5" style="text-align:center;color:var(--ink-faint);padding:40px 0">${t('no_tx')}</td></tr>`;
+  el.innerHTML = `
+    <div class="page-head"><h1>${t('page_finances')}</h1><div style="display:flex;gap:8px"><button class="btn-xs" onclick="exportTransactionsCSV()">Export CSV</button><button class="btn btn-ghost" onclick="requestPayout()">${t('btn_payout')} ${money(financeTotals().available)}</button></div></div>
+    <div class="subtabs"><div class="subtab nav-link" data-view="finances-overview">${t('tab_overview')}</div><div class="subtab active">${t('tab_transactions')}</div><div class="subtab nav-link" data-view="finances-wallets">${t('tab_wallets')}</div></div>
+    <div class="card" style="padding:0;overflow:hidden"><table class="table"><thead><tr><th>${t('th_date')}</th><th>${t('th_type')}</th><th>${t('th_session')}</th><th>${t('th_amount')}</th><th>${t('th_status')}</th></tr></thead><tbody>${body}</tbody></table></div>`;
+}
+function renderFinancesWallets(){
+  const el = document.getElementById('view-finances-wallets');
+  const rows = db.wallets.map(w=>`<div class="wallet-row"><div><b>${escapeHtml(w.label)}</b><span>${fmtDate(w.connectedAt)}</span></div><button class="btn-xs" onclick="removeWallet('${w.id}')">${t('remove')}</button></div>`).join('');
+  const listOrEmpty = db.wallets.length ? rows : `<div class="empty" style="min-height:16vh"><h2 style="font-size:22px">${t('no_wallets_title')}</h2><p>${t('no_wallets_sub')}</p></div>`;
+  el.innerHTML = `
+    <div class="page-head"><h1>${t('page_finances')}</h1><button class="btn btn-ghost" onclick="requestPayout()">${t('btn_payout')} ${money(financeTotals().available)}</button></div>
+    <div class="subtabs"><div class="subtab nav-link" data-view="finances-overview">${t('tab_overview')}</div><div class="subtab nav-link" data-view="finances-transactions">${t('tab_transactions')}</div><div class="subtab active">${t('tab_wallets')}</div></div>
+    <div class="msub" style="margin-bottom:14px">Wallets aren't wired to the server yet (no payment provider behind this demo) — saved only in this browser for now.</div>
+    <div style="margin-bottom:24px">${listOrEmpty}</div>
+    <div class="field-label">${t('connect_new_wallet')}</div>
+    <div class="connect-form"><input id="wallet-input" type="text" placeholder="${t('wallet_ph')}"><button class="btn btn-gold" onclick="connectWallet()">${t('btn_connect')}</button></div>`;
+}
+function connectWallet(){
+  const input = document.getElementById('wallet-input'); const val = input.value.trim();
+  if(!val){ toast('Enter an address first.'); return; }
+  db.wallets.push({id:uid(), label:val, connectedAt:Date.now()});
+  saveWallets(db.wallets);
+  toast('Wallet connected (simulated)'); render();
+}
+function removeWallet(id){ db.wallets = db.wallets.filter(w=>w.id!==id); saveWallets(db.wallets); render(); }
+
+/* ===================== MEDIA / PLATFORM DETECTION ===================== */
+function isUrl(str){ return /^https?:\/\//i.test(str||''); }
+function detectPlatform(url){
+  if(!url) return 'link';
+  const u = url.toLowerCase();
+  if(u.includes('spotify.com')) return 'spotify';
+  if(u.includes('youtube.com')||u.includes('youtu.be')) return 'youtube';
+  if(u.includes('soundcloud.com')) return 'soundcloud';
+  if(u.includes('dropbox.com')) return 'dropbox';
+  return 'link';
+}
+const PLATFORM_META = {
+  spotify:{label:'Spotify', color:'#1ED760'}, youtube:{label:'YouTube', color:'#FF3B3B'},
+  soundcloud:{label:'SoundCloud', color:'#FF7A33'}, dropbox:{label:'Dropbox', color:'#4C8DFF'}, link:{label:'Link', color:'var(--ink-faint)'}
+};
+function platformBadge(url){ const p=detectPlatform(url); const m=PLATFORM_META[p]; return `<span class="plat-badge" style="color:${m.color};border-color:${m.color}">${m.label}</span>`; }
+function youTubeId(url){ const m = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/); return m ? m[1] : null; }
+function spotifyEmbed(url){ const m = url.match(/open\.spotify\.com\/(track|album|playlist|episode|show)\/([A-Za-z0-9]+)/); return m ? 'https://open.spotify.com/embed/'+m[1]+'/'+m[2] : null; }
+function dropboxDirect(url){ if(url.includes('dl=0')) return url.replace('dl=0','raw=1'); return url + (url.includes('?')?'&':'?') + 'raw=1'; }
+
+function renderMedia(p, compact){
+  if(p.fileData){ return `<audio controls src="${escapeHtml(p.fileData)}"></audio>`; }
+  const url = p.song || '';
+  if(!url) return '';
+  const plat = detectPlatform(url);
+  if(plat==='youtube'){ const id = youTubeId(url); if(id) return `<div class="embed-wrap${compact?' sm':''}"><iframe src="https://www.youtube.com/embed/${id}" allow="autoplay; encrypted-media" allowfullscreen></iframe></div>`; }
+  if(plat==='spotify'){ const src = spotifyEmbed(url); if(src) return `<div class="embed-wrap${compact?' sm':''} spotify"><iframe src="${src}" allow="encrypted-media"></iframe></div>`; }
+  if(plat==='soundcloud'){ return `<div class="embed-wrap${compact?' sm':''} soundcloud"><iframe src="https://w.soundcloud.com/player/?url=${encodeURIComponent(url)}&color=%23ff5500&auto_play=false"></iframe></div>`; }
+  if(plat==='dropbox'){ return `<audio controls src="${escapeHtml(dropboxDirect(url))}"></audio>`; }
+  return `<a href="${escapeHtml(url)}" target="_blank" class="btn btn-outline" style="margin-top:14px;display:inline-block">Open link ↗</a>`;
+}
+
+/* ===================== LIVE SESSION ===================== */
+let liveTimerHandle=null;
+let openDrawer=null;
+let expandedOnDeckId=null;
+
+function statsPanelInner(s){
+  const topPayer = s.queue.slice().sort((a,b)=>b.paidTotal-a.paidTotal)[0];
+  return `
+    <div class="sub-label">${t('tonight')}</div>
+    <div class="mini-stat"><div class="ms-top"><div><b>${t('crowd')}</b><p>${t('crowd_desc')}</p></div></div><div class="ms-val">${s.totalParticipants}</div></div>
+    <div class="mini-stat"><div class="ms-top"><div><b>${t('earned')}</b><p>${t('earned_desc')}</p></div></div><div class="ms-val">${money(sessionEarnings(s))}</div></div>
+    <div class="rec-banner"><b>${t('tip_title')}</b>${t('tip_body')}</div>
+    <div class="sub-label">${t('top_spender')}</div>
+    <div class="small-chart">
+      <div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:12px;text-transform:uppercase;color:var(--ink-dim)">${t('most_paid')}</b><span class="livepill">Live</span></div>
+      ${topPayer && topPayer.paidTotal>0 ? `<div style="margin-top:12px;font-size:14px">${escapeHtml(topPayer.name)} <span class="mono" style="color:var(--gold);float:right">${money(topPayer.paidTotal)}</span></div>` : `<div class="not-enough">${t('not_enough')}</div>`}
+    </div>`;
+}
+function soundRow(type, label, hint){
+  const s = db.session; const settings = s.settings;
+  const name = settings[type+'Name'];
+  return `
+    <div class="sound-row">
+      <div class="field-label" style="margin-bottom:4px">${label}</div>
+      <div style="font-size:11px;color:var(--ink-faint);margin-bottom:8px">${hint}</div>
+      <div class="sr-name"><span class="file-chip">${name ? escapeHtml(name) : t('default_ding')}</span>
+        <div class="sound-actions">
+          <button class="btn-xs" onclick="previewSound('${type}')">▶</button>
+          ${name ? `<button class="btn-xs" onclick="removeSound('${type}')">✕</button>` : ''}
+        </div>
+      </div>
+      <input type="file" accept="audio/*" onchange="handleSoundUpload('${type}', this)">
+    </div>`;
+}
+let accState = { queue:true, pricing:false, audio:false };
+function toggleAccSection(name){ accState[name] = !accState[name]; renderLive(); }
+function accIcon(kind){
+  if(kind==='queue') return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="4" rx="1"/><rect x="3" y="11" width="18" height="4" rx="1"/><rect x="3" y="17" width="12" height="4" rx="1"/></svg>`;
+  if(kind==='pricing') return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.5 9.5c0-1.4 1.2-2 2.5-2s2.5.7 2.5 2c0 2.6-5 1.6-5 4.2 0 1.3 1.2 2 2.5 2s2.5-.7 2.5-2"/></svg>`;
+  return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M19 9a5 5 0 010 6M22 7a9 9 0 010 10"/></svg>`;
+}
+function accSection(key, title, bodyHtml){
+  const open = !!accState[key];
+  return `
+    <div class="acc-section">
+      <div class="acc-head" onclick="toggleAccSection('${key}')">
+        <div class="acc-title">${accIcon(key)}${title}</div>
+        <svg class="acc-chev ${open?'rot':''}" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+      </div>
+      ${open ? `<div class="acc-body">${bodyHtml}</div>` : ''}
+    </div>`;
+}
+function controlsPanelInner(s){
+  const settings = s.settings;
+
+  const overview = `
+    <div class="ctrl-overview">
+      <div class="ov-tile ov-click" onclick="quickToggleQueueOpen()"><div class="ov-label">${t('ov_queue')}</div><div class="ov-val ${settings.acceptingSubmissions?'on':'off'}">${settings.acceptingSubmissions?t('open_w'):t('closed_w')}</div></div>
+      <div class="ov-tile ov-click" onclick="quickEditCap()"><div class="ov-label">${t('ov_cap')}</div><div class="ov-val">${settings.cap ? settings.cap : t('unlimited_w')}</div></div>
+      <div class="ov-tile ov-click" onclick="focusAccSection('pricing')"><div class="ov-label">${t('ov_skipfee')}</div><div class="ov-val">${money(settings.skipFee)}</div></div>
+      <div class="ov-tile ov-click" onclick="quickToggleEntryFee()"><div class="ov-label">${t('ov_entryfee')}</div><div class="ov-val ${settings.entryFeeEnabled?'on':'off'}">${settings.entryFeeEnabled?money(settings.entryFee):t('off_w')}</div></div>
+      <div class="ov-tile ov-click" onclick="quickCycleOrder()"><div class="ov-label">${t('ov_order')}</div><div class="ov-val">${settings.streamType==='trophy'?t('trophy_w'):settings.streamType==='bracket'?t('bracket_w'):t('list_w')}</div></div>
+      <div class="ov-tile ov-click" onclick="quickToggleSkips()"><div class="ov-label">${t('ov_skips')}</div><div class="ov-val ${settings.skipsEnabled?'on':'off'}">${settings.skipsEnabled?t('on_w'):t('off_w')}</div></div>
+    </div>`;
+
+  const queueBody = `
+    <div class="toggle-row"><div><b>${t('accepting')}</b><span>${t('accepting_desc')}</span></div><div class="switch ${settings.acceptingSubmissions?'on':''}" onclick="toggleSetting('acceptingSubmissions')"><div class="knob"></div></div></div>
+    <div style="margin-top:14px"><div class="field-label">${t('queue_cap')}</div><input class="text-input" type="text" value="${settings.cap ? settings.cap : t('unlimited_w')}" onchange="updateCap(this.value)" onkeydown="if(event.key==='Enter'){this.blur();}"></div>
+    <div style="margin-top:18px">
+      <div class="field-label" style="margin-bottom:10px">${t('order_type')}</div>
+      <div class="pill-row">
+        <div class="pill-opt ${settings.streamType==='list'?'active':''}" onclick="setStreamType('list')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V5M5 12l7-7 7 7"/></svg><span class="pill-label">${t('list_w')}</span></div>
+        <div class="pill-opt ${settings.streamType==='trophy'?'active':''}" onclick="setStreamType('trophy')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 01-10 0V4z"/></svg><span class="pill-label">${t('trophy_w')}</span></div>
+        <div class="pill-opt ${settings.streamType==='bracket'?'active':''}" onclick="setStreamType('bracket')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6v4h6M4 18v-4h6M10 10h4v4h-4M14 12h6"/></svg><span class="pill-label">${t('bracket_w')}</span></div>
+      </div>
+    </div>`;
+
+  const pricingBody = `
+    <div class="slider-row">
+      <div class="field-label" style="margin-bottom:2px">${t('skip_fee')}</div>
+      <input type="range" min="0.5" max="20" step="0.5" value="${settings.skipFee}" oninput="updateSkipFeeLive(this.value)" onchange="updateSkipFeeCommit(this.value)">
+      <div class="sr-top"><span>${t('per_skip')}</span><span class="sr-val" id="skipfee-val">${money(settings.skipFee)}</span></div>
+    </div>
+    <div class="toggle-row" style="margin-top:18px"><div><b>${t('entry_fee')} <span style="color:var(--ink-faint);font-weight:400">(${money(settings.entryFee)})</span></b><span>${t('entry_fee_desc')}</span></div><div class="switch ${settings.entryFeeEnabled?'on':''}" onclick="toggleSetting('entryFeeEnabled')"><div class="knob"></div></div></div>
+    <div class="toggle-row" style="margin-top:18px"><div><b style="color:var(--coral)">${t('allow_skips')}</b><span>${t('allow_skips_desc')}</span></div><div class="switch ${settings.skipsEnabled?'on':''}" onclick="toggleSetting('skipsEnabled')"><div class="knob"></div></div></div>`;
+
+  const audioBody = `
+    <div class="toggle-row"><div><b>${t('notif_sounds')}</b><span>${t('notif_sounds_desc')}</span></div><div class="switch ${settings.notifSounds?'on':''}" onclick="toggleSetting('notifSounds')"><div class="knob"></div></div></div>
+    <div class="slider-row"><input type="range" min="0" max="100" value="${settings.notifVolume}" oninput="updateVolumeLive(this.value)" onchange="updateVolumeCommit(this.value)"><div class="sr-top"><span>${t('volume')}</span><span class="sr-val" id="volume-val">${settings.notifVolume}%</span></div></div>
+    ${soundRow('submissionSound', t('submission_sound'), t('submission_sound_hint'))}
+    ${soundRow('skipSound', t('skip_sound'), t('skip_sound_hint'))}`;
+
+  return overview
+    + accSection('queue', t('acc_queue'), queueBody)
+    + accSection('pricing', t('acc_pricing'), pricingBody)
+    + accSection('audio', t('acc_audio'), audioBody);
+}
+
+function renderLive(){
+  const el = document.getElementById('view-sessions-live');
+  const s = db.session;
+  if(!s){ el.innerHTML = `<div class="empty"><h2>No session live</h2><p>Start one from Sessions → Host.</p><button class="btn btn-gold" onclick="showView('sessions-host')">Go there</button></div>`; return; }
+  const queue = s.queue;
+  const nowUp = queue[0];
+  const onDeck = queue.slice(1);
+  const pins = getPins();
+  const statsInner = statsPanelInner(s);
+  const controlsInner = controlsPanelInner(s);
+  const isBracket = s.settings.streamType==='bracket';
+  const bracketActive = isBracket && s.bracket && !s.bracket.champion;
+
+  const nowPlayingHtml = nowUp ? `
+    <div class="now-playing">
+      <div class="np-label"><span class="livepill">${t('on_now')}</span> ${t('reacting_now')} ${platformBadge(nowUp.fileData?'':nowUp.song)}</div>
+      <h2 style="word-break:break-word">${nowUp.fileData ? escapeHtml(nowUp.fileName) : (isUrl(nowUp.song) ? 'Now reacting' : escapeHtml(nowUp.song))}</h2>
+      ${!nowUp.fileData && isUrl(nowUp.song) ? `<div class="np-by" style="word-break:break-all;font-size:11px;opacity:.7">${escapeHtml(nowUp.song)}</div>` : ''}
+      <div class="np-by">${t('sent_by')} ${escapeHtml(nowUp.name)}</div>
+      ${nowUp.note ? `<div class="np-note">"${escapeHtml(nowUp.note)}"</div>` : ''}
+      ${renderMedia(nowUp,false)}
+      ${nowUp.paidTotal>0 ? `<div class="np-paid">${money(nowUp.paidTotal)} paid to get here</div>` : ''}
+      <div class="np-actions"><button class="btn btn-gold" onclick="markPlayed('${nowUp.id}')">${t('mark_reacted')}</button><button class="btn btn-outline" onclick="removeFromQueue('${nowUp.id}')">${t('skip_remove')}</button></div>
+    </div>` : `
+    <div class="now-playing np-empty">
+      <div class="mic-orb"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 1a4 4 0 0 1 4 4v6a4 4 0 1 1-8 0V5a4 4 0 0 1 4-4z"/><path d="M5 11a7 7 0 0 0 14 0M12 19v3"/></svg></div>
+      <h2>${t('waiting_title')}</h2>
+      <p>${t('waiting_sub')}</p>
+      <div class="code-inline" onclick="openShare()" style="cursor:pointer;text-decoration:underline">${t('share_your_link')}</div>
+    </div>`;
+
+  const onDeckHtml = onDeck.length ? `<div class="ondeck-row">${onDeck.map((q,i)=>`
+    <div class="ticket-sm">
+      <div class="ts-pos">#${i+2} ${platformBadge(q.fileData?'':q.song)}</div>
+      <b>${escapeHtml(q.name)}</b>
+      <span>${q.fileData ? escapeHtml(q.fileName) : escapeHtml(q.song)}${q.paidTotal>0 ? ' · '+money(q.paidTotal)+' paid' : ''}</span>
+      <div class="ts-actions"><button class="btn-xs" onclick="toggleOnDeckPreview('${q.id}')">${expandedOnDeckId===q.id?t('hide'):t('preview')}</button><button class="btn-xs" onclick="removeFromQueue('${q.id}')">${t('remove')}</button></div>
+      ${expandedOnDeckId===q.id ? (q.note?`<div style="font-size:11px;color:var(--ink-faint);margin-top:8px;font-style:italic">"${escapeHtml(q.note)}"</div>`:'') + renderMedia(q,true) : ''}
+    </div>`).join('')}</div>` : `<div class="ondeck-empty">${t('nobody_else')}</div>`;
+
+  const mainHtml = isBracket ? bracketStageHtml(s) : `
+        ${nowPlayingHtml}
+        <div class="ondeck-label"><h3>${t('on_deck')}</h3><span>${onDeck.length} ${t('waiting_count')}</span></div>
+        ${onDeckHtml}`;
+
+  el.innerHTML = `
+    <div class="stage-top">
+      <div class="st-left"><div class="back-link" onclick="showView('sessions-host')">← ${t('stage_back')}</div><div class="stage-title">${escapeHtml(s.title)}</div></div>
+      <div class="stage-timer" id="live-timer">00:00</div>
+      <div class="st-right">
+        ${!s.settings.acceptingSubmissions ? `<span class="closed-badge">${t('queue_closed')}</span>` : ''}
+        ${bracketActive ? `<span class="userpill"><span class="livedot"></span>${t('br_title')} · ${t('br_round')} ${s.bracket.roundIndex+1}</span>` : `<span class="userpill"><span class="livedot"></span>${queue.length} ${t('in_queue')}</span>`}
+        <div class="icon-btn ${pins.stats?'active':''}" onclick="handlePanelIconClick('stats')" title="Stats"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19h16M7 16v-4M12 16V8M17 16v-6"/></svg></div>
+        <div class="icon-btn ${pins.controls?'active':''}" onclick="handlePanelIconClick('controls')" title="Controls"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.9M4.6 15a1.7 1.7 0 01-.3 1.9M12 3v3M12 18v3"/></svg></div>
+        <button class="btn-xs" onclick="openShare()">${t('btn_share')}</button>
+        <button class="btn-xs" style="border-color:var(--coral);color:var(--coral)" onclick="endSession()">${t('btn_end_show')}</button>
+      </div>
+    </div>
+
+    <div class="stage-body">
+      ${pins.stats ? `<div class="pin-col left"><div class="drawer-head"><b>${t('stats')}</b><button class="btn-xs" onclick="togglePin('stats')">${t('unpin')}</button></div>${statsInner}</div>` : ''}
+      <div class="stage-main">${mainHtml}</div>
+      ${pins.controls ? `<div class="pin-col right"><div class="drawer-head"><b>${t('show_controls')}</b><button class="btn-xs" onclick="togglePin('controls')">${t('unpin')}</button></div>${controlsInner}</div>` : ''}
+    </div>
+
+    <div class="drawer-backdrop" id="drawer-backdrop" onclick="closeDrawers()"></div>
+    ${!pins.stats ? `<div class="drawer" id="drawer-stats"><div class="drawer-head"><b>${t('stats')}</b><div class="dh-actions"><button class="btn-xs" onclick="togglePin('stats')">${t('pin')}</button><div class="icon-btn" onclick="closeDrawers()">✕</div></div></div>${statsInner}</div>` : ''}
+    ${!pins.controls ? `<div class="drawer" id="drawer-controls"><div class="drawer-head"><b>${t('show_controls')}</b><div class="dh-actions"><button class="btn-xs" onclick="togglePin('controls')">${t('pin')}</button><div class="icon-btn" onclick="closeDrawers()">✕</div></div></div>${controlsInner}</div>` : ''}`;
+
+  if(openDrawer){ const d=document.getElementById('drawer-'+openDrawer); if(d){ d.classList.add('open'); document.getElementById('drawer-backdrop').classList.add('open'); } }
+  clearInterval(liveTimerHandle);
+  updateTimer();
+  liveTimerHandle = setInterval(updateTimer, 1000);
+}
+function toggleOnDeckPreview(id){ expandedOnDeckId = (expandedOnDeckId===id) ? null : id; renderLive(); }
+function openDrawerPanel(name){ closeDrawersInternal(); openDrawer=name; const d=document.getElementById('drawer-'+name); if(d){ d.classList.add('open'); document.getElementById('drawer-backdrop').classList.add('open'); } }
+function closeDrawersInternal(){ document.querySelectorAll('.drawer').forEach(d=>d.classList.remove('open')); const bd=document.getElementById('drawer-backdrop'); if(bd) bd.classList.remove('open'); }
+function closeDrawers(){ closeDrawersInternal(); openDrawer=null; }
+
+function updateTimer(){
+  const s = db.session; const timerEl = document.getElementById('live-timer');
+  if(!s || !timerEl){ clearInterval(liveTimerHandle); return; }
+  timerEl.textContent = fmtDur(Math.floor((Date.now()-s.startedAt)/1000));
+}
+function sessionEarnings(s){ return s && typeof s.earnings === 'number' ? s.earnings : 0; }
+async function patchSettings(partial){
+  const s = db.session; if(!s) return;
+  Object.assign(s.settings, partial); // optimistic local update, so sliders/toggles feel instant
+  renderLive();
+  try{ await apiFetch('/api/shows/'+s.id+'/settings', { method:'PATCH', body: partial }); }
+  catch(e){ toast(e.message); }
+}
+function toggleSetting(key){ patchSettings({ [key]: !db.session.settings[key] }); }
+function focusAccSection(sectionKey){
+  accState[sectionKey] = true;
+  const p = getPins();
+  if(!p.controls) openDrawer = 'controls';
+  renderLive();
+}
+function quickToggleQueueOpen(){ accState.queue = true; toggleSetting('acceptingSubmissions'); }
+function quickToggleEntryFee(){ accState.pricing = true; toggleSetting('entryFeeEnabled'); }
+function quickToggleSkips(){ accState.pricing = true; toggleSetting('skipsEnabled'); }
+function quickCycleOrder(){
+  accState.queue = true;
+  const order = ['list','trophy','bracket'];
+  const cur = db.session.settings.streamType;
+  const next = order[(order.indexOf(cur)+1) % order.length] || 'list';
+  setStreamType(next);
+}
+function updateVolumeLive(v){ db.session.settings.notifVolume = parseInt(v,10); const sr=document.getElementById('volume-val'); if(sr) sr.textContent = v+'%'; }
+function updateVolumeCommit(v){ patchSettings({ notifVolume: parseInt(v,10) }); }
+function updateSkipFeeLive(v){ db.session.settings.skipFee = parseFloat(v); const sr=document.getElementById('skipfee-val'); if(sr) sr.textContent = money(parseFloat(v)); }
+function updateSkipFeeCommit(v){ patchSettings({ skipFee: parseFloat(v) }); }
+function quickEditCap(){
+  const s = db.session; if(!s) return;
+  const current = s.settings.cap ? String(s.settings.cap) : '';
+  const val = prompt('Queue cap — max people in line. Leave blank for unlimited.', current);
+  if(val===null) return;
+  accState.queue = true;
+  updateCap(val);
+}
+function updateCap(v){
+  v=v.trim(); const n=parseInt(v,10);
+  const cap = (v==='' || v.toLowerCase()==='unlimited' || isNaN(n) || n<=0) ? null : n;
+  patchSettings({ cap });
+}
+function setStreamType(type){
+  resortQueue(type);
+  patchSettings({ streamType: type });
+}
+function resortQueue(type){ const s=db.session; if(s && (type||s.settings.streamType)==='trophy'){ s.queue.sort((a,b)=> b.paidTotal-a.paidTotal || a.joinedAt-b.joinedAt); } }
+
+/* ===================== BRACKET WARS (3rd mode) — the server runs the actual tournament logic now;
+   this only reads the bracket JSON it returns to figure out what to display. ===================== */
+function currentBracketMatch(bracket){
+  const round = bracket.rounds[bracket.roundIndex];
+  for(let i=0;i<round.length;i++){ if(!round[i].winner) return round[i]; }
+  return null;
+}
+async function startBracket(){
+  const s = db.session; if(!s) return;
+  try{
+    await apiFetch('/api/shows/'+s.id+'/bracket/start', { method:'POST' });
+    await refreshCurrentShow();
+    toast('Bracket started!');
+    renderLive();
+  }catch(e){ toast(e.message); }
+}
+async function pickBracketWinner(side){
+  const s = db.session; if(!s || !s.bracket || s.bracket.champion) return;
+  try{
+    await apiFetch('/api/shows/'+s.id+'/bracket/pick', { method:'POST', body:{ side } });
+    await refreshCurrentShow();
+    renderLive();
+  }catch(e){ toast(e.message); }
+}
+async function cancelBracket(){
+  const s = db.session; if(!s) return;
+  if(!confirm('Cancel the current bracket? Anyone still unfinished goes back to the live queue.')) return;
+  try{
+    await apiFetch('/api/shows/'+s.id+'/bracket/cancel', { method:'POST' });
+    await refreshCurrentShow();
+    renderLive();
+  }catch(e){ toast(e.message); }
+}
+function bracketEntryLabel(p, compact){
+  if(!p) return t('br_bye');
+  return p.fileData ? escapeHtml(p.fileName) : escapeHtml(p.song);
+}
+function bracketRoundsHtml(bracket){
+  return bracket.rounds.map((round,ri)=>`
+    <div class="br-round">
+      <div class="br-round-label">${t('br_round')} ${ri+1}</div>
+      <div class="br-round-matches">
+        ${round.map(m=>`<div class="br-mini-match">
+          <span class="${m.winner && m.a && m.winner.id===m.a.id ? 'br-win':''}">${m.a?escapeHtml(m.a.name):t('br_bye')}</span>
+          <span class="br-vs">${t('br_vs')}</span>
+          <span class="${m.winner && m.b && m.winner.id===m.b.id ? 'br-win':''}">${m.b?escapeHtml(m.b.name):t('br_bye')}</span>
+        </div>`).join('')}
+      </div>
+    </div>`).join('');
+}
+function bracketMatchHtml(match){
+  return `
+    <div class="br-match">
+      <div class="br-side" onclick="pickBracketWinner('a')">
+        <div class="br-side-name">${escapeHtml(match.a.name)}</div>
+        <div class="br-side-song">${bracketEntryLabel(match.a)}</div>
+        ${renderMedia(match.a, true)}
+        <button class="btn btn-gold btn-block" style="margin-top:10px" onclick="event.stopPropagation();pickBracketWinner('a')">${t('br_pick_winner')}</button>
+      </div>
+      <div class="br-vs-big">${t('br_vs')}</div>
+      <div class="br-side" onclick="pickBracketWinner('b')">
+        <div class="br-side-name">${escapeHtml(match.b.name)}</div>
+        <div class="br-side-song">${bracketEntryLabel(match.b)}</div>
+        ${renderMedia(match.b, true)}
+        <button class="btn btn-gold btn-block" style="margin-top:10px" onclick="event.stopPropagation();pickBracketWinner('b')">${t('br_pick_winner')}</button>
+      </div>
+    </div>`;
+}
+function bracketStageHtml(s){
+  const b = s.bracket;
+  if(!b){
+    return `<div class="now-playing np-empty">
+      <div class="mic-orb"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0V4z"/><path d="M7 5H4a1 1 0 0 0-1 1 5 5 0 0 0 4 4.9M17 5h3a1 1 0 0 1 1 1 5 5 0 0 1-4 4.9"/></svg></div>
+      <h2>${t('br_title')}</h2>
+      <p>${s.queue.length} in queue — lock them into a single-elimination bracket and pick a winner each round.</p>
+      <button class="btn btn-gold" onclick="startBracket()" ${s.queue.length<2?'disabled':''}>${t('br_start')}</button>
+    </div>`;
+  }
+  if(b.champion){
+    const c = b.champion;
+    return `
+      <div class="now-playing">
+        <div class="np-label"><span class="livepill">${t('br_champion')}</span></div>
+        <h2 style="word-break:break-word">${c.fileData ? escapeHtml(c.fileName) : (isUrl(c.song) ? 'Your submission' : escapeHtml(c.song))}${!c.fileData ? platformBadge(c.song) : ''}</h2>
+        ${!c.fileData && isUrl(c.song) ? `<div class="np-by" style="word-break:break-all;font-size:11px;opacity:.7">${escapeHtml(c.song)}</div>` : ''}
+        <div class="np-by">${t('sent_by')} ${escapeHtml(c.name)}</div>
+        ${renderMedia(c,false)}
+        <div class="np-actions">
+          <button class="btn btn-outline" onclick="cancelBracket()">${t('br_cancel')}</button>
+          ${s.queue.length>=2 ? `<button class="btn btn-gold" onclick="startBracket()">${t('br_start')}</button>` : ''}
+        </div>
+        ${s.queue.length>0 ? `<div class="code-inline">${s.queue.length} new submissions waiting for the next bracket</div>` : ''}
+      </div>
+      <div class="ondeck-label"><h3>${t('br_round')}s</h3><span></span></div>
+      <div class="card">${bracketRoundsHtml(b)}</div>`;
+  }
+  const match = currentBracketMatch(b);
+  return `
+    <div class="now-playing">
+      <div class="np-label"><span class="livepill">${t('br_round')} ${b.roundIndex+1}</span></div>
+      ${match ? bracketMatchHtml(match) : ''}
+      <div class="np-actions"><button class="btn-xs" onclick="cancelBracket()">${t('br_cancel')}</button></div>
+    </div>
+    <div class="ondeck-label"><h3>${t('br_round')}s</h3><span></span></div>
+    <div class="card">${bracketRoundsHtml(b)}</div>`;
+}
+async function markPlayed(pid){
+  const s = db.session; if(!s) return;
+  try{
+    await apiFetch('/api/shows/'+s.id+'/queue/'+pid+'/played', { method:'POST' });
+    await refreshCurrentShow();
+    renderLive();
+  }catch(e){ toast(e.message); }
+}
+async function removeFromQueue(pid){
+  const s = db.session; if(!s) return;
+  try{
+    await apiFetch('/api/shows/'+s.id+'/queue/'+pid, { method:'DELETE' });
+    await refreshCurrentShow();
+    renderLive();
+  }catch(e){ toast(e.message); }
+}
+async function endSession(){
+  const s = db.session; if(!s) return;
+  if(!confirm('End this show now?')) return;
+  try{
+    await apiFetch('/api/shows/'+s.id+'/end', { method:'POST' });
+    saveLastSettings(s.settings);
+    db.session = null;
+    clearInterval(liveTimerHandle); openDrawer=null;
+    toast('Show ended');
+    showView('sessions-history');
+  }catch(e){ toast(e.message); }
+}
+
+/* Custom skip/submission sound clips need file storage on the server (e.g. S3) — not wired up yet.
+   Notification sounds still work (on/off + volume), just without a custom uploaded clip. */
+function handleSoundUpload(type, inputEl){
+  toast('Custom sound uploads need file storage on the server — not available in the connected build yet.');
+  inputEl.value = '';
+}
+function removeSound(type){ /* no-op: uploads are disabled in the connected build */ }
+function previewSound(type){ beep(db.session.settings.notifVolume); }
+
+function openShare(){
+  const code = getOrCreateAccountCode();
+  const url = joinUrl(code);
+  const ovUrl = overlayUrl(code);
+  const modalEl = document.createElement('div');
+  modalEl.className='modal-overlay';
+  modalEl.innerHTML = `
+    <div class="modal">
+      <h3>Your stream link</h3>
+      <div class="msub">This link is permanently yours. It opens straight into your queue whenever you're live — no need to swap it out between sessions.</div>
+      <div class="link-box" id="share-link">${escapeHtml(url)}</div>
+      <div class="modal-actions"><button class="btn btn-gold" style="flex:1" onclick="copyShare('${url.replace(/'/g,"\\'")}')">Copy link</button><button class="btn btn-ghost" onclick="this.closest('.modal-overlay').remove()">Close</button></div>
+      <button class="btn btn-outline btn-block" style="margin-top:8px" onclick="window.open('${url.replace(/'/g,"\\'")}','_blank')">Open as test fan</button>
+      <div class="msub" style="margin-top:18px;padding-top:16px;border-top:1px dashed var(--line-strong)">For OBS — add this as a Browser Source (transparent background) to show "Now Reacting" on stream.</div>
+      <div class="link-box">${escapeHtml(ovUrl)}</div>
+      <button class="btn btn-outline btn-block" style="margin-top:8px" onclick="copyShare('${ovUrl.replace(/'/g,"\\'")}')">Copy OBS overlay link</button>
+    </div>`;
+  modalEl.addEventListener('click', e=>{ if(e.target===modalEl) modalEl.remove(); });
+  document.body.appendChild(modalEl);
+}
+function copyShare(url){ if(navigator.clipboard){ navigator.clipboard.writeText(url).then(()=>toast('Link copied')); } else toast('Link: '+url); }
+
+function openHelp(){
+  const overlay = document.createElement('div');
+  overlay.className='modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal">
+      <h3>Need a hand?</h3>
+      <div class="msub">Quick answers for hosting a reaction session.</div>
+      <div style="font-size:13px;line-height:1.6;color:var(--ink-dim)">
+        <p style="margin-bottom:10px"><b style="color:var(--ink)">Starting out —</b> Sessions → Host, name your session, hit Go Live. Your link never changes, so share it once and forget it.</p>
+        <p style="margin-bottom:10px"><b style="color:var(--ink)">Fans submitting —</b> they can paste any link (Spotify, YouTube, SoundCloud, Dropbox) or upload an mp3/wav straight from their device.</p>
+        <p style="margin-bottom:10px"><b style="color:var(--ink)">Pausing the queue —</b> toggle "Accepting submissions" off in Show Controls → Queue to stop new joins without ending the show.</p>
+        <p style="margin-bottom:10px"><b style="color:var(--ink)">Pin panels —</b> open Stats or Show Controls, then hit "Pin" to keep them docked on screen instead of popping up as a drawer.</p>
+        <p style="margin:0"><b style="color:var(--ink)">Payments —</b> everything here is simulated for this demo — no real money moves.</p>
+      </div>
+      <div class="modal-actions"><button class="btn btn-gold btn-block" onclick="this.closest('.modal-overlay').remove()">Got it</button></div>
+    </div>`;
+  overlay.addEventListener('click', e=>{ if(e.target===overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+}
+
+function openAccountSettings(){
+  const acc = getCurrentAccount();
+  if(!acc){ showAuthScreen('login'); return; }
+  const overlayEl = document.createElement('div');
+  overlayEl.className='modal-overlay';
+  overlayEl.innerHTML = `
+    <div class="modal">
+      <h3>Account</h3>
+      <div class="msub">Signed in ${acc.provider==='google'?'via Google (simulated)':'with email'} as ${escapeHtml(acc.email)}</div>
+      <div class="join-field"><label>Display name</label><input id="acct-name" type="text" value="${escapeHtml(acc.name)}" maxlength="24"></div>
+      <div class="join-field"><label>Your link username</label><input id="acct-username" type="text" value="${escapeHtml(acc.username||'')}" maxlength="30" placeholder="e.g. tayles" oninput="updateUsernamePreview()"></div>
+      <div class="msub" id="username-preview" style="margin-top:-10px;margin-bottom:2px">${escapeHtml(location.origin)}/<b style="color:var(--gold)">${escapeHtml(acc.username||'...')}</b></div>
+      <div class="msub" style="margin-top:6px">Your account, shows and history now live on a real server (${escapeHtml(API_BASE)}). Wallets still live only in this browser — see Finances → Wallets.</div>
+      <div class="modal-actions"><button class="btn btn-gold" style="flex:1" onclick="saveAccountName()">Save</button><button class="btn btn-ghost" onclick="this.closest('.modal-overlay').remove()">Close</button></div>
+      <div class="msub" style="margin-top:16px;padding-top:14px;border-top:1px dashed var(--line-strong)">Team/co-host access needs a newer version of the backend — not available yet.</div>
+      <button class="btn btn-outline btn-block" style="margin-top:10px;border-color:var(--coral);color:var(--coral)" onclick="handleLogout()">Log out</button>
+    </div>`;
+  overlayEl.addEventListener('click', e=>{ if(e.target===overlayEl) overlayEl.remove(); });
+  document.body.appendChild(overlayEl);
+}
+function updateUsernamePreview(){
+  const v = (document.getElementById('acct-username').value||'').trim();
+  document.getElementById('username-preview').innerHTML = escapeHtml(location.origin)+'/<b style="color:var(--gold)">'+escapeHtml(v || '...')+'</b>';
+}
+async function saveAccountName(){
+  const v = (document.getElementById('acct-name').value||'').trim();
+  if(!v){ toast('Enter a display name.'); return; }
+  const usernameInput = (document.getElementById('acct-username').value||'').trim();
+  try{
+    const body = { name: v };
+    if(usernameInput) body.username = usernameInput;
+    const data = await apiFetch('/api/me', { method:'PATCH', body });
+    currentUser = data.user;
+    refreshUsernameDisplay();
+    toast('Saved');
+    const m = document.querySelector('.modal-overlay'); if(m) m.remove();
+  }catch(e){ toast(e.message); }
+}
+
+/* ===================== PUBLIC JOIN VIEW ===================== */
+window.__joinFormActive = false;
+window.__lastJoinLiveState = null;
+
+async function renderOverlay(){
+  const code = getOverlayCode();
+  const el = document.getElementById('overlay');
+  document.documentElement.classList.add('overlay-mode');
+  document.body.classList.add('overlay-mode');
+  let data;
+  try{ data = await apiFetch('/api/public/'+encodeURIComponent(code)); }
+  catch(e){ el.innerHTML=''; return; }
+  if(!data.live || !data.nowPlaying){ el.innerHTML=''; return; }
+  const now = data.nowPlaying;
+  const nextCount = Math.max(0, (data.queueCount||1) - 1);
+  const title = isUrl(now.song) ? 'Fan submission' : now.song;
+  el.innerHTML = `
+    <div class="ov-lower-third">
+      <div class="ov-label"><span class="livedot"></span>Now Reacting</div>
+      <div class="ov-title">${escapeHtml(title)}</div>
+      <div class="ov-by">sent by ${escapeHtml(now.name)}</div>
+      ${nextCount>0 ? `<div class="ov-next">+${nextCount} more queued up</div>` : ''}
+    </div>`;
+}
+
+function myParticipantKey(code){ return MY_ID_PREFIX+code; }
+function myDataKey(code){ return MY_ID_PREFIX+code+'_data'; }
+
+async function renderJoinSmart(){
+  const code = getJoinCode();
+  const myId = sessionStorage.getItem(myParticipantKey(code));
+  if(myId){ await renderJoin(); return; } // already joined — always refresh live position
+  if(!window.__joinFormActive){ await renderJoin(); return; } // nothing shown yet
+  // form is being filled in right now — only check live status, don't wipe what they've typed
+  try{
+    const data = await apiFetch('/api/public/'+encodeURIComponent(code));
+    const nowLive = !!data.live;
+    if(nowLive !== window.__lastJoinLiveState){ await renderJoin(); }
+    window.__lastJoinLiveState = nowLive;
+  }catch(e){}
+}
+
+async function renderJoin(){
+  const code = getJoinCode();
+  const el = document.getElementById('join');
+  const myId = sessionStorage.getItem(myParticipantKey(code));
+  let data;
+  try{
+    data = await apiFetch('/api/public/'+encodeURIComponent(code) + (myId ? '?participant='+encodeURIComponent(myId) : ''));
+  }catch(e){
+    window.__joinFormActive = false;
+    el.innerHTML = `<div class="admit-card"><div class="admit-head"><div class="admit-logo"><div class="eq-mark"><i></i><i></i><i></i><i></i></div>Keep it up!</div><h2 style="text-align:center;font-size:20px">${t('not_live_title')}</h2><p class="jsub">${t('not_live_sub')}</p></div></div>`;
+    return;
+  }
+  window.__lastJoinLiveState = !!data.live;
+
+  if(!data.live){
+    window.__joinFormActive = false;
+    el.innerHTML = `<div class="admit-card"><div class="admit-head"><div class="admit-logo"><div class="eq-mark"><i></i><i></i><i></i><i></i></div>Keep it up!</div><h2 style="text-align:center;font-size:20px">${t('not_live_title')}</h2><p class="jsub">${t('not_live_sub')}</p></div></div>`;
+    return;
+  }
+
+  const joined = myId && data.mine;
+  if(!joined){
+    if(!data.acceptingSubmissions){
+      window.__joinFormActive = false;
+      el.innerHTML = `<div class="admit-card"><div class="admit-head"><div class="admit-logo"><div class="eq-mark"><i></i><i></i><i></i><i></i></div>Keep it up!</div><h2 style="font-size:22px">${escapeHtml(data.title)}</h2><div class="jsub">${data.queueCount} ${t('already_queued')}</div></div><div class="admit-body"><p style="color:var(--coral);font-size:13px;text-align:center">${t('closed_title')}</p></div></div>`;
+      return;
+    }
+    window.__joinFormActive = true;
+    const full = data.cap && data.queueCount >= data.cap;
+    el.innerHTML = `
+      <div class="admit-card">
+        <div class="admit-head"><div class="admit-logo"><div class="eq-mark"><i></i><i></i><i></i><i></i></div>Keep it up!</div><h2 style="font-size:22px">${escapeHtml(data.title)}</h2><div class="jsub">${data.queueCount} ${t('already_queued')}</div></div>
+        <div class="admit-body">
+          ${full ? `<p style="color:var(--coral);font-size:13px;text-align:center">${t('full_title')}</p>` : `
+          <div class="join-field"><label>${t('j_name')}</label><input id="j-name" type="text" placeholder="e.g. TJ Duisburg" maxlength="30"></div>
+          <div class="join-field"><label>${t('j_song')}</label><input id="j-song" type="text" placeholder="Spotify, YouTube, SoundCloud, Dropbox…"></div>
+          <div class="join-field"><label>${t('j_desc')} <span style="text-transform:none;font-weight:400;color:var(--ink-faint)">(optional)</span></label><input id="j-note" type="text" placeholder="${t('j_desc_ph')}" maxlength="140"></div>
+          <div class="join-note">mp3/wav uploads need file storage on the server — not available yet, paste a link for now.</div>
+          ${data.entryFeeEnabled ? `<div class="join-note">This show charges an entry fee of ${money(data.entryFee)}.</div>` : ''}
+          <button class="btn btn-gold btn-block" onclick="submitJoin('${code}')">${data.entryFeeEnabled ? t('j_pay_join')+' ('+money(data.entryFee)+')' : t('j_send')}</button>
+          `}
+          <div class="join-hint">${t('sim_note')}</div>
+        </div>
+      </div>`;
+    return;
+  }
+
+  window.__joinFormActive = false;
+  const mine = data.mine;
+  const pos = mine.position + 1;
+  const isFirst = mine.isFirst;
+  const skipCost = data.skipFee;
+  const jumpCost = isFirst ? 0 : Math.max(data.skipFee*2, Math.round(((mine.leaderPaidTotal - mine.paidTotal) + data.skipFee*2)*2)/2);
+  let mySubmission = { name:'', song:'' };
+  try{ mySubmission = JSON.parse(sessionStorage.getItem(myDataKey(code))) || mySubmission; }catch(e){}
+
+  el.innerHTML = `
+    <div class="admit-card">
+      <div class="admit-head">
+        <div class="admit-logo"><div class="eq-mark"><i></i><i></i><i></i><i></i></div>Keep it up!</div>
+        <div class="admit-num ${isFirst?'p1':''}">#${pos}</div>
+        <div class="admit-label">${isFirst?t('reacting_to_you'):t('your_spot')}</div>
+      </div>
+      <div class="admit-perf"></div>
+      <div class="admit-body">
+        <h2 style="word-break:break-word">${isUrl(mySubmission.song) ? 'Your submission' : escapeHtml(mySubmission.song||'')}${platformBadge(mySubmission.song)}</h2>
+        ${isUrl(mySubmission.song) ? `<div class="jsub" style="word-break:break-all;font-size:11px">${escapeHtml(mySubmission.song)}</div>` : ''}
+        <div class="jsub">${t('sent_by')} ${escapeHtml(mySubmission.name)}</div>
+        ${data.skipsEnabled ? `
+        <div class="join-actions">
+          ${!isFirst ? `<button class="btn btn-outline btn-block" onclick="paySkip('${code}')">${t('jump_1')} ${money(skipCost)}</button>` : ''}
+          ${!isFirst ? `<button class="btn btn-gold btn-block" onclick="payJump('${code}')">${t('take_1')} ${money(jumpCost)}</button>` : ''}
+        </div>` : `<p class="join-hint" style="margin-top:16px">${t('skips_off')}</p>`}
+        <div class="join-hint">${t('sim_note')}</div>
+      </div>
+    </div>`;
+}
+
+async function submitJoin(code){
+  const name = (document.getElementById('j-name').value||'').trim() || 'Anonymous';
+  const song = (document.getElementById('j-song').value||'').trim();
+  const note = (document.getElementById('j-note').value||'').trim();
+  if(!song){ toast('Paste a link first.'); return; }
+  try{
+    const data = await apiFetch('/api/public/'+encodeURIComponent(code)+'/join', { method:'POST', body:{ name, song, note } });
+    sessionStorage.setItem(myParticipantKey(code), data.participantId);
+    sessionStorage.setItem(myDataKey(code), JSON.stringify({ name, song, note }));
+    window.__joinFormActive = false;
+    toast('Sent! You are in the queue.');
+    renderJoin();
+  }catch(e){ toast(e.message); }
+}
+async function paySkip(code){
+  const myId = sessionStorage.getItem(myParticipantKey(code));
+  try{
+    const data = await apiFetch('/api/public/'+encodeURIComponent(code)+'/skip', { method:'POST', body:{ participantId: myId } });
+    toast('Skip paid — moved up 1 spot (simulated)');
+    renderJoin();
+  }catch(e){ toast(e.message); }
+}
+async function payJump(code){
+  const myId = sessionStorage.getItem(myParticipantKey(code));
+  try{
+    const data = await apiFetch('/api/public/'+encodeURIComponent(code)+'/jump', { method:'POST', body:{ participantId: myId } });
+    toast('Took #1 spot — '+money(data.cost)+' paid (simulated)');
+    renderJoin();
+  }catch(e){ toast(e.message); }
+}
+
+/* ===================== SOUND-CUE DETECTION (host tab only) ===================== */
+let soundState = { sessionId:null, txCount:0, queueLen:0 };
+function checkLiveEvents(){
+  const appActive = document.getElementById('app').classList.contains('active') && currentView==='sessions-live';
+  const s = db.session;
+  if(!appActive || !s){ soundState.sessionId = s?s.id:null; if(s){ soundState.queueLen=s.queue.length; soundState.paidSum=s.queue.reduce((a,q)=>a+(q.paidTotal||0),0); } return; }
+  if(soundState.sessionId !== s.id){
+    soundState.sessionId = s.id;
+    soundState.queueLen = s.queue.length;
+    soundState.paidSum = s.queue.reduce((a,q)=>a+(q.paidTotal||0),0);
+    return;
+  }
+  const paidSum = s.queue.reduce((a,q)=>a+(q.paidTotal||0),0);
+  if(s.queue.length > soundState.queueLen){ playCue('submission'); }
+  else if(paidSum > soundState.paidSum){ playCue('skip'); }
+  soundState.queueLen = s.queue.length;
+  soundState.paidSum = paidSum;
+}
+
+/* ===================== INIT / SYNC (real API polling — no more localStorage cross-tab tricks) ===================== */
+let pollTimer = null;
+function startPolling(){
+  if(pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(async function(){
+    if(getOverlayCode()){ await renderOverlay(); return; }
+    if(getJoinCode()){ await renderJoinSmart(); return; }
+    if(document.getElementById('app').classList.contains('active') && currentView==='sessions-live'){
+      const before = JSON.stringify(db.session);
+      try{ await refreshCurrentShow(); }catch(e){ return; }
+      if(JSON.stringify(db.session) !== before){ renderLive(); }
+      checkLiveEvents();
+    }
+  }, 2500);
+}
+
+(async function init(){
+  document.documentElement.lang = getLang();
+  const savedTheme = localStorage.getItem(THEME_KEY) || 'midnight';
+  document.documentElement.setAttribute('data-theme', savedTheme);
+  renderThemeList();
+  renderLangList();
+
+  if(getOverlayCode()){
+    document.getElementById('overlay').classList.add('active');
+    await renderOverlay();
+    startPolling();
+    return;
+  }
+  if(getJoinCode()){
+    document.getElementById('join').classList.add('active');
+    await renderJoin();
+    startPolling();
+    return;
+  }
+  const resetToken = getResetToken();
+  if(resetToken){
+    document.getElementById('auth').classList.add('active');
+    renderResetPasswordScreen(resetToken);
+    startPolling();
+    return;
+  }
+  const legalPage = getLegalPage();
+  if(legalPage){
+    document.getElementById('legal').classList.add('active');
+    renderLegal(legalPage);
+    startPolling();
+    return;
+  }
+  document.getElementById('landing').classList.add('active');
+  startPolling();
+  // If there's a saved session token, quietly check it's still valid so a returning host
+  // isn't asked to sign in again — but we don't auto-jump into the app (see earlier fix:
+  // the landing page should always show first).
+  await refreshCurrentUser();
+})();
+</script>
+</body>
+</html>

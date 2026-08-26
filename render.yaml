@@ -1,0 +1,25 @@
+services:
+  # The backend API — a real Node.js server with a SQLite database.
+  - type: web
+    name: keepitup-api
+    runtime: node
+    plan: free
+    rootDir: server
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: NODE_VERSION
+        value: 22.9.0
+
+  # The website itself (the frontend) — hosted as a static site, free, with HTTPS included.
+  - type: web
+    name: keepitup-web
+    runtime: static
+    plan: free
+    rootDir: public
+    buildCommand: echo "no build step needed"
+    staticPublishPath: .
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

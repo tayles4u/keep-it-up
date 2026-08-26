@@ -1,0 +1,12 @@
+{
+  "name": "keepitup-server",
+  "version": "0.1.0",
+  "description": "Backend API for Keep it up! — accounts, live shows, queue, skip payments. Zero npm dependencies.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  }
+}
