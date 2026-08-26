@@ -5,7 +5,7 @@ services:
     runtime: node
     rootDir: server
     buildCommand: npm install
-    startCommand: node server.js
+    startCommand: node --experimental-sqlite server.js
     envVars:
       - key: NODE_VERSION
         value: 22.9.0
