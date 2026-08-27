@@ -52,6 +52,13 @@ db.exec(`
     joined_at  INTEGER NOT NULL
   );
 
+  CREATE TABLE IF NOT EXISTS show_bans (
+    id         TEXT PRIMARY KEY,
+    show_id    TEXT NOT NULL REFERENCES shows(id) ON DELETE CASCADE,
+    name_lower TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+  );
+
   CREATE TABLE IF NOT EXISTS transactions (
     id       TEXT PRIMARY KEY,
     user_id  TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -73,6 +80,7 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_shows_user ON shows(user_id);
   CREATE INDEX IF NOT EXISTS idx_queue_show ON queue_items(show_id);
   CREATE INDEX IF NOT EXISTS idx_tx_user ON transactions(user_id);
+  CREATE INDEX IF NOT EXISTS idx_bans_show ON show_bans(show_id, name_lower);
   CREATE INDEX IF NOT EXISTS idx_reset_user ON password_resets(user_id);
 `);
 
