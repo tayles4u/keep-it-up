@@ -284,6 +284,13 @@ body.overlay-mode .help-fab,body.overlay-mode #toast{display:none!important;}
 .now-playing .np-note{font-size:13px;color:var(--ink-dim);margin-top:10px;font-style:italic;line-height:1.5;}
 .now-playing .np-paid{margin-top:16px;font-family:'IBM Plex Mono',monospace;font-size:14px;color:var(--gold);}
 .np-actions{display:flex;gap:10px;margin-top:22px;flex-wrap:wrap;}
+.qr-menu-wrap{position:relative;flex-shrink:0;}
+.qr-menu-btn{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;color:var(--ink-faint);cursor:pointer;border:1px solid var(--line-strong);}
+.qr-menu-btn:hover{color:var(--ink);border-color:var(--ink-faint);}
+.qr-menu{position:fixed;background:var(--bg-1);border:1px solid var(--line-strong);border-radius:12px;padding:6px;min-width:150px;z-index:600;box-shadow:0 16px 40px rgba(0,0,0,.45);}
+.qr-menu-item{padding:9px 12px;border-radius:8px;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap;}
+.qr-menu-item:hover{background:var(--bg-2);}
+.qr-menu-item.danger{color:var(--coral);}
 .np-empty{text-align:center;padding:20px 10px;}
 .np-empty .mic-orb{width:60px;height:60px;border-radius:50%;background:var(--bg-3);border:1px solid var(--line-strong);display:flex;align-items:center;justify-content:center;color:var(--gold);margin:0 auto 16px;}
 .np-empty h2{font-size:26px;}
@@ -602,7 +609,7 @@ const I18N = {
     reacting_now:'Reacting now', on_now:'On now',
     waiting_title:'Waiting for the first track…', waiting_sub:'Your queue link is always live at the same address — drop it in your bio once and forget about it.',
     share_your_link:'Share your link',
-    mark_reacted:'Mark as reacted ✓', skip_remove:'Skip / remove',
+    mark_reacted:'Mark as reacted ✓', skip_remove:'Skip / remove', next_track:'Next', kick:'Kick',
     on_deck:'On deck', waiting_count:'waiting', nobody_else:'Nobody else in line yet.',
     preview:'Preview ▶', hide:'Hide', remove:'Remove',
     stats:'Stats', tonight:'Tonight', crowd:'Crowd', crowd_desc:"Everyone who's queued",
@@ -664,7 +671,7 @@ const I18N = {
     reacting_now:'Reagiert gerade auf', on_now:'Gerade live',
     waiting_title:'Warten auf den ersten Track…', waiting_sub:'Dein Queue-Link ist dauerhaft unter derselben Adresse live — einmal in die Bio, fertig.',
     share_your_link:'Link teilen',
-    mark_reacted:'Als reagiert markieren ✓', skip_remove:'Skip / entfernen',
+    mark_reacted:'Als reagiert markieren ✓', skip_remove:'Skip / entfernen', next_track:'Weiter', kick:'Entfernen',
     on_deck:'Als Nächstes', waiting_count:'warten', nobody_else:'Sonst niemand in der Reihe.',
     preview:'Vorschau ▶', hide:'Verbergen', remove:'Entfernen',
     stats:'Stats', tonight:'Heute Abend', crowd:'Crowd', crowd_desc:'Alle, die eingereiht haben',
@@ -1582,7 +1589,13 @@ function renderLive(){
       ${nowUp.note ? `<div class="np-note">"${escapeHtml(nowUp.note)}"</div>` : ''}
       ${renderMedia(nowUp,false)}
       ${nowUp.paidTotal>0 ? `<div class="np-paid">${money(nowUp.paidTotal)} paid to get here</div>` : ''}
-      <div class="np-actions"><button class="btn btn-gold" onclick="markPlayed('${nowUp.id}')">${t('mark_reacted')}</button><button class="btn btn-outline" onclick="removeFromQueue('${nowUp.id}')">${t('skip_remove')}</button></div>
+      <div class="np-actions">
+        <button class="btn btn-gold" onclick="markPlayed('${nowUp.id}')">${t('next_track')}</button>
+        <div class="qr-menu-wrap">
+          <div class="qr-menu-btn" onclick="toggleRowMenu(event,'${nowUp.id}')" title="More"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="12" cy="19" r="1.9"/></svg></div>
+          ${openRowMenuId===nowUp.id ? `<div class="qr-menu"><div class="qr-menu-item" onclick="removeFromQueue('${nowUp.id}')">${t('kick')}</div></div>` : ''}
+        </div>
+      </div>
     </div>` : `
     <div class="now-playing np-empty">
       <div class="mic-orb"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 1a4 4 0 0 1 4 4v6a4 4 0 1 1-8 0V5a4 4 0 0 1 4-4z"/><path d="M5 11a7 7 0 0 0 14 0M12 19v3"/></svg></div>
@@ -1630,6 +1643,7 @@ function renderLive(){
     ${!pins.controls ? `<div class="drawer" id="drawer-controls"><div class="drawer-head"><b>${t('show_controls')}</b><div class="dh-actions"><button class="btn-xs" onclick="togglePin('controls')">${t('pin')}</button><div class="icon-btn" onclick="closeDrawers()">✕</div></div></div>${controlsInner}</div>` : ''}`;
 
   if(openDrawer){ const d=document.getElementById('drawer-'+openDrawer); if(d){ d.classList.add('open'); document.getElementById('drawer-backdrop').classList.add('open'); } }
+  positionOpenMenu();
   clearInterval(liveTimerHandle);
   updateTimer();
   liveTimerHandle = setInterval(updateTimer, 1000);
@@ -1798,6 +1812,25 @@ function bracketStageHtml(s){
     <div class="ondeck-label"><h3>${t('br_round')}s</h3><span></span></div>
     <div class="card">${bracketRoundsHtml(b)}</div>`;
 }
+let openRowMenuId = null;
+function toggleRowMenu(e, id){ e.stopPropagation(); openRowMenuId = (openRowMenuId===id) ? null : id; renderLive(); }
+document.addEventListener('click', function(e){
+  if(openRowMenuId && !e.target.closest('.qr-menu-wrap')){ openRowMenuId = null; renderLive(); }
+});
+function positionOpenMenu(){
+  const menu = document.querySelector('.qr-menu');
+  if(!menu) return;
+  const wrap = menu.closest('.qr-menu-wrap');
+  const btn = wrap && wrap.querySelector('.qr-menu-btn');
+  if(!btn) return;
+  const r = btn.getBoundingClientRect();
+  const menuWidth = menu.offsetWidth || 150;
+  let left = r.right - menuWidth;
+  if(left < 8) left = 8;
+  menu.style.top = (r.bottom + 6) + 'px';
+  menu.style.left = left + 'px';
+}
+window.addEventListener('resize', positionOpenMenu);
 async function markPlayed(pid){
   const s = db.session; if(!s) return;
   try{
@@ -2042,6 +2075,7 @@ async function submitJoin(code){
   const song = (document.getElementById('j-song').value||'').trim();
   const note = (document.getElementById('j-note').value||'').trim();
   if(!song){ toast('Paste a link first.'); return; }
+  if(!isUrl(song)){ toast('That doesn\'t look like a working link — it needs to start with http:// or https://'); return; }
   try{
     const data = await apiFetch('/api/public/'+encodeURIComponent(code)+'/join', { method:'POST', body:{ name, song, note } });
     sessionStorage.setItem(myParticipantKey(code), data.participantId);
