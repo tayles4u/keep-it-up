@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="de" data-theme="midnight">
 <head>
@@ -276,13 +277,27 @@ body.overlay-mode .help-fab,body.overlay-mode #toast{display:none!important;}
 .pin-col.right{border-left:1px solid var(--line);}
 .stage-main{flex:1;min-width:0;max-width:860px;margin:0 auto;padding:34px 26px 70px;}
 
-.now-playing{background:linear-gradient(160deg,var(--bg-1),var(--bg-2));border:1px solid var(--line-strong);border-radius:22px;padding:32px;position:relative;overflow:hidden;}
+.now-playing{background:linear-gradient(160deg,var(--bg-1),var(--bg-2));border:1px solid var(--line-strong);border-radius:22px;padding:32px;position:relative;}
 .now-playing .np-label{font-size:11px;font-weight:800;letter-spacing:.1em;color:var(--gold);text-transform:uppercase;display:flex;align-items:center;gap:8px;margin-bottom:16px;}
 .now-playing h2{font-size:36px;line-height:1.08;margin-bottom:6px;word-break:break-word;}
 .now-playing .np-by{font-size:14px;color:var(--ink-dim);font-weight:600;}
 .now-playing .np-note{font-size:13px;color:var(--ink-dim);margin-top:10px;font-style:italic;line-height:1.5;}
-.now-playing .np-paid{margin-top:16px;font-family:'IBM Plex Mono',monospace;font-size:14px;color:var(--gold);}
 .np-actions{display:flex;gap:10px;margin-top:22px;flex-wrap:wrap;}
+.np-empty{text-align:center;padding:20px 10px;}
+.np-empty .mic-orb{width:60px;height:60px;border-radius:50%;background:var(--bg-3);border:1px solid var(--line-strong);display:flex;align-items:center;justify-content:center;color:var(--gold);margin:0 auto 16px;}
+.np-empty h2{font-size:26px;}
+.np-empty p{color:var(--ink-dim);font-size:13px;max-width:400px;margin:8px auto 0;line-height:1.5;}
+
+.ondeck-label{display:flex;justify-content:space-between;align-items:baseline;margin:30px 0 14px;}
+.ondeck-label h3{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-dim);}
+.ondeck-label span{font-size:11px;color:var(--ink-faint);}
+.queue-list{display:flex;flex-direction:column;gap:10px;}
+.queue-row{display:flex;align-items:center;gap:18px;background:var(--bg-1);border:1px solid var(--line-strong);border-radius:16px;padding:20px 22px;}
+.qr-pos{flex-shrink:0;width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:18px;color:var(--ink-faint);background:var(--bg-2);}
+.qr-pos.qr-pos-gold{background:linear-gradient(140deg,var(--gold),#ffdd88);color:var(--gold-ink);}
+.qr-pos svg{width:20px;height:20px;}
+.qr-name{flex:1;min-width:0;font-size:17px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ondeck-empty{color:var(--ink-faint);font-size:12.5px;padding:24px;text-align:center;border:1px dashed var(--line-strong);border-radius:16px;}
 .qr-menu-wrap{position:relative;flex-shrink:0;}
 .qr-menu-btn{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;color:var(--ink-faint);cursor:pointer;border:1px solid var(--line-strong);}
 .qr-menu-btn:hover{color:var(--ink);border-color:var(--ink-faint);}
@@ -300,7 +315,8 @@ body.overlay-mode .help-fab,body.overlay-mode #toast{display:none!important;}
 .embed-wrap{position:relative;width:100%;border-radius:12px;overflow:hidden;margin-top:16px;background:var(--bg-3);}
 .embed-wrap iframe{width:100%;height:190px;border:0;display:block;}
 .embed-wrap.sm iframe{height:120px;}
-.embed-wrap.spotify iframe{height:152px;}
+.embed-wrap.spotify iframe{height:352px;}
+.embed-wrap.sm.spotify iframe{height:152px;}
 .embed-wrap.soundcloud iframe{height:120px;}
 audio{width:100%;margin-top:16px;}
 .ticket{position:relative;display:flex;background:var(--bg-2);border:1px solid var(--line-strong);border-radius:14px;margin-bottom:10px;overflow:visible;}
@@ -314,8 +330,6 @@ audio{width:100%;margin-top:16px;}
 .ticket .bactions{display:flex;gap:6px;flex-shrink:0;}
 .ticket.first{border-color:var(--gold);}
 .ticket.first .stub{background:var(--gold);color:var(--gold-ink);}
-.ticket-sm audio, .ticket-sm .embed-wrap{margin-top:8px;}
-.ticket-sm .embed-wrap iframe{height:110px;}
 
 .br-match{display:flex;align-items:stretch;gap:14px;margin-top:10px;}
 .br-side{flex:1;background:var(--bg-2);border:1.5px solid var(--line-strong);border-radius:16px;padding:16px;cursor:pointer;transition:.15s;min-width:0;}
@@ -330,18 +344,7 @@ audio{width:100%;margin-top:16px;}
 .br-vs{color:var(--ink-faint);font-size:10px;flex-shrink:0;}
 .br-win{color:var(--gold);font-weight:700;}
 @media (max-width:640px){ .br-match{flex-direction:column;} }
-.ondeck-label{display:flex;justify-content:space-between;align-items:baseline;margin:30px 0 12px;}
-.ondeck-label h3{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-dim);}
-.ondeck-label span{font-size:11px;color:var(--ink-faint);}
-.ondeck-row{display:flex;gap:12px;overflow-x:auto;padding-bottom:8px;scroll-snap-type:x proximate;}
-.ondeck-row::-webkit-scrollbar{height:5px;}
-.ondeck-row::-webkit-scrollbar-thumb{background:var(--line-strong);border-radius:4px;}
-.ticket-sm{position:relative;flex-shrink:0;width:236px;scroll-snap-align:start;background:var(--bg-1);border:1px solid var(--line-strong);border-radius:14px;padding:14px;}
-.ticket-sm .ts-pos{font-family:'IBM Plex Mono',monospace;color:var(--ink-faint);font-size:11px;margin-bottom:6px;}
-.ticket-sm b{font-size:13.5px;display:block;}
-.ticket-sm span{font-size:11px;color:var(--ink-faint);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;}
-.ticket-sm .ts-actions{display:flex;gap:6px;margin-top:10px;}
-.ondeck-empty{color:var(--ink-faint);font-size:12.5px;padding:20px;text-align:center;border:1px dashed var(--line-strong);border-radius:14px;}
+
 
 .drawer-backdrop{position:fixed;inset:0;background:rgba(2,2,3,.55);z-index:400;display:none;}
 .drawer-backdrop.open{display:block;}
@@ -608,7 +611,7 @@ const I18N = {
     reacting_now:'Reacting now', on_now:'On now',
     waiting_title:'Waiting for the first track…', waiting_sub:'Your queue link is always live at the same address — drop it in your bio once and forget about it.',
     share_your_link:'Share your link',
-    mark_reacted:'Mark as reacted ✓', skip_remove:'Skip / remove', next_track:'Next', kick:'Kick',
+    mark_reacted:'Mark as reacted ✓', skip_remove:'Skip / remove', next_track:'Next', kick:'Kick', ban:'Ban',
     on_deck:'On deck', waiting_count:'waiting', nobody_else:'Nobody else in line yet.',
     preview:'Preview ▶', hide:'Hide', remove:'Remove',
     stats:'Stats', tonight:'Tonight', crowd:'Crowd', crowd_desc:"Everyone who's queued",
@@ -670,7 +673,7 @@ const I18N = {
     reacting_now:'Reagiert gerade auf', on_now:'Gerade live',
     waiting_title:'Warten auf den ersten Track…', waiting_sub:'Dein Queue-Link ist dauerhaft unter derselben Adresse live — einmal in die Bio, fertig.',
     share_your_link:'Link teilen',
-    mark_reacted:'Als reagiert markieren ✓', skip_remove:'Skip / entfernen', next_track:'Weiter', kick:'Entfernen',
+    mark_reacted:'Als reagiert markieren ✓', skip_remove:'Skip / entfernen', next_track:'Weiter', kick:'Entfernen', ban:'Bannen',
     on_deck:'Als Nächstes', waiting_count:'warten', nobody_else:'Sonst niemand in der Reihe.',
     preview:'Vorschau ▶', hide:'Verbergen', remove:'Entfernen',
     stats:'Stats', tonight:'Heute Abend', crowd:'Crowd', crowd_desc:'Alle, die eingereiht haben',
@@ -1471,7 +1474,6 @@ function renderMedia(p, compact){
 /* ===================== LIVE SESSION ===================== */
 let liveTimerHandle=null;
 let openDrawer=null;
-let expandedOnDeckId=null;
 
 function statsPanelInner(s){
   const topPayer = s.queue.slice().sort((a,b)=>b.paidTotal-a.paidTotal)[0];
@@ -1581,18 +1583,19 @@ function renderLive(){
 
   const nowPlayingHtml = nowUp ? `
     <div class="now-playing">
-      <div class="np-label"><span class="livepill">${t('on_now')}</span> ${t('reacting_now')} ${platformBadge(nowUp.fileData?'':nowUp.song)}</div>
+      <div class="np-label"><span class="livepill">${t('on_now')}</span></div>
       <h2 style="word-break:break-word">${nowUp.fileData ? escapeHtml(nowUp.fileName) : (isUrl(nowUp.song) ? 'Now reacting' : escapeHtml(nowUp.song))}</h2>
-      ${!nowUp.fileData && isUrl(nowUp.song) ? `<div class="np-by" style="word-break:break-all;font-size:11px;opacity:.7">${escapeHtml(nowUp.song)}</div>` : ''}
       <div class="np-by">${t('sent_by')} ${escapeHtml(nowUp.name)}</div>
       ${nowUp.note ? `<div class="np-note">"${escapeHtml(nowUp.note)}"</div>` : ''}
       ${renderMedia(nowUp,false)}
-      ${nowUp.paidTotal>0 ? `<div class="np-paid">${money(nowUp.paidTotal)} paid to get here</div>` : ''}
       <div class="np-actions">
         <button class="btn btn-gold" onclick="markPlayed('${nowUp.id}')">${t('next_track')}</button>
         <div class="qr-menu-wrap">
           <div class="qr-menu-btn" onclick="toggleRowMenu(event,'${nowUp.id}')" title="More"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="12" cy="19" r="1.9"/></svg></div>
-          ${openRowMenuId===nowUp.id ? `<div class="qr-menu"><div class="qr-menu-item" onclick="removeFromQueue('${nowUp.id}')">${t('kick')}</div></div>` : ''}
+          ${openRowMenuId===nowUp.id ? `<div class="qr-menu">
+            <div class="qr-menu-item" onclick="removeFromQueue('${nowUp.id}')">${t('kick')}</div>
+            <div class="qr-menu-item danger" onclick="banFromQueue('${nowUp.id}')">${t('ban')}</div>
+          </div>` : ''}
         </div>
       </div>
     </div>` : `
@@ -1603,14 +1606,24 @@ function renderLive(){
       <div class="code-inline" onclick="openShare()" style="cursor:pointer;text-decoration:underline">${t('share_your_link')}</div>
     </div>`;
 
-  const onDeckHtml = onDeck.length ? `<div class="ondeck-row">${onDeck.map((q,i)=>`
-    <div class="ticket-sm">
-      <div class="ts-pos">#${i+2} ${platformBadge(q.fileData?'':q.song)}</div>
-      <b>${escapeHtml(q.name)}</b>
-      <span>${q.fileData ? escapeHtml(q.fileName) : escapeHtml(q.song)}${q.paidTotal>0 ? ' · '+money(q.paidTotal)+' paid' : ''}</span>
-      <div class="ts-actions"><button class="btn-xs" onclick="toggleOnDeckPreview('${q.id}')">${expandedOnDeckId===q.id?t('hide'):t('preview')}</button><button class="btn-xs" onclick="removeFromQueue('${q.id}')">${t('remove')}</button></div>
-      ${expandedOnDeckId===q.id ? (q.note?`<div style="font-size:11px;color:var(--ink-faint);margin-top:8px;font-style:italic">"${escapeHtml(q.note)}"</div>`:'') + renderMedia(q,true) : ''}
-    </div>`).join('')}</div>` : `<div class="ondeck-empty">${t('nobody_else')}</div>`;
+  const onDeckHtml = onDeck.length ? `<div class="queue-list">${onDeck.map((q,i)=>{
+    const paid = q.paidTotal>0;
+    const posBadge = paid
+      ? `<div class="qr-pos qr-pos-gold" title="Paid to skip ahead"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 3 14h7l-1 8 11-14h-7l1-6z"/></svg></div>`
+      : `<div class="qr-pos">${i+1}</div>`;
+    return `
+    <div class="queue-row">
+      ${posBadge}
+      <div class="qr-name">${escapeHtml(q.name)}</div>
+      <div class="qr-menu-wrap">
+        <div class="qr-menu-btn" onclick="toggleRowMenu(event,'${q.id}')" title="More"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="12" cy="19" r="1.9"/></svg></div>
+        ${openRowMenuId===q.id ? `<div class="qr-menu">
+          <div class="qr-menu-item" onclick="removeFromQueue('${q.id}')">${t('kick')}</div>
+          <div class="qr-menu-item danger" onclick="banFromQueue('${q.id}')">${t('ban')}</div>
+        </div>` : ''}
+      </div>
+    </div>`;
+  }).join('')}</div>` : `<div class="ondeck-empty">${t('nobody_else')}</div>`;
 
   const mainHtml = isBracket ? bracketStageHtml(s) : `
         ${nowPlayingHtml}
@@ -1647,7 +1660,6 @@ function renderLive(){
   updateTimer();
   liveTimerHandle = setInterval(updateTimer, 1000);
 }
-function toggleOnDeckPreview(id){ expandedOnDeckId = (expandedOnDeckId===id) ? null : id; renderLive(); }
 function openDrawerPanel(name){ closeDrawersInternal(); openDrawer=name; const d=document.getElementById('drawer-'+name); if(d){ d.classList.add('open'); document.getElementById('drawer-backdrop').classList.add('open'); } }
 function closeDrawersInternal(){ document.querySelectorAll('.drawer').forEach(d=>d.classList.remove('open')); const bd=document.getElementById('drawer-backdrop'); if(bd) bd.classList.remove('open'); }
 function closeDrawers(){ closeDrawersInternal(); openDrawer=null; }
@@ -1840,9 +1852,20 @@ async function markPlayed(pid){
 }
 async function removeFromQueue(pid){
   const s = db.session; if(!s) return;
+  openRowMenuId = null;
   try{
     await apiFetch('/api/shows/'+s.id+'/queue/'+pid, { method:'DELETE' });
     await refreshCurrentShow();
+    renderLive();
+  }catch(e){ toast(e.message); }
+}
+async function banFromQueue(pid){
+  const s = db.session; if(!s) return;
+  openRowMenuId = null;
+  try{
+    await apiFetch('/api/shows/'+s.id+'/queue/'+pid+'/ban', { method:'POST' });
+    await refreshCurrentShow();
+    toast('Banned from this show');
     renderLive();
   }catch(e){ toast(e.message); }
 }
@@ -2025,10 +2048,10 @@ async function renderJoin(){
         <div class="admit-head"><div class="admit-logo"><div class="eq-mark"><i></i><i></i><i></i><i></i></div>Keep it up!</div><h2 style="font-size:22px">${escapeHtml(data.title)}</h2><div class="jsub">${data.queueCount} ${t('already_queued')}</div></div>
         <div class="admit-body">
           ${full ? `<p style="color:var(--coral);font-size:13px;text-align:center">${t('full_title')}</p>` : `
-          <div class="join-field"><label>${t('j_name')}</label><input id="j-name" type="text" placeholder="e.g. TJ Duisburg" maxlength="30"></div>
-          <div class="join-field"><label>${t('j_song')}</label><input id="j-song" type="text" placeholder="Spotify, YouTube, SoundCloud, Dropbox…"></div>
+          <div class="join-field"><label>${t('j_name')} <span style="text-transform:none;font-weight:400;color:var(--coral)">*</span></label><input id="j-name" type="text" placeholder="e.g. TJ Duisburg" maxlength="30"></div>
+          <div class="join-field"><label>${t('j_song')} <span style="text-transform:none;font-weight:400;color:var(--coral)">*</span></label><input id="j-song" type="text" placeholder="Spotify, YouTube, SoundCloud, Dropbox…"></div>
           <div class="join-field"><label>${t('j_desc')} <span style="text-transform:none;font-weight:400;color:var(--ink-faint)">(optional)</span></label><input id="j-note" type="text" placeholder="${t('j_desc_ph')}" maxlength="140"></div>
-          <div class="join-note">mp3/wav uploads need file storage on the server — not available yet, paste a link for now.</div>
+          <div class="join-note">A link or a file is required to submit — mp3/wav upload isn't wired up on the server yet, so paste a link for now.</div>
           ${data.entryFeeEnabled ? `<div class="join-note">This show charges an entry fee of ${money(data.entryFee)}.</div>` : ''}
           <button class="btn btn-gold btn-block" onclick="submitJoin('${code}')">${data.entryFeeEnabled ? t('j_pay_join')+' ('+money(data.entryFee)+')' : t('j_send')}</button>
           `}
@@ -2070,9 +2093,10 @@ async function renderJoin(){
 }
 
 async function submitJoin(code){
-  const name = (document.getElementById('j-name').value||'').trim() || 'Anonymous';
+  const name = (document.getElementById('j-name').value||'').trim();
   const song = (document.getElementById('j-song').value||'').trim();
   const note = (document.getElementById('j-note').value||'').trim();
+  if(!name){ toast('Enter your name first.'); return; }
   if(!song){ toast('Paste a link first.'); return; }
   if(!isUrl(song)){ toast('That doesn\'t look like a working link — it needs to start with http:// or https://'); return; }
   try{
