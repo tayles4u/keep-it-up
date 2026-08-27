@@ -500,6 +500,8 @@ route('POST', '/api/public/:joinCode/join', async (req, res, params) => {
   const name = String(body.name || '').trim() || 'Anonymous';
   const song = String(body.song || '').trim();
   const note = String(body.note || '').trim();
+  if (!song) return sendJSON(res, 400, { error: 'A link is required.' });
+  if (!/^https?:\/\//i.test(song)) return sendJSON(res, 400, { error: 'That doesn\'t look like a working link — it needs to start with http:// or https://' });
   const entry = settings.entryFeeEnabled ? Number(settings.entryFee || 0) : 0;
   const item = { id: newId(), show_id: show.id, name, song, note, paid_total: entry, position: count, status: 'queued', joined_at: Date.now() };
   db.prepare(`INSERT INTO queue_items (id,show_id,name,song,note,paid_total,position,status,joined_at)
