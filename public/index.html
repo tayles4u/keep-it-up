@@ -278,6 +278,12 @@ body.overlay-mode .help-fab,body.overlay-mode #toast{display:none!important;}
 .stage-main{flex:1;min-width:0;max-width:860px;margin:0 auto;padding:34px 26px 70px;}
 
 .now-playing{background:linear-gradient(160deg,var(--bg-1),var(--bg-2));border:1px solid var(--line-strong);border-radius:22px;padding:32px;position:relative;}
+.np-layout{display:flex;gap:28px;align-items:flex-start;}
+.np-main{flex:1;min-width:0;}
+.np-media{width:300px;flex-shrink:0;}
+.np-media .embed-wrap{margin-top:0;}
+.np-media audio{margin-top:12px;}
+@media (max-width:680px){ .np-layout{flex-direction:column;} .np-media{width:100%;} }
 .now-playing .np-label{font-size:11px;font-weight:800;letter-spacing:.1em;color:var(--gold);text-transform:uppercase;display:flex;align-items:center;gap:8px;margin-bottom:16px;}
 .now-playing h2{font-size:36px;line-height:1.08;margin-bottom:6px;word-break:break-word;}
 .now-playing .np-by{font-size:14px;color:var(--ink-dim);font-weight:600;}
@@ -1460,19 +1466,35 @@ function spotifyEmbed(url){ const m = url.match(/open\.spotify\.com\/(track|albu
 function dropboxDirect(url){ if(url.includes('dl=0')) return url.replace('dl=0','raw=1'); return url + (url.includes('?')?'&':'?') + 'raw=1'; }
 
 function fillerCoverHtml(size){
-  size = size || 72;
+  if(size==='big'){
+    return `<div style="width:100%;aspect-ratio:1/1;border-radius:16px;background:var(--bg-3);border:1px solid var(--line-strong);display:flex;align-items:center;justify-content:center;color:var(--ink-faint)"><svg width="30%" height="30%" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></div>`;
+  }
+  size = size || 48;
   const icon = Math.round(size*0.4);
   return `<div style="width:${size}px;height:${size}px;border-radius:12px;background:var(--bg-3);border:1px solid var(--line-strong);display:flex;align-items:center;justify-content:center;color:var(--ink-faint);flex-shrink:0"><svg width="${icon}" height="${icon}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></div>`;
 }
 function renderMedia(p, compact){
-  const coverSize = compact ? 48 : 72;
+  if(!compact){
+    // Main stage — big cover fills the right-hand media column, player/link stacked underneath.
+    if(p.fileData){ return `${fillerCoverHtml('big')}<audio controls src="${escapeHtml(p.fileData)}"></audio>`; }
+    const url = p.song || '';
+    if(!url) return fillerCoverHtml('big');
+    const plat = detectPlatform(url);
+    if(plat==='youtube'){ const id = youTubeId(url); if(id) return `<div class="embed-wrap"><iframe src="https://www.youtube.com/embed/${id}" allow="autoplay; encrypted-media" allowfullscreen></iframe></div>`; }
+    if(plat==='spotify'){ const src = spotifyEmbed(url); if(src) return `<div class="embed-wrap spotify"><iframe src="${src}" allow="encrypted-media"></iframe></div>`; }
+    if(plat==='soundcloud'){ return `<div class="embed-wrap soundcloud"><iframe src="https://w.soundcloud.com/player/?url=${encodeURIComponent(url)}&color=%23ff5500&auto_play=false"></iframe></div>`; }
+    if(plat==='dropbox'){ return `${fillerCoverHtml('big')}<audio controls src="${escapeHtml(dropboxDirect(url))}"></audio>`; }
+    return `${fillerCoverHtml('big')}<a href="${escapeHtml(url)}" target="_blank" class="btn btn-outline btn-block" style="margin-top:10px">Open link</a>`;
+  }
+  // Compact — small inline version, used for bracket match previews.
+  const coverSize = 48;
   if(p.fileData){ return `<div style="display:flex;gap:14px;align-items:center;margin-top:16px">${fillerCoverHtml(coverSize)}<audio controls src="${escapeHtml(p.fileData)}" style="margin-top:0;flex:1"></audio></div>`; }
   const url = p.song || '';
   if(!url) return `<div style="margin-top:16px">${fillerCoverHtml(coverSize)}</div>`;
   const plat = detectPlatform(url);
-  if(plat==='youtube'){ const id = youTubeId(url); if(id) return `<div class="embed-wrap${compact?' sm':''}"><iframe src="https://www.youtube.com/embed/${id}" allow="autoplay; encrypted-media" allowfullscreen></iframe></div>`; }
-  if(plat==='spotify'){ const src = spotifyEmbed(url); if(src) return `<div class="embed-wrap${compact?' sm':''} spotify"><iframe src="${src}" allow="encrypted-media"></iframe></div>`; }
-  if(plat==='soundcloud'){ return `<div class="embed-wrap${compact?' sm':''} soundcloud"><iframe src="https://w.soundcloud.com/player/?url=${encodeURIComponent(url)}&color=%23ff5500&auto_play=false"></iframe></div>`; }
+  if(plat==='youtube'){ const id = youTubeId(url); if(id) return `<div class="embed-wrap sm"><iframe src="https://www.youtube.com/embed/${id}" allow="autoplay; encrypted-media" allowfullscreen></iframe></div>`; }
+  if(plat==='spotify'){ const src = spotifyEmbed(url); if(src) return `<div class="embed-wrap sm spotify"><iframe src="${src}" allow="encrypted-media"></iframe></div>`; }
+  if(plat==='soundcloud'){ return `<div class="embed-wrap sm soundcloud"><iframe src="https://w.soundcloud.com/player/?url=${encodeURIComponent(url)}&color=%23ff5500&auto_play=false"></iframe></div>`; }
   if(plat==='dropbox'){ return `<div style="display:flex;gap:14px;align-items:center;margin-top:16px">${fillerCoverHtml(coverSize)}<audio controls src="${escapeHtml(dropboxDirect(url))}" style="margin-top:0;flex:1"></audio></div>`; }
   return `<div style="display:flex;gap:14px;align-items:center;margin-top:14px">${fillerCoverHtml(coverSize)}<a href="${escapeHtml(url)}" target="_blank" class="btn btn-outline" style="display:inline-block">Open link</a></div>`;
 }
@@ -1590,20 +1612,24 @@ function renderLive(){
 
   const nowPlayingHtml = nowUp ? `
     <div class="now-playing">
-      <div class="np-label"><span class="livepill">${t('on_now')}</span></div>
-      <h2 style="word-break:break-word">${nowUp.fileData ? escapeHtml(nowUp.fileName) : (isUrl(nowUp.song) ? 'Now reacting' : escapeHtml(nowUp.song))}</h2>
-      <div class="np-by">${t('sent_by')} ${escapeHtml(nowUp.name)}</div>
-      ${nowUp.note ? `<div class="np-note">"${escapeHtml(nowUp.note)}"</div>` : ''}
-      ${renderMedia(nowUp,false)}
-      <div class="np-actions">
-        <button class="btn btn-gold" onclick="markPlayed('${nowUp.id}')">${t('next_track')}</button>
-        <div class="qr-menu-wrap">
-          <div class="qr-menu-btn" onclick="toggleRowMenu(event,'${nowUp.id}')" title="More"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="12" cy="19" r="1.9"/></svg></div>
-          ${openRowMenuId===nowUp.id ? `<div class="qr-menu">
-            <div class="qr-menu-item" onclick="removeFromQueue('${nowUp.id}')">${t('kick')}</div>
-            <div class="qr-menu-item danger" onclick="banFromQueue('${nowUp.id}')">${t('ban')}</div>
-          </div>` : ''}
+      <div class="np-layout">
+        <div class="np-main">
+          <div class="np-label"><span class="livepill">${t('on_now')}</span></div>
+          <h2 style="word-break:break-word">${nowUp.fileData ? escapeHtml(nowUp.fileName) : (isUrl(nowUp.song) ? 'Now reacting' : escapeHtml(nowUp.song))}</h2>
+          <div class="np-by">${t('sent_by')} ${escapeHtml(nowUp.name)}</div>
+          ${nowUp.note ? `<div class="np-note">"${escapeHtml(nowUp.note)}"</div>` : ''}
+          <div class="np-actions">
+            <button class="btn btn-gold" onclick="markPlayed('${nowUp.id}')">${t('next_track')}</button>
+            <div class="qr-menu-wrap">
+              <div class="qr-menu-btn" onclick="toggleRowMenu(event,'${nowUp.id}')" title="More"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="12" cy="19" r="1.9"/></svg></div>
+              ${openRowMenuId===nowUp.id ? `<div class="qr-menu">
+                <div class="qr-menu-item" onclick="removeFromQueue('${nowUp.id}')">${t('kick')}</div>
+                <div class="qr-menu-item danger" onclick="banFromQueue('${nowUp.id}')">${t('ban')}</div>
+              </div>` : ''}
+            </div>
+          </div>
         </div>
+        <div class="np-media">${renderMedia(nowUp,false)}</div>
       </div>
     </div>` : `
     <div class="now-playing np-empty">
