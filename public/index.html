@@ -1459,17 +1459,24 @@ function youTubeId(url){ const m = url.match(/(?:youtube\.com\/(?:watch\?v=|embe
 function spotifyEmbed(url){ const m = url.match(/open\.spotify\.com\/(track|album|playlist|episode|show)\/([A-Za-z0-9]+)/); return m ? 'https://open.spotify.com/embed/'+m[1]+'/'+m[2] : null; }
 function dropboxDirect(url){ if(url.includes('dl=0')) return url.replace('dl=0','raw=1'); return url + (url.includes('?')?'&':'?') + 'raw=1'; }
 
+function fillerCoverHtml(size){
+  size = size || 72;
+  const icon = Math.round(size*0.4);
+  return `<div style="width:${size}px;height:${size}px;border-radius:12px;background:var(--bg-3);border:1px solid var(--line-strong);display:flex;align-items:center;justify-content:center;color:var(--ink-faint);flex-shrink:0"><svg width="${icon}" height="${icon}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></div>`;
+}
 function renderMedia(p, compact){
-  if(p.fileData){ return `<audio controls src="${escapeHtml(p.fileData)}"></audio>`; }
+  const coverSize = compact ? 48 : 72;
+  if(p.fileData){ return `<div style="display:flex;gap:14px;align-items:center;margin-top:16px">${fillerCoverHtml(coverSize)}<audio controls src="${escapeHtml(p.fileData)}" style="margin-top:0;flex:1"></audio></div>`; }
   const url = p.song || '';
-  if(!url) return '';
+  if(!url) return `<div style="margin-top:16px">${fillerCoverHtml(coverSize)}</div>`;
   const plat = detectPlatform(url);
   if(plat==='youtube'){ const id = youTubeId(url); if(id) return `<div class="embed-wrap${compact?' sm':''}"><iframe src="https://www.youtube.com/embed/${id}" allow="autoplay; encrypted-media" allowfullscreen></iframe></div>`; }
   if(plat==='spotify'){ const src = spotifyEmbed(url); if(src) return `<div class="embed-wrap${compact?' sm':''} spotify"><iframe src="${src}" allow="encrypted-media"></iframe></div>`; }
   if(plat==='soundcloud'){ return `<div class="embed-wrap${compact?' sm':''} soundcloud"><iframe src="https://w.soundcloud.com/player/?url=${encodeURIComponent(url)}&color=%23ff5500&auto_play=false"></iframe></div>`; }
-  if(plat==='dropbox'){ return `<audio controls src="${escapeHtml(dropboxDirect(url))}"></audio>`; }
-  return `<a href="${escapeHtml(url)}" target="_blank" class="btn btn-outline" style="margin-top:14px;display:inline-block">Open link ↗</a>`;
+  if(plat==='dropbox'){ return `<div style="display:flex;gap:14px;align-items:center;margin-top:16px">${fillerCoverHtml(coverSize)}<audio controls src="${escapeHtml(dropboxDirect(url))}" style="margin-top:0;flex:1"></audio></div>`; }
+  return `<div style="display:flex;gap:14px;align-items:center;margin-top:14px">${fillerCoverHtml(coverSize)}<a href="${escapeHtml(url)}" target="_blank" class="btn btn-outline" style="display:inline-block">Open link</a></div>`;
 }
+
 
 /* ===================== LIVE SESSION ===================== */
 let liveTimerHandle=null;
