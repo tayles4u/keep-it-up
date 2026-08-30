@@ -1480,9 +1480,9 @@ function renderMedia(p, compact){
     const url = p.song || '';
     if(!url) return fillerCoverHtml('big');
     const plat = detectPlatform(url);
-    if(plat==='youtube'){ const id = youTubeId(url); if(id) return `<div class="embed-wrap"><iframe src="https://www.youtube.com/embed/${id}" allow="autoplay; encrypted-media" allowfullscreen></iframe></div>`; }
-    if(plat==='spotify'){ const src = spotifyEmbed(url); if(src) return `<div class="embed-wrap spotify"><iframe src="${src}" allow="encrypted-media"></iframe></div>`; }
-    if(plat==='soundcloud'){ return `<div class="embed-wrap soundcloud"><iframe src="https://w.soundcloud.com/player/?url=${encodeURIComponent(url)}&color=%23ff5500&auto_play=false"></iframe></div>`; }
+    if(plat==='youtube'){ const id = youTubeId(url); if(id) return `<div class="embed-wrap"><iframe src="https://www.youtube.com/embed/${id}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>`; }
+    if(plat==='spotify'){ const src = spotifyEmbed(url); if(src) return `<div class="embed-wrap spotify"><iframe src="${src}" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe></div>`; }
+    if(plat==='soundcloud'){ return `<div class="embed-wrap soundcloud"><iframe src="https://w.soundcloud.com/player/?url=${encodeURIComponent(url)}&color=%23ff5500&auto_play=false&show_artwork=true&visual=true"></iframe></div>`; }
     if(plat==='dropbox'){ return `${fillerCoverHtml('big')}<audio controls src="${escapeHtml(dropboxDirect(url))}"></audio>`; }
     return `${fillerCoverHtml('big')}<a href="${escapeHtml(url)}" target="_blank" class="btn btn-outline btn-block" style="margin-top:10px">Open link</a>`;
   }
@@ -1492,9 +1492,9 @@ function renderMedia(p, compact){
   const url = p.song || '';
   if(!url) return `<div style="margin-top:16px">${fillerCoverHtml(coverSize)}</div>`;
   const plat = detectPlatform(url);
-  if(plat==='youtube'){ const id = youTubeId(url); if(id) return `<div class="embed-wrap sm"><iframe src="https://www.youtube.com/embed/${id}" allow="autoplay; encrypted-media" allowfullscreen></iframe></div>`; }
-  if(plat==='spotify'){ const src = spotifyEmbed(url); if(src) return `<div class="embed-wrap sm spotify"><iframe src="${src}" allow="encrypted-media"></iframe></div>`; }
-  if(plat==='soundcloud'){ return `<div class="embed-wrap sm soundcloud"><iframe src="https://w.soundcloud.com/player/?url=${encodeURIComponent(url)}&color=%23ff5500&auto_play=false"></iframe></div>`; }
+  if(plat==='youtube'){ const id = youTubeId(url); if(id) return `<div class="embed-wrap sm"><iframe src="https://www.youtube.com/embed/${id}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>`; }
+  if(plat==='spotify'){ const src = spotifyEmbed(url); if(src) return `<div class="embed-wrap sm spotify"><iframe src="${src}" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe></div>`; }
+  if(plat==='soundcloud'){ return `<div class="embed-wrap sm soundcloud"><iframe src="https://w.soundcloud.com/player/?url=${encodeURIComponent(url)}&color=%23ff5500&auto_play=false&show_artwork=true&visual=true"></iframe></div>`; }
   if(plat==='dropbox'){ return `<div style="display:flex;gap:14px;align-items:center;margin-top:16px">${fillerCoverHtml(coverSize)}<audio controls src="${escapeHtml(dropboxDirect(url))}" style="margin-top:0;flex:1"></audio></div>`; }
   return `<div style="display:flex;gap:14px;align-items:center;margin-top:14px">${fillerCoverHtml(coverSize)}<a href="${escapeHtml(url)}" target="_blank" class="btn btn-outline" style="display:inline-block">Open link</a></div>`;
 }
