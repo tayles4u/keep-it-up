@@ -27,6 +27,7 @@
 <title>Keep it up! — live song reactions</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Sora:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
 :root, [data-theme="midnight"]{
   --bg:#0A090D;--bg-1:#121016;--bg-2:#17141C;--bg-3:#1E1924;
@@ -570,6 +571,7 @@ html.overlay-mode,body.overlay-mode{background:transparent!important;}
 <script>
 /* ===================== STATE / PERSISTENCE (connected to a real backend) ===================== */
 const API_BASE = (function(){ try{ return localStorage.getItem('kiu_api_base_override'); }catch(e){ return null; } })() || window.KIU_API_BASE || 'https://keepitup-api-4fky.onrender.com';
+const GOOGLE_CLIENT_ID = '655518852084-1qdd80e44621hr90bdlg0iphjvnho9si.apps.googleusercontent.com';
 const THEME_KEY = 'kiu_theme_v1';
 const TOKEN_KEY = 'kiu_token_v1'; // ok to keep in localStorage — it's a session credential, not user data
 const PINS_KEY = 'kiu_pins_v1';
@@ -1028,10 +1030,7 @@ function renderAuth(){
         <div class="jsub">${isSignup ? 'You need an account to host a show.' : 'Sign in to keep the show going.'}</div>
       </div>
       <div class="admit-body">
-        <button class="btn btn-outline btn-block" disabled title="Needs real OAuth credentials configured on the server — not wired up yet" style="display:flex;align-items:center;justify-content:center;gap:9px;opacity:.45;cursor:not-allowed">
-          <svg width="16" height="16" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.9 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l6-6C34.9 5.1 29.7 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21 21-9.4 21-21c0-1.4-.1-2.7-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.9 18.9 13 24 13c3.1 0 5.8 1.1 8 3l6-6C34.9 5.1 29.7 3 24 3 16.3 3 9.6 7.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 45c5.6 0 10.7-2.1 14.5-5.6l-6.7-5.7C29.6 35.7 26.9 36.5 24 36.5c-5.3 0-9.7-3.6-11.3-8.5l-6.6 5.1C9.5 40.5 16.2 45 24 45z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.2 5.7l6.7 5.7C41.9 36 45 30.6 45 24c0-1.4-.1-2.7-.4-3.5z"/></svg>
-          Continue with Google
-        </button>
+        <div id="google-btn-container" style="display:flex;justify-content:center;min-height:44px"></div>
         <div style="text-align:center;color:var(--ink-faint);font-size:11px;margin:16px 0;text-transform:uppercase;letter-spacing:.06em">use email instead</div>
         ${isSignup ? `<div class="join-field"><label>Display name</label><input id="auth-name" type="text" placeholder="e.g. Tayles"></div>` : ''}
         <div class="join-field"><label>Email</label><input id="auth-email" type="text" placeholder="you@example.com"></div>
@@ -1045,6 +1044,26 @@ function renderAuth(){
         <div style="text-align:center;margin-top:16px"><span style="font-size:11px;color:var(--ink-faint);text-decoration:underline;cursor:pointer" onclick="goLanding()">← Back to Keep it up!</span></div>
       </div>
     </div>`;
+  initGoogleButton(isSignup ? 'signup' : 'login');
+}
+function initGoogleButton(mode){
+  const container = document.getElementById('google-btn-container');
+  if(!container) return;
+  if(typeof google==='undefined' || !google.accounts || !google.accounts.id){
+    setTimeout(()=>initGoogleButton(mode), 200); // GSI script may still be loading
+    return;
+  }
+  google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, callback: handleGoogleCredential });
+  google.accounts.id.renderButton(container, { theme:'outline', size:'large', width:344, shape:'pill', text: mode==='signup' ? 'signup_with' : 'signin_with' });
+}
+async function handleGoogleCredential(response){
+  try{
+    const data = await apiFetch('/api/auth/google', { method:'POST', body:{ credential: response.credential } });
+    localStorage.setItem(TOKEN_KEY, data.token);
+    currentUser = data.user;
+    toast('Signed in with Google!');
+    await enterAppAfterAuth();
+  }catch(e){ toast(e.message); }
 }
 async function requestPasswordReset(){
   const email = (document.getElementById('forgot-email').value||'').trim();
