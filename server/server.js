@@ -9,6 +9,7 @@ const { hashPassword, verifyPassword, newToken, newId, newJoinCode, hashToken } 
 const PORT = process.env.PORT || 8787;
 const MAX_BODY_BYTES = 8 * 1024 * 1024; // 8MB cap (mp3/wav uploads land here later; keep sane for now)
 const CORS_ORIGIN = process.env.CORS_ORIGIN || '*'; // lock this down to your real frontend URL once you're live
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 
 // ---------- rate limiting (in-memory — fine for a single instance; use Redis if you ever scale to several) ----------
 const rateBuckets = new Map(); // key -> { count, resetAt }
@@ -106,6 +107,45 @@ function route(method, pattern, handler) {
 }
 
 // ----- auth -----
+async function verifyGoogleIdToken(idToken) {
+  const res = await fetch('https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(idToken));
+  if (!res.ok) throw new Error('Could not verify Google sign-in.');
+  const payload = await res.json();
+  if (payload.aud !== GOOGLE_CLIENT_ID) throw new Error('This Google sign-in was not issued for this app.');
+  if (payload.email_verified !== 'true' && payload.email_verified !== true) throw new Error('Your Google email is not verified.');
+  return payload;
+}
+
+route('POST', '/api/auth/google', async (req, res) => {
+  if (!GOOGLE_CLIENT_ID) return sendJSON(res, 500, { error: 'Google sign-in is not configured on this server yet.' });
+  if (rateLimited('google-auth:' + clientIp(req), 20, 15 * 60 * 1000)) {
+    return sendJSON(res, 429, { error: 'Too many attempts. Try again later.' });
+  }
+  const body = await readBody(req);
+  const idToken = String(body.credential || '');
+  if (!idToken) return sendJSON(res, 400, { error: 'Missing Google credential.' });
+
+  let payload;
+  try { payload = await verifyGoogleIdToken(idToken); }
+  catch (e) { return sendJSON(res, 401, { error: e.message || 'Could not verify Google sign-in.' }); }
+
+  const email = String(payload.email || '').trim().toLowerCase();
+  if (!email) return sendJSON(res, 400, { error: 'Google did not provide an email address.' });
+  const name = String(payload.name || email.split('@')[0]).trim();
+
+  let user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+  if (!user) {
+    const username = generateUniqueUsername(name);
+    user = { id: newId(), email, name, provider: 'google', join_code: newJoinCode(), username, created_at: Date.now() };
+    db.prepare(`INSERT INTO users (id,email,password_hash,password_salt,name,provider,join_code,username,created_at)
+                VALUES (?,?,?,?,?,?,?,?,?)`)
+      .run(user.id, user.email, null, null, user.name, user.provider, user.join_code, user.username, user.created_at);
+  }
+  const token = newToken();
+  db.prepare('INSERT INTO tokens (token,user_id,created_at) VALUES (?,?,?)').run(token, user.id, Date.now());
+  sendJSON(res, 200, { token, user: publicUser(user) });
+});
+
 route('POST', '/api/signup', async (req, res) => {
   if (rateLimited('signup:' + clientIp(req), 5, 60 * 60 * 1000)) {
     return sendJSON(res, 429, { error: 'Too many accounts created from this connection. Try again later.' });
