@@ -1993,17 +1993,40 @@ function openAccountSettings(){
   overlayEl.innerHTML = `
     <div class="modal">
       <h3>Account</h3>
-      <div class="msub">Signed in ${acc.provider==='google'?'via Google (simulated)':'with email'} as ${escapeHtml(acc.email)}</div>
+      <div class="msub">Signed in ${acc.provider==='google'?'via Google':'with email'} as ${escapeHtml(acc.email)}</div>
       <div class="join-field"><label>Display name</label><input id="acct-name" type="text" value="${escapeHtml(acc.name)}" maxlength="24"></div>
       <div class="join-field"><label>Your link username</label><input id="acct-username" type="text" value="${escapeHtml(acc.username||'')}" maxlength="30" placeholder="e.g. tayles" oninput="updateUsernamePreview()"></div>
       <div class="msub" id="username-preview" style="margin-top:-10px;margin-bottom:2px">${escapeHtml(location.origin)}/<b style="color:var(--gold)">${escapeHtml(acc.username||'...')}</b></div>
-      <div class="msub" style="margin-top:6px">Your account, shows and history now live on a real server (${escapeHtml(API_BASE)}). Wallets still live only in this browser — see Finances → Wallets.</div>
+      <div class="msub" style="margin-top:6px">Your account, shows and history now live on a real server (${escapeHtml(API_BASE)}).</div>
       <div class="modal-actions"><button class="btn btn-gold" style="flex:1" onclick="saveAccountName()">Save</button><button class="btn btn-ghost" onclick="this.closest('.modal-overlay').remove()">Close</button></div>
+      <div class="sub-label" style="margin-top:18px;padding-top:14px;border-top:1px dashed var(--line-strong)">Payouts</div>
+      <div id="stripe-status-section" class="msub">Checking payout status…</div>
       <div class="msub" style="margin-top:16px;padding-top:14px;border-top:1px dashed var(--line-strong)">Team/co-host access needs a newer version of the backend — not available yet.</div>
       <button class="btn btn-outline btn-block" style="margin-top:10px;border-color:var(--coral);color:var(--coral)" onclick="handleLogout()">Log out</button>
     </div>`;
   overlayEl.addEventListener('click', e=>{ if(e.target===overlayEl) overlayEl.remove(); });
   document.body.appendChild(overlayEl);
+  refreshStripeStatus();
+}
+async function refreshStripeStatus(){
+  const el = document.getElementById('stripe-status-section');
+  if(!el) return;
+  try{
+    const data = await apiFetch('/api/stripe/status');
+    if(!data.connected){
+      el.innerHTML = `<div class="msub" style="margin-bottom:8px">Connect a Stripe account so you can actually receive skip fees and payouts.</div><button class="btn-xs" onclick="connectStripe()">Connect payouts (Stripe)</button>`;
+    } else if(!data.payoutsEnabled){
+      el.innerHTML = `<div class="msub" style="margin-bottom:8px;color:var(--coral)">Almost there — Stripe needs a bit more info before payouts can start.</div><button class="btn-xs" onclick="connectStripe()">Finish setting up payouts</button>`;
+    } else {
+      el.innerHTML = `<div style="display:flex;align-items:center;gap:8px"><span class="badge badge-mint">Connected</span><span class="msub" style="margin:0">Payouts are active on this account.</span></div>`;
+    }
+  }catch(e){ el.innerHTML = `<div class="msub" style="color:var(--coral)">${escapeHtml(e.message)}</div>`; }
+}
+async function connectStripe(){
+  try{
+    const data = await apiFetch('/api/stripe/connect', { method:'POST' });
+    window.location.href = data.url;
+  }catch(e){ toast(e.message); }
 }
 function updateUsernamePreview(){
   const v = (document.getElementById('acct-username').value||'').trim();
@@ -2251,6 +2274,13 @@ function startPolling(){
   // isn't asked to sign in again — but we don't auto-jump into the app (see earlier fix:
   // the landing page should always show first).
   await refreshCurrentUser();
+
+  const stripeParams = new URLSearchParams(location.search);
+  if((stripeParams.get('stripe_return') || stripeParams.get('stripe_refresh')) && currentUser){
+    history.replaceState({}, '', location.pathname);
+    await goApp();
+    openAccountSettings();
+  }
 })();
 </script>
 </body>
