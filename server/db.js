@@ -88,5 +88,9 @@ db.exec(`
 try { db.exec(`ALTER TABLE shows ADD COLUMN bracket_json TEXT`); } catch (e) { /* column already exists — fine */ }
 // Safe migration for databases created before username existed.
 try { db.exec(`ALTER TABLE users ADD COLUMN username TEXT`); } catch (e) { /* column already exists — fine */ }
+// Safe migrations for real Stripe payments (Connect account, payout status, per-transaction payment intent for refunds).
+try { db.exec(`ALTER TABLE users ADD COLUMN stripe_account_id TEXT`); } catch (e) { /* column already exists — fine */ }
+try { db.exec(`ALTER TABLE users ADD COLUMN stripe_payouts_enabled INTEGER NOT NULL DEFAULT 0`); } catch (e) { /* column already exists — fine */ }
+try { db.exec(`ALTER TABLE transactions ADD COLUMN stripe_payment_intent_id TEXT`); } catch (e) { /* column already exists — fine */ }
 
 module.exports = db;
