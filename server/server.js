@@ -9,7 +9,7 @@ const { hashPassword, verifyPassword, newToken, newId, newJoinCode, hashToken } 
 const PORT = process.env.PORT || 8787;
 const MAX_BODY_BYTES = 8 * 1024 * 1024; // 8MB cap (mp3/wav uploads land here later; keep sane for now)
 const CORS_ORIGIN = process.env.CORS_ORIGIN || '*'; // lock this down to your real frontend URL once you're live
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
+const GOOGLE_CLIENT_ID = (process.env.GOOGLE_CLIENT_ID || '').trim();
 
 // ---------- rate limiting (in-memory — fine for a single instance; use Redis if you ever scale to several) ----------
 const rateBuckets = new Map(); // key -> { count, resetAt }
