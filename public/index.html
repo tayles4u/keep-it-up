@@ -2001,10 +2001,15 @@ async function refreshStripeStatus(elId){
   }catch(e){ el.innerHTML = `<div class="msub" style="color:var(--coral)">${escapeHtml(e.message)}</div>`; }
 }
 async function connectStripe(){
+  const btn = event && event.target ? event.target.closest('button') : null;
+  if(btn){ if(btn.disabled) return; btn.disabled = true; btn.dataset.origText = btn.textContent; btn.textContent = 'Connecting…'; }
   try{
     const data = await apiFetch('/api/stripe/connect', { method:'POST' });
-    window.location.href = data.url;
-  }catch(e){ toast(e.message); }
+    window.location.href = data.url; // hands off to Stripe's own hosted onboarding — automatic, no extra click needed
+  }catch(e){
+    toast(e.message);
+    if(btn){ btn.disabled = false; btn.textContent = btn.dataset.origText || 'Connect payouts (Stripe)'; }
+  }
 }
 function updateUsernamePreview(){
   const v = (document.getElementById('acct-username').value||'').trim();
