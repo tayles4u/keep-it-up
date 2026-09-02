@@ -1440,7 +1440,8 @@ function renderFinancesWallets(){
     <div class="subtabs"><div class="subtab nav-link" data-view="finances-overview">${t('tab_overview')}</div><div class="subtab nav-link" data-view="finances-transactions">${t('tab_transactions')}</div><div class="subtab active">${t('tab_wallets')}</div></div>
     <div class="card">
       <div class="sub-label" style="margin-top:0">Payouts</div>
-      <div id="stripe-status-section-wallets" class="msub">Checking payout status…</div>
+      <div class="msub" style="margin-top:-4px">Connect a real Stripe account so skip fees actually reach your bank — your own IBAN, under your own name. Stripe handles the identity check; we never see or store your bank details.</div>
+      <div id="stripe-status-section-wallets" style="margin-top:12px">Checking payout status…</div>
     </div>`;
   refreshStripeStatus('stripe-status-section-wallets');
 }
@@ -1977,16 +1978,13 @@ function openAccountSettings(){
       <div class="join-field"><label>Display name</label><input id="acct-name" type="text" value="${escapeHtml(acc.name)}" maxlength="24"></div>
       <div class="join-field"><label>Your link username</label><input id="acct-username" type="text" value="${escapeHtml(acc.username||'')}" maxlength="30" placeholder="e.g. tayles" oninput="updateUsernamePreview()"></div>
       <div class="msub" id="username-preview" style="margin-top:-10px;margin-bottom:2px">${escapeHtml(location.origin)}/<b style="color:var(--gold)">${escapeHtml(acc.username||'...')}</b></div>
-      <div class="msub" style="margin-top:6px">Your account, shows and history now live on a real server (${escapeHtml(API_BASE)}).</div>
+      <div class="msub" style="margin-top:6px">Your account, shows and history now live on a real server (${escapeHtml(API_BASE)}). Payouts live under Finances → Wallets.</div>
       <div class="modal-actions"><button class="btn btn-gold" style="flex:1" onclick="saveAccountName()">Save</button><button class="btn btn-ghost" onclick="this.closest('.modal-overlay').remove()">Close</button></div>
-      <div class="sub-label" style="margin-top:18px;padding-top:14px;border-top:1px dashed var(--line-strong)">Payouts</div>
-      <div id="stripe-status-section" class="msub">Checking payout status…</div>
       <div class="msub" style="margin-top:16px;padding-top:14px;border-top:1px dashed var(--line-strong)">Team/co-host access needs a newer version of the backend — not available yet.</div>
       <button class="btn btn-outline btn-block" style="margin-top:10px;border-color:var(--coral);color:var(--coral)" onclick="handleLogout()">Log out</button>
     </div>`;
   overlayEl.addEventListener('click', e=>{ if(e.target===overlayEl) overlayEl.remove(); });
   document.body.appendChild(overlayEl);
-  refreshStripeStatus();
 }
 async function refreshStripeStatus(elId){
   const el = document.getElementById(elId || 'stripe-status-section');
@@ -1994,7 +1992,7 @@ async function refreshStripeStatus(elId){
   try{
     const data = await apiFetch('/api/stripe/status');
     if(!data.connected){
-      el.innerHTML = `<div class="msub" style="margin-bottom:8px">Connect a Stripe account so you can actually receive skip fees and payouts.</div><button class="btn-xs" onclick="connectStripe()">Connect payouts (Stripe)</button>`;
+      el.innerHTML = `<button class="btn-xs" onclick="connectStripe()">Connect payouts (Stripe)</button>`;
     } else if(!data.payoutsEnabled){
       el.innerHTML = `<div class="msub" style="margin-bottom:8px;color:var(--coral)">Almost there — Stripe needs a bit more info before payouts can start.</div><button class="btn-xs" onclick="connectStripe()">Finish setting up payouts</button>`;
     } else {
@@ -2259,7 +2257,7 @@ function startPolling(){
   if((stripeParams.get('stripe_return') || stripeParams.get('stripe_refresh')) && currentUser){
     history.replaceState({}, '', location.pathname);
     await goApp();
-    openAccountSettings();
+    showView('finances-wallets');
   }
 })();
 </script>
