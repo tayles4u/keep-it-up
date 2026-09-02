@@ -817,15 +817,6 @@ async function refreshTransactions(){
   const data = await apiFetch('/api/transactions');
   db.transactions = data.transactions || [];
 }
-// Wallets aren't wired to the server yet (no payment provider behind this demo) — kept local per account.
-function loadWallets(){
-  const key = WALLETS_PREFIX + (currentUser ? currentUser.id : 'anon');
-  try{ return JSON.parse(localStorage.getItem(key)) || []; }catch(e){ return []; }
-}
-function saveWallets(list){
-  const key = WALLETS_PREFIX + (currentUser ? currentUser.id : 'anon');
-  localStorage.setItem(key, JSON.stringify(list));
-}
 async function refreshCurrentUser(){
   const token = localStorage.getItem(TOKEN_KEY);
   if(!token){ currentUser = null; return null; }
@@ -1167,7 +1158,7 @@ async function refreshForView(name){
     if(name==='sessions-host' || name==='sessions-live'){ await refreshCurrentShow(); }
     else if(name==='sessions-history'){ await refreshHistory(); }
     else if(name==='finances-overview' || name==='finances-transactions'){ await refreshTransactions(); }
-    else if(name==='finances-wallets'){ db.wallets = loadWallets(); await refreshTransactions(); }
+    else if(name==='finances-wallets'){ await refreshTransactions(); }
     else if(name==='analytics'){ await refreshHistory(); await refreshTransactions(); }
   }catch(e){ /* apiFetch already shows a toast */ }
 }
@@ -1189,11 +1180,9 @@ async function showView(name){
 document.addEventListener('click', function(e){ const l = e.target.closest('.nav-link'); if(l) showView(l.getAttribute('data-view')); });
 
 function resetDemo(){
-  if(!confirm("Clear locally-saved wallets and preferences on this device?\n\n(Your account, shows, and history live on the server now — this only clears the few things still stored in this browser.)")) return;
+  if(!confirm("Clear locally-saved preferences on this device?\n\n(Your account, shows, and history live on the server now — this only clears the few things still stored in this browser.)")) return;
   const uidKey = currentUser ? currentUser.id : 'anon';
-  localStorage.removeItem(WALLETS_PREFIX+uidKey);
   localStorage.removeItem(LASTSETTINGS_PREFIX+uidKey);
-  db.wallets = loadWallets();
   toast('Local data cleared');
   render();
 }
@@ -1421,8 +1410,9 @@ function renderFinancesOverview(){
     </div>`;
 }
 async function requestPayout(){
-  if(!db.wallets.length){ toast('Connect a wallet under Finances → Wallets first.'); return; }
   try{
+    const status = await apiFetch('/api/stripe/status');
+    if(!status.connected || !status.payoutsEnabled){ toast('Connect payouts under Finances → Wallets first.'); return; }
     const data = await apiFetch('/api/payout', { method:'POST' });
     toast('Payout of '+money(data.amount)+' requested (simulated)');
     await refreshTransactions();
@@ -1445,25 +1435,15 @@ function renderFinancesTransactions(){
 }
 function renderFinancesWallets(){
   const el = document.getElementById('view-finances-wallets');
-  const rows = db.wallets.map(w=>`<div class="wallet-row"><div><b>${escapeHtml(w.label)}</b><span>${fmtDate(w.connectedAt)}</span></div><button class="btn-xs" onclick="removeWallet('${w.id}')">${t('remove')}</button></div>`).join('');
-  const listOrEmpty = db.wallets.length ? rows : `<div class="empty" style="min-height:16vh"><h2 style="font-size:22px">${t('no_wallets_title')}</h2><p>${t('no_wallets_sub')}</p></div>`;
   el.innerHTML = `
     <div class="page-head"><h1>${t('page_finances')}</h1><button class="btn btn-ghost" onclick="requestPayout()">${t('btn_payout')} ${money(financeTotals().available)}</button></div>
     <div class="subtabs"><div class="subtab nav-link" data-view="finances-overview">${t('tab_overview')}</div><div class="subtab nav-link" data-view="finances-transactions">${t('tab_transactions')}</div><div class="subtab active">${t('tab_wallets')}</div></div>
-    <div class="msub" style="margin-bottom:14px">Wallets aren't wired to the server yet (no payment provider behind this demo) — saved only in this browser for now.</div>
-    <div style="margin-bottom:24px">${listOrEmpty}</div>
-    <div class="field-label">${t('connect_new_wallet')}</div>
-    <div class="connect-form"><input id="wallet-input" type="text" placeholder="${t('wallet_ph')}"><button class="btn btn-gold" onclick="connectWallet()">${t('btn_connect')}</button></div>`;
+    <div class="card">
+      <div class="sub-label" style="margin-top:0">Payouts</div>
+      <div id="stripe-status-section-wallets" class="msub">Checking payout status…</div>
+    </div>`;
+  refreshStripeStatus('stripe-status-section-wallets');
 }
-function connectWallet(){
-  const input = document.getElementById('wallet-input'); const val = input.value.trim();
-  if(!val){ toast('Enter an address first.'); return; }
-  db.wallets.push({id:uid(), label:val, connectedAt:Date.now()});
-  saveWallets(db.wallets);
-  toast('Wallet connected (simulated)'); render();
-}
-function removeWallet(id){ db.wallets = db.wallets.filter(w=>w.id!==id); saveWallets(db.wallets); render(); }
-
 /* ===================== MEDIA / PLATFORM DETECTION ===================== */
 function isUrl(str){ return /^https?:\/\//i.test(str||''); }
 function detectPlatform(url){
@@ -2008,8 +1988,8 @@ function openAccountSettings(){
   document.body.appendChild(overlayEl);
   refreshStripeStatus();
 }
-async function refreshStripeStatus(){
-  const el = document.getElementById('stripe-status-section');
+async function refreshStripeStatus(elId){
+  const el = document.getElementById(elId || 'stripe-status-section');
   if(!el) return;
   try{
     const data = await apiFetch('/api/stripe/status');
