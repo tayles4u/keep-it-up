@@ -149,7 +149,7 @@ route('POST', '/api/stripe/connect', async (req, res) => {
         type: 'express',
         country: 'DE',
         email: user.email,
-        capabilities: { card_payments: { requested: 'true' }, transfers: { requested: 'true' } }
+        capabilities: { transfers: { requested: 'true' } }
       });
       accountId = account.id;
       db.prepare('UPDATE users SET stripe_account_id=? WHERE id=?').run(accountId, user.id);
