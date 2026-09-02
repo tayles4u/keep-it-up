@@ -1998,7 +1998,7 @@ async function refreshStripeStatus(elId){
     } else {
       el.innerHTML = `<div style="display:flex;align-items:center;gap:8px"><span class="badge badge-mint">Connected</span><span class="msub" style="margin:0">Payouts are active on this account.</span></div>`;
     }
-  }catch(e){ el.innerHTML = `<div class="msub" style="color:var(--coral)">${escapeHtml(e.message)}</div>`; }
+  }catch(e){ el.innerHTML = `<div class="msub" style="color:var(--coral);margin-bottom:8px">${escapeHtml(e.message)}</div><button class="btn-xs" onclick="connectStripe()">Connect payouts (Stripe)</button>`; }
 }
 async function connectStripe(){
   const btn = event && event.target ? event.target.closest('button') : null;
