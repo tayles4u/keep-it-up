@@ -147,6 +147,7 @@ route('POST', '/api/stripe/connect', async (req, res) => {
     if (!accountId) {
       const account = await stripeRequest('POST', '/accounts', {
         type: 'express',
+        country: 'DE',
         email: user.email,
         capabilities: { card_payments: { requested: 'true' }, transfers: { requested: 'true' } }
       });
