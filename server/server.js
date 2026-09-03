@@ -145,7 +145,7 @@ route('POST', '/api/stripe/connect', async (req, res) => {
         },
         defaults: {
           currency: 'eur',
-          responsibilities: { fees_collector: 'stripe', losses_collector: 'stripe' },
+          responsibilities: { fees_collector: 'application', losses_collector: 'application' },
           locales: ['de-DE']
         },
         include: ['configuration.recipient']
