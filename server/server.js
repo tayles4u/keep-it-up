@@ -143,6 +143,11 @@ route('POST', '/api/stripe/connect', async (req, res) => {
         configuration: {
           recipient: { capabilities: { stripe_balance: { stripe_transfers: { requested: true } } } }
         },
+        defaults: {
+          currency: 'eur',
+          responsibilities: { fees_collector: 'stripe', losses_collector: 'stripe' },
+          locales: ['de-DE']
+        },
         include: ['configuration.recipient']
       });
       accountId = account.id;
