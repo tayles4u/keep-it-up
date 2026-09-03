@@ -12,7 +12,6 @@ const CORS_ORIGIN = process.env.CORS_ORIGIN || '*'; // lock this down to your re
 const GOOGLE_CLIENT_ID = (process.env.GOOGLE_CLIENT_ID || '').trim();
 const STRIPE_SECRET_KEY = (process.env.STRIPE_SECRET_KEY || '').trim();
 const STRIPE_WEBHOOK_SECRET = (process.env.STRIPE_WEBHOOK_SECRET || '').trim();
-const STRIPE_API = 'https://api.stripe.com/v1';
 
 // ---------- rate limiting (in-memory — fine for a single instance; use Redis if you ever scale to several) ----------
 const rateBuckets = new Map(); // key -> { count, resetAt }
@@ -110,26 +109,15 @@ function route(method, pattern, handler) {
 }
 
 // ----- Stripe (raw REST calls via fetch — no npm dependency, same style as the rest of this server) -----
-function stripeFormBody(obj) {
-  // Stripe's API takes classic form-encoded bodies with bracket notation for nested objects,
-  // e.g. transfer_data[destination]=acct_123 — this flattens a normal JS object into that shape.
-  const params = new URLSearchParams();
-  (function walk(o, prefix) {
-    for (const k in o) {
-      const key = prefix ? `${prefix}[${k}]` : k;
-      const v = o[k];
-      if (v && typeof v === 'object' && !Array.isArray(v)) walk(v, key);
-      else if (v !== undefined && v !== null) params.append(key, v);
-    }
-  })(obj, '');
-  return params.toString();
-}
-async function stripeRequest(method, path, body) {
+const STRIPE_API_VERSION = '2026-01-28.clover';
+async function stripeRequestV2(method, path, body) {
   if (!STRIPE_SECRET_KEY) throw new Error('Stripe is not configured on this server yet.');
-  const headers = { 'Authorization': 'Basic ' + Buffer.from(STRIPE_SECRET_KEY + ':').toString('base64') };
-  let fetchBody;
-  if (body) { headers['Content-Type'] = 'application/x-www-form-urlencoded'; fetchBody = stripeFormBody(body); }
-  const res = await fetch(STRIPE_API + path, { method, headers, body: fetchBody });
+  const headers = {
+    'Authorization': 'Basic ' + Buffer.from(STRIPE_SECRET_KEY + ':').toString('base64'),
+    'Stripe-Version': STRIPE_API_VERSION,
+    'Content-Type': 'application/json'
+  };
+  const res = await fetch('https://api.stripe.com' + path, { method, headers, body: body ? JSON.stringify(body) : undefined });
   const data = await res.json();
   if (!res.ok) throw new Error((data.error && data.error.message) || 'Stripe request failed.');
   return data;
@@ -145,21 +133,32 @@ route('POST', '/api/stripe/connect', async (req, res) => {
   try {
     let accountId = user.stripe_account_id;
     if (!accountId) {
-      const account = await stripeRequest('POST', '/accounts', {
-        type: 'express',
-        country: 'DE',
-        email: user.email,
-        capabilities: { transfers: { requested: 'true' } }
+      // 'recipient' configuration = this account only ever receives transferred funds and gets paid out —
+      // it never processes its own card charges, which keeps the onboarding form as short as possible.
+      const account = await stripeRequestV2('POST', '/v2/core/accounts', {
+        contact_email: user.email,
+        display_name: user.name,
+        dashboard: 'express',
+        identity: { country: 'de' },
+        configuration: {
+          recipient: { capabilities: { stripe_balance: { stripe_transfers: { requested: true } } } }
+        },
+        include: ['configuration.recipient']
       });
       accountId = account.id;
       db.prepare('UPDATE users SET stripe_account_id=? WHERE id=?').run(accountId, user.id);
     }
     const origin = requestOrigin(req);
-    const link = await stripeRequest('POST', '/account_links', {
+    const link = await stripeRequestV2('POST', '/v2/core/account_links', {
       account: accountId,
-      refresh_url: origin + '/?stripe_refresh=1',
-      return_url: origin + '/?stripe_return=1',
-      type: 'account_onboarding'
+      use_case: {
+        type: 'account_onboarding',
+        account_onboarding: {
+          configurations: ['recipient'],
+          refresh_url: origin + '/?stripe_refresh=1',
+          return_url: origin + '/?stripe_return=1'
+        }
+      }
     });
     sendJSON(res, 200, { url: link.url });
   } catch (e) { sendJSON(res, 500, { error: e.message }); }
@@ -170,14 +169,17 @@ route('GET', '/api/stripe/status', async (req, res) => {
   if (!user) return sendJSON(res, 401, { error: 'Not signed in.' });
   if (!user.stripe_account_id) return sendJSON(res, 200, { connected: false });
   try {
-    const account = await stripeRequest('GET', '/accounts/' + user.stripe_account_id);
-    const payoutsEnabled = !!account.payouts_enabled;
+    const account = await stripeRequestV2('GET', '/v2/core/accounts/' + user.stripe_account_id + '?include[]=configuration.recipient&include[]=requirements');
+    const recipientCap = account.configuration && account.configuration.recipient && account.configuration.recipient.capabilities;
+    const transferStatus = recipientCap && recipientCap.stripe_balance && recipientCap.stripe_balance.stripe_transfers && recipientCap.stripe_balance.stripe_transfers.status;
+    const payoutsEnabled = transferStatus === 'active';
+    const currentlyDue = (account.requirements && account.requirements.currently_due) || [];
     db.prepare('UPDATE users SET stripe_payouts_enabled=? WHERE id=?').run(payoutsEnabled ? 1 : 0, user.id);
     sendJSON(res, 200, {
       connected: true,
       payoutsEnabled,
-      chargesEnabled: !!account.charges_enabled,
-      detailsSubmitted: !!account.details_submitted
+      chargesEnabled: payoutsEnabled,
+      detailsSubmitted: currentlyDue.length === 0
     });
   } catch (e) { sendJSON(res, 500, { error: e.message }); }
 });
