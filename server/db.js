@@ -49,7 +49,8 @@ db.exec(`
     paid_total REAL NOT NULL DEFAULT 0,
     position   INTEGER NOT NULL,
     status     TEXT NOT NULL DEFAULT 'queued', -- queued | played | removed | bracket
-    joined_at  INTEGER NOT NULL
+    joined_at  INTEGER NOT NULL,
+    cover_url  TEXT
   );
 
   CREATE TABLE IF NOT EXISTS show_bans (
@@ -92,5 +93,7 @@ try { db.exec(`ALTER TABLE users ADD COLUMN username TEXT`); } catch (e) { /* co
 try { db.exec(`ALTER TABLE users ADD COLUMN stripe_account_id TEXT`); } catch (e) { /* column already exists — fine */ }
 try { db.exec(`ALTER TABLE users ADD COLUMN stripe_payouts_enabled INTEGER NOT NULL DEFAULT 0`); } catch (e) { /* column already exists — fine */ }
 try { db.exec(`ALTER TABLE transactions ADD COLUMN stripe_payment_intent_id TEXT`); } catch (e) { /* column already exists — fine */ }
+// Safe migration for databases created before cover_url existed (real Spotify/etc. artwork, fetched at submission time).
+try { db.exec(`ALTER TABLE queue_items ADD COLUMN cover_url TEXT`); } catch (e) { /* column already exists — fine */ }
 
 module.exports = db;
