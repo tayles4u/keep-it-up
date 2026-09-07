@@ -1468,7 +1468,7 @@ const PLATFORM_META = {
 };
 function platformBadge(url){ const p=detectPlatform(url); const m=PLATFORM_META[p]; return `<span class="plat-badge" style="color:${m.color};border-color:${m.color}">${m.label}</span>`; }
 function youTubeId(url){ const m = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/); return m ? m[1] : null; }
-function spotifyEmbed(url){ const m = url.match(/open\.spotify\.com\/(track|album|playlist|episode|show)\/([A-Za-z0-9]+)/); return m ? 'https://open.spotify.com/embed/'+m[1]+'/'+m[2] : null; }
+function spotifyEmbed(url){ const m = url.match(/open\.spotify\.com\/(?:[a-z]+(?:-[a-z]+)?\/)?(track|album|playlist|episode|show)\/([A-Za-z0-9]+)/); return m ? 'https://open.spotify.com/embed/'+m[1]+'/'+m[2] : null; }
 function dropboxDirect(url){ if(url.includes('dl=0')) return url.replace('dl=0','raw=1'); return url + (url.includes('?')?'&':'?') + 'raw=1'; }
 
 function fillerCoverHtml(size){
