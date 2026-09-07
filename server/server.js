@@ -127,6 +127,10 @@ function requestOrigin(req) {
   return (raw && raw !== 'null' && /^https?:\/\//.test(raw)) ? raw : (process.env.WEB_URL || 'http://localhost:8787');
 }
 
+// Closes the race window where two near-simultaneous clicks (skip and/or jump) from the same
+// fan could both read the queue before either had written its update, charging them twice.
+const queuePaymentLocks = new Set();
+
 route('POST', '/api/stripe/connect', async (req, res) => {
   const user = getAuthUser(req);
   if (!user) return sendJSON(res, 401, { error: 'Not signed in.' });
@@ -662,23 +666,30 @@ route('POST', '/api/public/:joinCode/skip', async (req, res, params) => {
   const settings = JSON.parse(show.settings_json);
   if (!settings.skipsEnabled) return sendJSON(res, 409, { error: 'Skips are disabled.' });
   const body = await readBody(req);
-  const queue = db.prepare(`SELECT * FROM queue_items WHERE show_id=? AND status='queued' ORDER BY position ASC`).all(show.id);
-  const idx = queue.findIndex(q => q.id === body.participantId);
-  if (idx === -1) return sendJSON(res, 404, { error: 'Not found.' });
-  if (idx === 0) return sendJSON(res, 409, { error: "That song is already on stage — it can't be skipped." });
-  if (idx === 1) return sendJSON(res, 409, { error: "You're already next in line." });
-  const me = queue[idx];
-  const cost = Number(settings.skipFee || 0);
-  db.prepare(`UPDATE queue_items SET paid_total = paid_total + ? WHERE id=?`).run(cost, me.id);
-  // Move to the very front of the on-deck line (position 1, right after whoever's on stage now) —
-  // position 0 is never touched, so a payment can never interrupt the person currently playing.
-  for (let i = idx - 1; i >= 1; i--) {
-    db.prepare(`UPDATE queue_items SET position=? WHERE id=?`).run(i + 1, queue[i].id);
+  const participantId = body.participantId;
+  if (queuePaymentLocks.has(participantId)) {
+    return sendJSON(res, 429, { error: "Your last request is still processing — give it a second." });
   }
-  db.prepare(`UPDATE queue_items SET position=1 WHERE id=?`).run(me.id);
-  db.prepare(`INSERT INTO transactions (id,user_id,show_id,type,amount,status,date) VALUES (?,?,?,?,?,?,?)`)
-    .run(newId(), user.id, show.id, 'skip_fee', cost, 'pending', Date.now());
-  sendJSON(res, 200, { ok: true, cost });
+  queuePaymentLocks.add(participantId);
+  try {
+    const queue = db.prepare(`SELECT * FROM queue_items WHERE show_id=? AND status='queued' ORDER BY position ASC`).all(show.id);
+    const idx = queue.findIndex(q => q.id === participantId);
+    if (idx === -1) return sendJSON(res, 404, { error: 'Not found.' });
+    if (idx === 0) return sendJSON(res, 409, { error: "That song is already on stage — it can't be skipped." });
+    if (idx === 1) return sendJSON(res, 409, { error: "You're already next in line." });
+    const me = queue[idx];
+    const cost = Number(settings.skipFee || 0);
+    db.prepare(`UPDATE queue_items SET paid_total = paid_total + ? WHERE id=?`).run(cost, me.id);
+    // Move to the very front of the on-deck line (position 1, right after whoever's on stage now) —
+    // position 0 is never touched, so a payment can never interrupt the person currently playing.
+    for (let i = idx - 1; i >= 1; i--) {
+      db.prepare(`UPDATE queue_items SET position=? WHERE id=?`).run(i + 1, queue[i].id);
+    }
+    db.prepare(`UPDATE queue_items SET position=1 WHERE id=?`).run(me.id);
+    db.prepare(`INSERT INTO transactions (id,user_id,show_id,type,amount,status,date) VALUES (?,?,?,?,?,?,?)`)
+      .run(newId(), user.id, show.id, 'skip_fee', cost, 'pending', Date.now());
+    sendJSON(res, 200, { ok: true, cost });
+  } finally { queuePaymentLocks.delete(participantId); }
 });
 
 route('POST', '/api/public/:joinCode/jump', async (req, res, params) => {
@@ -689,26 +700,33 @@ route('POST', '/api/public/:joinCode/jump', async (req, res, params) => {
   const settings = JSON.parse(show.settings_json);
   if (!settings.skipsEnabled) return sendJSON(res, 409, { error: 'Skips are disabled.' });
   const body = await readBody(req);
-  const queue = db.prepare(`SELECT * FROM queue_items WHERE show_id=? AND status='queued' ORDER BY position ASC`).all(show.id);
-  const idx = queue.findIndex(q => q.id === body.participantId);
-  if (idx === -1) return sendJSON(res, 404, { error: 'Not found.' });
-  if (idx === 0) return sendJSON(res, 409, { error: "That song is already on stage — it can't be skipped." });
-  if (idx === 1) return sendJSON(res, 409, { error: "You're already next in line." });
-  const me = queue[idx];
-  const currentFirst = queue[1]; // whoever currently holds the front of the on-deck line, if anyone
-  const skipFee = Number(settings.skipFee || 0);
-  const cost = currentFirst
-    ? Math.max(skipFee * 2, Math.round(((currentFirst.paid_total - me.paid_total) + skipFee * 2) * 2) / 2)
-    : skipFee * 2;
-  db.prepare(`UPDATE queue_items SET paid_total = paid_total + ? WHERE id=?`).run(cost, me.id);
-  // Same rule as skip: only ever moves within on-deck (position 1+), position 0 stays untouched.
-  for (let i = idx - 1; i >= 1; i--) {
-    db.prepare(`UPDATE queue_items SET position=? WHERE id=?`).run(i + 1, queue[i].id);
+  const participantId = body.participantId;
+  if (queuePaymentLocks.has(participantId)) {
+    return sendJSON(res, 429, { error: "Your last request is still processing — give it a second." });
   }
-  db.prepare(`UPDATE queue_items SET position=1 WHERE id=?`).run(me.id);
-  db.prepare(`INSERT INTO transactions (id,user_id,show_id,type,amount,status,date) VALUES (?,?,?,?,?,?,?)`)
-    .run(newId(), user.id, show.id, 'overtake_fee', cost, 'pending', Date.now());
-  sendJSON(res, 200, { ok: true, cost });
+  queuePaymentLocks.add(participantId);
+  try {
+    const queue = db.prepare(`SELECT * FROM queue_items WHERE show_id=? AND status='queued' ORDER BY position ASC`).all(show.id);
+    const idx = queue.findIndex(q => q.id === participantId);
+    if (idx === -1) return sendJSON(res, 404, { error: 'Not found.' });
+    if (idx === 0) return sendJSON(res, 409, { error: "That song is already on stage — it can't be skipped." });
+    if (idx === 1) return sendJSON(res, 409, { error: "You're already next in line." });
+    const me = queue[idx];
+    const currentFirst = queue[1]; // whoever currently holds the front of the on-deck line, if anyone
+    const skipFee = Number(settings.skipFee || 0);
+    const cost = currentFirst
+      ? Math.max(skipFee * 2, Math.round(((currentFirst.paid_total - me.paid_total) + skipFee * 2) * 2) / 2)
+      : skipFee * 2;
+    db.prepare(`UPDATE queue_items SET paid_total = paid_total + ? WHERE id=?`).run(cost, me.id);
+    // Same rule as skip: only ever moves within on-deck (position 1+), position 0 stays untouched.
+    for (let i = idx - 1; i >= 1; i--) {
+      db.prepare(`UPDATE queue_items SET position=? WHERE id=?`).run(i + 1, queue[i].id);
+    }
+    db.prepare(`UPDATE queue_items SET position=1 WHERE id=?`).run(me.id);
+    db.prepare(`INSERT INTO transactions (id,user_id,show_id,type,amount,status,date) VALUES (?,?,?,?,?,?,?)`)
+      .run(newId(), user.id, show.id, 'overtake_fee', cost, 'pending', Date.now());
+    sendJSON(res, 200, { ok: true, cost });
+  } finally { queuePaymentLocks.delete(participantId); }
 });
 
 // ----- json helpers -----
