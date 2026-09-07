@@ -1597,6 +1597,42 @@ function controlsPanelInner(s){
     + accSection('audio', t('acc_audio'), audioBody);
 }
 
+function captureQueueRects(){
+  const rects = {};
+  document.querySelectorAll('.queue-row[data-id]').forEach(el=>{ rects[el.dataset.id] = el.getBoundingClientRect(); });
+  return rects;
+}
+function animateQueueRows(prevRects){
+  const rows = document.querySelectorAll('.queue-row[data-id]');
+  rows.forEach(row=>{
+    const id = row.dataset.id;
+    const oldRect = prevRects[id];
+    if(oldRect){
+      const newRect = row.getBoundingClientRect();
+      const dy = oldRect.top - newRect.top;
+      if(Math.abs(dy) > 1){
+        row.style.transition = 'none';
+        row.style.transform = `translateY(${dy}px)`;
+        requestAnimationFrame(()=>{
+          row.style.transition = 'transform .4s cubic-bezier(.2,.8,.2,1)';
+          row.style.transform = '';
+        });
+      }
+    } else {
+      // brand new row — fade/slide it in instead of popping into place
+      row.style.transition = 'none';
+      row.style.opacity = '0';
+      row.style.transform = 'translateX(-14px)';
+      requestAnimationFrame(()=>{
+        requestAnimationFrame(()=>{
+          row.style.transition = 'opacity .4s ease, transform .4s cubic-bezier(.2,.8,.2,1)';
+          row.style.opacity = '1';
+          row.style.transform = '';
+        });
+      });
+    }
+  });
+}
 function renderLive(){
   const el = document.getElementById('view-sessions-live');
   const s = db.session;
@@ -1609,6 +1645,8 @@ function renderLive(){
   const controlsInner = controlsPanelInner(s);
   const isBracket = s.settings.streamType==='bracket';
   const bracketActive = isBracket && s.bracket && !s.bracket.champion;
+
+  const prevRects = captureQueueRects();
 
   const nowPlayingHtml = nowUp ? `
     <div class="now-playing">
@@ -1645,7 +1683,7 @@ function renderLive(){
       ? `<div class="qr-pos qr-pos-gold" title="Paid to skip ahead"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 3 14h7l-1 8 11-14h-7l1-6z"/></svg></div>`
       : `<div class="qr-pos">${i+1}</div>`;
     return `
-    <div class="queue-row">
+    <div class="queue-row" data-id="${q.id}">
       ${posBadge}
       <div class="qr-name">${escapeHtml(q.name)}</div>
       <div class="qr-menu-wrap">
@@ -1689,6 +1727,7 @@ function renderLive(){
 
   if(openDrawer){ const d=document.getElementById('drawer-'+openDrawer); if(d){ d.classList.add('open'); document.getElementById('drawer-backdrop').classList.add('open'); } }
   positionOpenMenu();
+  animateQueueRows(prevRects);
   clearInterval(liveTimerHandle);
   updateTimer();
   liveTimerHandle = setInterval(updateTimer, 1000);
@@ -2168,19 +2207,23 @@ async function submitJoin(code){
 }
 async function paySkip(code){
   const myId = sessionStorage.getItem(myParticipantKey(code));
+  const btn = event && event.target ? event.target.closest('button') : null;
+  if(btn){ if(btn.disabled) return; btn.disabled = true; }
   try{
     const data = await apiFetch('/api/public/'+encodeURIComponent(code)+'/skip', { method:'POST', body:{ participantId: myId } });
     toast('Skip paid — moved up 1 spot (simulated)');
     renderJoin();
-  }catch(e){ toast(e.message); }
+  }catch(e){ toast(e.message); if(btn) btn.disabled = false; }
 }
 async function payJump(code){
   const myId = sessionStorage.getItem(myParticipantKey(code));
+  const btn = event && event.target ? event.target.closest('button') : null;
+  if(btn){ if(btn.disabled) return; btn.disabled = true; }
   try{
     const data = await apiFetch('/api/public/'+encodeURIComponent(code)+'/jump', { method:'POST', body:{ participantId: myId } });
     toast('Took #1 spot — '+money(data.cost)+' paid (simulated)');
     renderJoin();
-  }catch(e){ toast(e.message); }
+  }catch(e){ toast(e.message); if(btn) btn.disabled = false; }
 }
 
 /* ===================== SOUND-CUE DETECTION (host tab only) ===================== */
