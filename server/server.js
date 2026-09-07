@@ -196,7 +196,7 @@ route('GET', '/api/stripe/status', async (req, res) => {
 // ----- auth -----
 async function fetchCoverUrl(song) {
   try {
-    if (!/open\.spotify\.com\/(track|album|episode|show)\//i.test(song)) return null;
+    if (!/open\.spotify\.com\/(?:[a-z]+(?:-[a-z]+)?\/)?(track|album|episode|show)\//i.test(song)) return null;
     const res = await fetch('https://open.spotify.com/oembed?url=' + encodeURIComponent(song), {
       signal: AbortSignal.timeout(4000)
     });
