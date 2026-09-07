@@ -174,7 +174,7 @@ route('GET', '/api/stripe/status', async (req, res) => {
   if (!user) return sendJSON(res, 401, { error: 'Not signed in.' });
   if (!user.stripe_account_id) return sendJSON(res, 200, { connected: false });
   try {
-    const account = await stripeRequestV2('GET', '/v2/core/accounts/' + user.stripe_account_id + '?include[]=configuration.recipient&include[]=requirements');
+    const account = await stripeRequestV2('GET', '/v2/core/accounts/' + user.stripe_account_id + '?include[0]=configuration.recipient&include[1]=requirements');
     const recipientCap = account.configuration && account.configuration.recipient && account.configuration.recipient.capabilities;
     const transferStatus = recipientCap && recipientCap.stripe_balance && recipientCap.stripe_balance.stripe_transfers && recipientCap.stripe_balance.stripe_transfers.status;
     const payoutsEnabled = transferStatus === 'active';
