@@ -194,6 +194,18 @@ route('GET', '/api/stripe/status', async (req, res) => {
 });
 
 // ----- auth -----
+async function fetchCoverUrl(song) {
+  try {
+    if (!/open\.spotify\.com\/(track|album|episode|show)\//i.test(song)) return null;
+    const res = await fetch('https://open.spotify.com/oembed?url=' + encodeURIComponent(song), {
+      signal: AbortSignal.timeout(4000)
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.thumbnail_url || null;
+  } catch (e) { return null; }
+}
+
 async function verifyGoogleIdToken(idToken) {
   const res = await fetch('https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(idToken));
   if (!res.ok) throw new Error('Could not verify Google sign-in.');
@@ -651,10 +663,11 @@ route('POST', '/api/public/:joinCode/join', async (req, res, params) => {
   if (!song) return sendJSON(res, 400, { error: 'A link is required.' });
   if (!/^https?:\/\//i.test(song)) return sendJSON(res, 400, { error: 'That doesn\'t look like a working link — it needs to start with http:// or https://' });
   const entry = settings.entryFeeEnabled ? Number(settings.entryFee || 0) : 0;
-  const item = { id: newId(), show_id: show.id, name, song, note, paid_total: entry, position: count, status: 'queued', joined_at: Date.now() };
-  db.prepare(`INSERT INTO queue_items (id,show_id,name,song,note,paid_total,position,status,joined_at)
-              VALUES (?,?,?,?,?,?,?,?,?)`)
-    .run(item.id, item.show_id, item.name, item.song, item.note, item.paid_total, item.position, item.status, item.joined_at);
+  const coverUrl = await fetchCoverUrl(song);
+  const item = { id: newId(), show_id: show.id, name, song, note, paid_total: entry, position: count, status: 'queued', joined_at: Date.now(), cover_url: coverUrl };
+  db.prepare(`INSERT INTO queue_items (id,show_id,name,song,note,paid_total,position,status,joined_at,cover_url)
+              VALUES (?,?,?,?,?,?,?,?,?,?)`)
+    .run(item.id, item.show_id, item.name, item.song, item.note, item.paid_total, item.position, item.status, item.joined_at, item.cover_url);
   db.prepare(`UPDATE shows SET total_participants = total_participants + 1 WHERE id=?`).run(show.id);
   if (entry > 0) {
     db.prepare(`INSERT INTO transactions (id,user_id,show_id,type,amount,status,date) VALUES (?,?,?,?,?,?,?)`)
@@ -757,7 +770,7 @@ function showToJSON(s) {
   };
 }
 function queueToJSON(q) {
-  return { id: q.id, name: q.name, song: q.song, note: q.note, paidTotal: q.paid_total, position: q.position, status: q.status, joinedAt: q.joined_at };
+  return { id: q.id, name: q.name, song: q.song, note: q.note, paidTotal: q.paid_total, position: q.position, status: q.status, joinedAt: q.joined_at, coverUrl: q.cover_url };
 }
 
 route('GET', '/health', async (req, res) => { sendJSON(res, 200, { ok: true, time: Date.now() }); });
