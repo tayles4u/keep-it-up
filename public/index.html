@@ -646,7 +646,9 @@ const I18N = {
     closed_title:'The host has paused new submissions right now. Check back in a bit!',
     full_title:'This queue is full right now.',
     your_spot:'Your spot in line', reacting_to_you:'Reacting to you now', sent_by:'sent by',
-    jump_1:'Jump 1 spot —', take_1:'Take the #1 spot —',
+    jump_1:'Skip ahead —', take_1:'Take the #1 spot —',
+    skip_fee_desc:'Moves you to the back of the paid line — behind others who already skipped, ahead of everyone who hasn\'t.',
+    jump_fee:'Take #1 base price', base_price:'Starting price', jump_fee_desc:'Guarantees the very front spot. Costs more if others are already waiting in the paid line — one skip fee extra per person you jump ahead of.',
     skips_off:'Skips are turned off by the host right now.',
     sim_note:'Payments here are simulated — no real money moves.',
     an_total_earned:'Total earned', an_total_earned_sub:'Across every show, all-time',
@@ -708,7 +710,9 @@ const I18N = {
     closed_title:'Der Host hat neue Einreichungen pausiert. Schau gleich nochmal vorbei!',
     full_title:'Die Queue ist gerade voll.',
     your_spot:'Dein Platz in der Reihe', reacting_to_you:'Reagiert gerade auf dich', sent_by:'geschickt von',
-    jump_1:'1 Platz vorspringen —', take_1:'Platz 1 übernehmen —',
+    jump_1:'Vorspringen —', take_1:'Platz 1 übernehmen —',
+    skip_fee_desc:'Bringt dich ans Ende der bezahlten Reihe — hinter alle, die schon geskippt haben, vor alle, die noch nicht bezahlt haben.',
+    jump_fee:'Grundpreis für Platz 1', base_price:'Startpreis', jump_fee_desc:'Garantiert den allerersten Platz. Wird teurer, wenn schon andere in der bezahlten Reihe warten — pro übersprungener Person kommt eine Skip-Gebühr obendrauf.',
     skips_off:'Skips sind gerade vom Host deaktiviert.',
     sim_note:'Zahlungen hier sind simuliert — es fließt kein echtes Geld.',
     an_total_earned:'Insgesamt verdient', an_total_earned_sub:'Über alle Shows, gesamt',
@@ -1291,7 +1295,7 @@ function renderSessionsHost(){
   }
 }
 function defaultSettings(){
-  return { streamType:'list', skipFee:5, entryFeeEnabled:false, entryFee:2, cap:null, skipsEnabled:true, acceptingSubmissions:true, notifSounds:true, notifVolume:50, skipSound:null, skipSoundName:null, submissionSound:null, submissionSoundName:null };
+  return { streamType:'list', skipFee:5, jumpFee:15, entryFeeEnabled:false, entryFee:2, cap:null, skipsEnabled:true, acceptingSubmissions:true, notifSounds:true, notifVolume:50, skipSound:null, skipSoundName:null, submissionSound:null, submissionSoundName:null };
 }
 function loadLastSettings(){
   const key = LASTSETTINGS_PREFIX + (currentUser ? currentUser.id : 'anon');
@@ -1583,6 +1587,13 @@ function controlsPanelInner(s){
       <div class="field-label" style="margin-bottom:2px">${t('skip_fee')}</div>
       <input type="range" min="0.5" max="20" step="0.5" value="${settings.skipFee}" oninput="updateSkipFeeLive(this.value)" onchange="updateSkipFeeCommit(this.value)">
       <div class="sr-top"><span>${t('per_skip')}</span><span class="sr-val" id="skipfee-val">${money(settings.skipFee)}</span></div>
+      <div style="font-size:11px;color:var(--ink-faint);margin-top:4px">${t('skip_fee_desc')}</div>
+    </div>
+    <div class="slider-row" style="margin-top:18px">
+      <div class="field-label" style="margin-bottom:2px">${t('jump_fee')}</div>
+      <input type="range" min="1" max="60" step="1" value="${settings.jumpFee!=null?settings.jumpFee:15}" oninput="updateJumpFeeLive(this.value)" onchange="updateJumpFeeCommit(this.value)">
+      <div class="sr-top"><span>${t('base_price')}</span><span class="sr-val" id="jumpfee-val">${money(settings.jumpFee!=null?settings.jumpFee:15)}</span></div>
+      <div style="font-size:11px;color:var(--ink-faint);margin-top:4px">${t('jump_fee_desc')}</div>
     </div>
     <div class="toggle-row" style="margin-top:18px"><div><b>${t('entry_fee')} <span style="color:var(--ink-faint);font-weight:400">(${money(settings.entryFee)})</span></b><span>${t('entry_fee_desc')}</span></div><div class="switch ${settings.entryFeeEnabled?'on':''}" onclick="toggleSetting('entryFeeEnabled')"><div class="knob"></div></div></div>
     <div class="toggle-row" style="margin-top:18px"><div><b style="color:var(--coral)">${t('allow_skips')}</b><span>${t('allow_skips_desc')}</span></div><div class="switch ${settings.skipsEnabled?'on':''}" onclick="toggleSetting('skipsEnabled')"><div class="knob"></div></div></div>`;
@@ -1772,6 +1783,8 @@ function updateVolumeLive(v){ db.session.settings.notifVolume = parseInt(v,10); 
 function updateVolumeCommit(v){ patchSettings({ notifVolume: parseInt(v,10) }); }
 function updateSkipFeeLive(v){ db.session.settings.skipFee = parseFloat(v); const sr=document.getElementById('skipfee-val'); if(sr) sr.textContent = money(parseFloat(v)); }
 function updateSkipFeeCommit(v){ patchSettings({ skipFee: parseFloat(v) }); }
+function updateJumpFeeLive(v){ db.session.settings.jumpFee = parseFloat(v); const sr=document.getElementById('jumpfee-val'); if(sr) sr.textContent = money(parseFloat(v)); }
+function updateJumpFeeCommit(v){ patchSettings({ jumpFee: parseFloat(v) }); }
 function quickEditCap(){
   const s = db.session; if(!s) return;
   const current = s.settings.cap ? String(s.settings.cap) : '';
@@ -2182,8 +2195,9 @@ async function renderJoin(){
   const mine = data.mine;
   const pos = mine.position + 1;
   const isFirst = mine.isFirst;
+  const alreadySkipped = !!mine.alreadySkipped;
   const skipCost = data.skipFee;
-  const jumpCost = isFirst ? 0 : Math.max(data.skipFee*2, Math.round(((mine.leaderPaidTotal - mine.paidTotal) + data.skipFee*2)*2)/2);
+  const jumpCost = isFirst ? 0 : (data.jumpFee||0) + (data.skippedCount||0) * data.skipFee;
   let mySubmission = { name:'', song:'' };
   try{ mySubmission = JSON.parse(sessionStorage.getItem(myDataKey(code))) || mySubmission; }catch(e){}
 
@@ -2201,7 +2215,7 @@ async function renderJoin(){
         <div class="jsub">${t('sent_by')} ${escapeHtml(mySubmission.name)}</div>
         ${data.skipsEnabled ? `
         <div class="join-actions">
-          ${!isFirst ? `<button class="btn btn-outline btn-block" onclick="paySkip('${code}')">${t('jump_1')} ${money(skipCost)}</button>` : ''}
+          ${!isFirst && !alreadySkipped ? `<button class="btn btn-outline btn-block" onclick="paySkip('${code}')">${t('jump_1')} ${money(skipCost)}</button>` : ''}
           ${!isFirst ? `<button class="btn btn-gold btn-block" onclick="payJump('${code}')">${t('take_1')} ${money(jumpCost)}</button>` : ''}
         </div>` : `<p class="join-hint" style="margin-top:16px">${t('skips_off')}</p>`}
         <div class="join-hint">${t('sim_note')}</div>
