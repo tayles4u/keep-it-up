@@ -610,19 +610,24 @@ route('GET', '/api/public/:joinCode', async (req, res, params) => {
   const nowPlaying = queue[0] ? queueToJSON(queue[0]) : null;
   const url = new URL(req.url, `http://${req.headers.host}`);
   const participantId = url.searchParams.get('participant');
+  let skippedCount = 0;
+  for (let i = 1; i < queue.length; i++) {
+    if (queue[i].id === participantId) continue;
+    if (queue[i].paid_total > 0) skippedCount++; else break;
+  }
   let mine = null;
   if (participantId) {
     const idx = queue.findIndex(q => q.id === participantId);
     if (idx !== -1) {
-      mine = { position: idx, isFirst: idx === 0, paidTotal: queue[idx].paid_total, leaderPaidTotal: queue[0].paid_total };
+      mine = { position: idx, isFirst: idx === 0, paidTotal: queue[idx].paid_total, alreadySkipped: idx >= 1 && queue[idx].paid_total > 0 };
     }
   }
   sendJSON(res, 200, {
     live: true, title: show.title, queueCount: queue.length, nowPlaying,
     acceptingSubmissions: !!settings.acceptingSubmissions,
     entryFeeEnabled: !!settings.entryFeeEnabled, entryFee: settings.entryFee,
-    skipsEnabled: !!settings.skipsEnabled, skipFee: settings.skipFee,
-    cap: settings.cap, mine
+    skipsEnabled: !!settings.skipsEnabled, skipFee: settings.skipFee, jumpFee: settings.jumpFee != null ? settings.jumpFee : 15,
+    skippedCount, cap: settings.cap, mine
   });
 });
 
@@ -676,16 +681,22 @@ route('POST', '/api/public/:joinCode/skip', async (req, res, params) => {
     const idx = queue.findIndex(q => q.id === participantId);
     if (idx === -1) return sendJSON(res, 404, { error: 'Not found.' });
     if (idx === 0) return sendJSON(res, 409, { error: "That song is already on stage — it can't be skipped." });
-    if (idx === 1) return sendJSON(res, 409, { error: "You're already next in line." });
+    // The "skipped" group is whoever already paid, sitting contiguously right after now-playing.
+    let skippedEnd = 0;
+    for (let i = 1; i < queue.length; i++) {
+      if (queue[i].id === participantId) continue;
+      if (queue[i].paid_total > 0) skippedEnd = i; else break;
+    }
+    if (idx <= skippedEnd) return sendJSON(res, 409, { error: "You've already skipped — you're already ahead of the line." });
+    const targetPos = skippedEnd + 1; // the back of the skipped group, right before the first unpaid person
     const me = queue[idx];
     const cost = Number(settings.skipFee || 0);
     db.prepare(`UPDATE queue_items SET paid_total = paid_total + ? WHERE id=?`).run(cost, me.id);
-    // Move to the very front of the on-deck line (position 1, right after whoever's on stage now) —
-    // position 0 is never touched, so a payment can never interrupt the person currently playing.
-    for (let i = idx - 1; i >= 1; i--) {
+    // position 0 (on stage) is never touched — a payment can never interrupt whoever's currently playing.
+    for (let i = idx - 1; i >= targetPos; i--) {
       db.prepare(`UPDATE queue_items SET position=? WHERE id=?`).run(i + 1, queue[i].id);
     }
-    db.prepare(`UPDATE queue_items SET position=1 WHERE id=?`).run(me.id);
+    db.prepare(`UPDATE queue_items SET position=? WHERE id=?`).run(targetPos, me.id);
     db.prepare(`INSERT INTO transactions (id,user_id,show_id,type,amount,status,date) VALUES (?,?,?,?,?,?,?)`)
       .run(newId(), user.id, show.id, 'skip_fee', cost, 'pending', Date.now());
     sendJSON(res, 200, { ok: true, cost });
@@ -710,15 +721,21 @@ route('POST', '/api/public/:joinCode/jump', async (req, res, params) => {
     const idx = queue.findIndex(q => q.id === participantId);
     if (idx === -1) return sendJSON(res, 404, { error: 'Not found.' });
     if (idx === 0) return sendJSON(res, 409, { error: "That song is already on stage — it can't be skipped." });
-    if (idx === 1) return sendJSON(res, 409, { error: "You're already next in line." });
+    if (idx === 1) return sendJSON(res, 409, { error: "You're already first in line." });
+    // Count how many people are already skipped and waiting ahead of you — jumping past them costs more,
+    // scaling moderately with how many there are, on top of the base "take #1" price the host set.
+    let skippedCount = 0;
+    for (let i = 1; i < queue.length; i++) {
+      if (queue[i].id === participantId) continue;
+      if (queue[i].paid_total > 0) skippedCount++; else break;
+    }
     const me = queue[idx];
-    const currentFirst = queue[1]; // whoever currently holds the front of the on-deck line, if anyone
     const skipFee = Number(settings.skipFee || 0);
-    const cost = currentFirst
-      ? Math.max(skipFee * 2, Math.round(((currentFirst.paid_total - me.paid_total) + skipFee * 2) * 2) / 2)
-      : skipFee * 2;
+    const baseJumpFee = Number(settings.jumpFee != null ? settings.jumpFee : 15);
+    const cost = baseJumpFee + skippedCount * skipFee;
     db.prepare(`UPDATE queue_items SET paid_total = paid_total + ? WHERE id=?`).run(cost, me.id);
-    // Same rule as skip: only ever moves within on-deck (position 1+), position 0 stays untouched.
+    // Jump always goes all the way to position 1 — right after now-playing, ahead of everyone else,
+    // including anyone who's already skipped. Position 0 itself is still never touched.
     for (let i = idx - 1; i >= 1; i--) {
       db.prepare(`UPDATE queue_items SET position=? WHERE id=?`).run(i + 1, queue[i].id);
     }
