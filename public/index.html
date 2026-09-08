@@ -167,7 +167,9 @@ body.overlay-mode .help-fab,body.overlay-mode #toast{display:none!important;}
 .theme-opt b{font-size:12.5px;font-weight:700;}
 
 #landing{min-height:100vh;background:var(--bg);}
-.hero-split{display:grid;grid-template-columns:1.15fr 1fr;gap:40px;padding:70px 40px 30px;max-width:1240px;margin:0 auto;align-items:center;}
+#landing{position:relative;overflow:hidden;}
+.hero-glow{position:absolute;top:-200px;left:50%;transform:translateX(-50%);width:1100px;height:700px;background:radial-gradient(ellipse at center, rgba(244,183,64,.16) 0%, rgba(140,111,247,.09) 45%, transparent 72%);pointer-events:none;z-index:0;}
+.hero-split{display:grid;grid-template-columns:1.15fr 1fr;gap:40px;padding:70px 40px 30px;max-width:1240px;margin:0 auto;align-items:center;position:relative;z-index:1;}
 .hero-left .eyebrow{display:inline-flex;align-items:center;gap:8px;background:var(--bg-1);border:1px solid var(--line-strong);padding:6px 14px;border-radius:30px;font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--gold);margin-bottom:22px;}
 .hero-left h1{font-size:78px;line-height:.96;font-weight:400;}
 .hero-left h1 .hl{color:var(--gold);}
@@ -175,7 +177,11 @@ body.overlay-mode .help-fab,body.overlay-mode #toast{display:none!important;}
 .hero-left .cta-row{display:flex;gap:12px;margin-top:32px;}
 
 .ticket-stack{position:relative;height:380px;}
-.stack-ticket{position:absolute;left:50%;top:40%;width:280px;background:var(--bg-1);border:1px solid var(--line-strong);border-radius:16px;display:flex;padding:0;box-shadow:0 30px 60px rgba(0,0,0,.5);}
+.stack-ticket{position:absolute;left:50%;top:40%;width:280px;background:var(--bg-1);border:1px solid var(--line-strong);border-radius:16px;display:flex;padding:0;box-shadow:0 30px 60px rgba(0,0,0,.5);animation:ticketFloat 5s ease-in-out infinite;}
+@keyframes ticketFloat{ 0%,100%{ } 50%{ margin-top:-9px; } }
+.stack-ticket.t1{animation-delay:.3s;}
+.stack-ticket.t2{animation-delay:.9s;}
+.stack-ticket.t3{animation-delay:0s;}
 .stack-ticket::before,.stack-ticket::after{content:"";position:absolute;width:16px;height:16px;background:var(--bg);border-radius:50%;left:58px;}
 .stack-ticket::before{top:-8px;} .stack-ticket::after{bottom:-8px;}
 .stack-ticket .st-stub{width:66px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:17px;border-right:2px dashed var(--line-strong);color:var(--gold);}
@@ -188,6 +194,31 @@ body.overlay-mode .help-fab,body.overlay-mode #toast{display:none!important;}
 .stack-ticket.t3 .st-stub{background:var(--gold);color:var(--gold-ink);}
 
 .feature-list{max-width:1240px;margin:20px auto 80px;padding:0 40px;}
+.preview-section{max-width:900px;margin:0 auto 90px;padding:0 40px;text-align:center;}
+.preview-tag{display:inline-block;background:var(--gold-dim);color:var(--gold);font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;padding:5px 13px;border-radius:20px;margin-bottom:14px;}
+.preview-head h2{font-family:'Bebas Neue',sans-serif;font-size:34px;line-height:1.1;font-weight:400;margin-bottom:34px;}
+.preview-mock{background:linear-gradient(160deg,var(--bg-1),var(--bg-2));border:1px solid var(--line-strong);border-radius:22px;padding:26px;text-align:left;max-width:460px;margin:0 auto;}
+.pm-livepill{display:inline-block;background:var(--mint-dim);color:var(--mint);font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;text-transform:uppercase;margin-bottom:12px;}
+.pm-title{font-family:'Bebas Neue',sans-serif;font-size:26px;}
+.pm-by{font-size:12.5px;color:var(--ink-dim);font-weight:600;margin-top:2px;}
+.pm-deck{margin-top:20px;display:flex;flex-direction:column;gap:8px;}
+.pm-row{display:flex;align-items:center;gap:13px;background:var(--bg-1);border:1px solid var(--line-strong);border-radius:12px;padding:11px 14px;font-size:13px;font-weight:700;}
+.pm-pos{flex-shrink:0;width:26px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:11.5px;color:var(--ink-faint);background:var(--bg-2);}
+.pm-pos.gold{background:linear-gradient(140deg,var(--gold),#ffdd88);color:var(--gold-ink);}
+@media (max-width:640px){ .preview-head h2{font-size:26px;} }
+
+.steps-section{max-width:1000px;margin:0 auto 90px;padding:0 40px;text-align:center;}
+.steps-row{display:flex;align-items:flex-start;justify-content:center;gap:22px;margin-top:36px;}
+.step-col{flex:1;max-width:250px;text-align:left;}
+.step-num{font-family:'IBM Plex Mono',monospace;color:var(--gold);font-size:13px;font-weight:700;border:1px solid var(--line-strong);width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;margin-bottom:14px;}
+.step-col h4{font-size:15.5px;font-weight:700;margin-bottom:6px;}
+.step-col p{font-size:13px;color:var(--ink-dim);line-height:1.5;}
+.step-arrow{color:var(--ink-faint);flex-shrink:0;margin-top:26px;}
+@media (max-width:760px){ .steps-row{flex-direction:column;align-items:stretch;} .step-col{max-width:none;} .step-arrow{display:none;} }
+
+.footer-tagline{font-size:12px;color:var(--ink-faint);margin-top:6px;}
+.footer-lang{cursor:pointer;color:var(--ink-faint);}
+.footer-lang:hover{color:var(--ink);text-decoration:underline;}
 .site-footer{max-width:1240px;margin:0 auto 0;padding:24px 40px 90px;border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;}
 .footer-links{display:flex;gap:20px;}
 .footer-links a{color:var(--ink-faint);text-decoration:none;font-size:12.5px;}
@@ -535,6 +566,7 @@ html.overlay-mode,body.overlay-mode{background:transparent!important;}
 <body>
 
 <div id="landing" class="view">
+  <div class="hero-glow"></div>
   <div class="ticker-strip"><div class="ticker-track">
     <span>• LIVE SONG REACTIONS</span><span>• YOUR CROWD SENDS THE TRACKS</span><span>• NO SKIPPING THE LINE — UNLESS YOU PAY FOR IT</span><span>• KEEP IT UP!</span>
     <span>• LIVE SONG REACTIONS</span><span>• YOUR CROWD SENDS THE TRACKS</span><span>• NO SKIPPING THE LINE — UNLESS YOU PAY FOR IT</span><span>• KEEP IT UP!</span>
@@ -573,12 +605,55 @@ html.overlay-mode,body.overlay-mode{background:transparent!important;}
     </div>
   </div>
 
+  <div class="preview-section">
+    <div class="preview-head"><span class="preview-tag">What you'll see</span><h2>This is the actual queue<br>you'll be running.</h2></div>
+    <div class="preview-mock">
+      <div class="pm-now">
+        <div class="pm-livepill">ON NOW</div>
+        <div class="pm-title">Now reacting</div>
+        <div class="pm-by">sent by Mara K.</div>
+      </div>
+      <div class="pm-deck">
+        <div class="pm-row"><div class="pm-pos gold"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 3 14h7l-1 8 11-14h-7l1-6z"/></svg></div><span>Deshawn</span></div>
+        <div class="pm-row"><div class="pm-pos">2</div><span>Lina P.</span></div>
+        <div class="pm-row"><div class="pm-pos">3</div><span>Kofi B.</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="steps-section">
+    <div class="preview-head"><h2>It doesn't get<br>any simpler.</h2></div>
+    <div class="steps-row">
+      <div class="step-col">
+        <div class="step-num">1</div>
+        <h4>Create an account</h4>
+        <p>Sign up with email or Google. No credit card, no setup fee.</p>
+      </div>
+      <svg class="step-arrow" width="26" height="16" viewBox="0 0 26 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M1 8h22M17 2l6 6-6 6"/></svg>
+      <div class="step-col">
+        <div class="step-num">2</div>
+        <h4>Go live</h4>
+        <p>Name your session, hit Go Live. Your queue opens instantly.</p>
+      </div>
+      <svg class="step-arrow" width="26" height="16" viewBox="0 0 26 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M1 8h22M17 2l6 6-6 6"/></svg>
+      <div class="step-col">
+        <div class="step-num">3</div>
+        <h4>Share your link</h4>
+        <p>One permanent link. Drop it in your bio once — it's live whenever you are.</p>
+      </div>
+    </div>
+  </div>
+
   <div class="site-footer">
-    <div class="tn-brand"><div class="eq-mark"><i></i><i></i><i></i><i></i></div>Keep it up!</div>
+    <div>
+      <div class="tn-brand"><div class="eq-mark"><i></i><i></i><i></i><i></i></div>Keep it up!</div>
+      <p class="footer-tagline">Live song reactions, run by you.</p>
+    </div>
     <div class="footer-links">
       <a href="?legal=impressum">Impressum</a>
       <a href="?legal=datenschutz">Datenschutz</a>
       <a href="?legal=agb">AGB</a>
+      <span class="footer-lang" id="footer-lang-toggle" onclick="setLang(getLang()==='de'?'en':'de')">Language</span>
     </div>
   </div>
 </div>
@@ -1316,6 +1391,8 @@ function render(){
 function applyStaticTranslations(){
   const map = { 'nl-sessions':t('nav_sessions'), 'nl-finances':t('nav_finances'), 'nl-analytics':t('nav_analytics'), 'nl-yourlink':t('your_link'), 'nl-reset':t('reset') };
   Object.keys(map).forEach(id=>{ const el=document.getElementById(id); if(el) el.textContent = map[id]; });
+  const footerLang = document.getElementById('footer-lang-toggle');
+  if(footerLang) footerLang.textContent = getLang()==='de' ? 'Deutsch' : 'English';
 }
 function renderAnalytics(){
   const el = document.getElementById('view-analytics');
