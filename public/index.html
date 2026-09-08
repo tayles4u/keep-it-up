@@ -1482,7 +1482,7 @@ function renderFinancesOverview(){
   const lastLabel = new Date(days[days.length-1].ts).toLocaleDateString('de-DE',{day:'2-digit',month:'long'});
 
   el.innerHTML = `
-    <div class="page-head"><h1>${t('page_finances')}</h1><button class="btn btn-ghost" onclick="requestPayout()">${t('btn_payout')} ${money(fin.available)}</button></div>
+    <div class="page-head"><h1>${t('page_finances')}</h1><button class="btn ${fin.available>0?'btn-gold':'btn-ghost'}" onclick="requestPayout()">${t('btn_payout')} ${money(fin.available)}</button></div>
     <div class="subtabs"><div class="subtab active">${t('tab_overview')}</div><div class="subtab nav-link" data-view="finances-transactions">${t('tab_transactions')}</div><div class="subtab nav-link" data-view="finances-wallets">${t('tab_wallets')}</div></div>
     <div class="bento">
       <div class="card b-main"><div class="stat-h"><div><h3>${t('ready_cashout')}</h3><p>${t('ready_cashout_sub')}</p></div><span class="badge badge-mint">Ready</span></div><div class="sc-val">${money(fin.available)}</div></div>
@@ -1522,14 +1522,14 @@ function renderFinancesTransactions(){
     <td><span class="status-pill status-${tr.status}">${tr.status==='pending'?'Pending':tr.status==='available'?'Ready':t('btn_payout')}</span></td></tr>`).join('')
     : `<tr><td colspan="5" style="text-align:center;color:var(--ink-faint);padding:40px 0">${t('no_tx')}</td></tr>`;
   el.innerHTML = `
-    <div class="page-head"><h1>${t('page_finances')}</h1><div style="display:flex;gap:8px"><button class="btn-xs" onclick="exportTransactionsCSV()">Export CSV</button><button class="btn btn-ghost" onclick="requestPayout()">${t('btn_payout')} ${money(financeTotals().available)}</button></div></div>
+    <div class="page-head"><h1>${t('page_finances')}</h1><div style="display:flex;gap:8px"><button class="btn-xs" onclick="exportTransactionsCSV()">Export CSV</button><button class="btn ${financeTotals().available>0?'btn-gold':'btn-ghost'}" onclick="requestPayout()">${t('btn_payout')} ${money(financeTotals().available)}</button></div></div>
     <div class="subtabs"><div class="subtab nav-link" data-view="finances-overview">${t('tab_overview')}</div><div class="subtab active">${t('tab_transactions')}</div><div class="subtab nav-link" data-view="finances-wallets">${t('tab_wallets')}</div></div>
     <div class="card" style="padding:0;overflow:hidden"><div class="table-scroll"><table class="table"><thead><tr><th>${t('th_date')}</th><th>${t('th_type')}</th><th>${t('th_session')}</th><th>${t('th_amount')}</th><th>${t('th_status')}</th></tr></thead><tbody>${body}</tbody></table></div></div>`;
 }
 function renderFinancesWallets(){
   const el = document.getElementById('view-finances-wallets');
   el.innerHTML = `
-    <div class="page-head"><h1>${t('page_finances')}</h1><button class="btn btn-ghost" onclick="requestPayout()">${t('btn_payout')} ${money(financeTotals().available)}</button></div>
+    <div class="page-head"><h1>${t('page_finances')}</h1><button class="btn ${financeTotals().available>0?'btn-gold':'btn-ghost'}" onclick="requestPayout()">${t('btn_payout')} ${money(financeTotals().available)}</button></div>
     <div class="subtabs"><div class="subtab nav-link" data-view="finances-overview">${t('tab_overview')}</div><div class="subtab nav-link" data-view="finances-transactions">${t('tab_transactions')}</div><div class="subtab active">${t('tab_wallets')}</div></div>
     <div class="card">
       <div class="sub-label" style="margin-top:0">Payouts</div>
@@ -1612,7 +1612,6 @@ function statsPanelInner(s){
     <div class="sub-label">${t('tonight')}</div>
     <div class="mini-stat"><div class="ms-top"><div><b>${t('crowd')}</b><p>${t('crowd_desc')}</p></div></div><div class="ms-val">${s.totalParticipants}</div></div>
     <div class="mini-stat"><div class="ms-top"><div><b>${t('earned')}</b><p>${t('earned_desc')}</p></div></div><div class="ms-val">${money(sessionEarnings(s))}</div></div>
-    <div class="rec-banner"><b>${t('tip_title')}</b>${t('tip_body')}</div>
     <div class="sub-label">${t('top_spender')}</div>
     <div class="small-chart">
       <div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:12px;text-transform:uppercase;color:var(--ink-dim)">${t('most_paid')}</b><span class="livepill">Live</span></div>
