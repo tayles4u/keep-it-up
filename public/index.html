@@ -139,7 +139,22 @@ body.overlay-mode .help-fab,body.overlay-mode #toast{display:none!important;}
 .tn-user span{font-size:12px;font-weight:700;color:var(--ink-dim);}
 .tn-reset{font-size:10px;color:var(--ink-faint);cursor:pointer;text-transform:uppercase;letter-spacing:.03em;}
 .tn-reset:hover{color:var(--coral);}
-@media (max-width:900px){ .tn-links{display:none;} }
+.hamburger-btn{display:none;width:36px;height:36px;border-radius:10px;background:var(--bg-2);border:1px solid var(--line-strong);color:var(--ink-dim);align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;}
+.mobile-nav{display:none;flex-direction:column;background:var(--bg-1);border-bottom:1px solid var(--line-strong);padding:8px;position:sticky;top:65px;z-index:99;}
+.mobile-nav.open{display:flex;}
+.mobile-nav .tn-link{padding:14px 16px;font-size:13px;}
+@media (max-width:900px){
+  .topnav{padding:12px 14px;gap:12px;}
+  .tn-links{display:none;}
+  .hamburger-btn{display:flex;}
+  #nl-yourlink{display:none;}
+  .tn-reset{display:none;}
+  .tn-user span{display:none;}
+  .tn-user{padding:6px;}
+  .tn-right{gap:6px;}
+  #lang-btn{display:none;}
+  #theme-btn{display:none;}
+}
 
 .theme-pop{position:absolute;top:56px;right:30px;background:var(--bg-1);border:1px solid var(--line-strong);border-radius:16px;padding:14px;width:230px;z-index:150;box-shadow:0 20px 50px rgba(0,0,0,.5);display:none;}
 .theme-pop.open{display:block;}
@@ -248,6 +263,8 @@ body.overlay-mode .help-fab,body.overlay-mode #toast{display:none!important;}
 .chart-footer button.active{color:var(--gold);}
 
 .table{width:100%;border-collapse:collapse;}
+.table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.table-scroll table.table{min-width:520px;}
 .table th{text-align:left;font-size:10.5px;color:var(--ink-faint);font-weight:700;padding:12px 16px;border-bottom:1px solid var(--line);text-transform:uppercase;letter-spacing:.03em;}
 .table td{padding:13px 16px;font-size:13px;border-bottom:1px solid var(--line);}
 .table tr:last-child td{border-bottom:none;}
@@ -523,6 +540,9 @@ html.overlay-mode,body.overlay-mode{background:transparent!important;}
       <div class="tn-link nav-link" data-view="finances-overview" id="nl-finances">Finances</div>
       <div class="tn-link nav-link" data-view="analytics" id="nl-analytics">Analytics</div>
     </div>
+    <div class="hamburger-btn" id="hamburger-btn" onclick="toggleMobileNav(event)" title="Menu">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+    </div>
     <div class="tn-right">
       <button class="btn-xs" onclick="openShare()" id="nl-yourlink">Your link</button>
       <div class="icon-btn" id="lang-btn" onclick="toggleLangPop(event)" title="Language">
@@ -537,6 +557,14 @@ html.overlay-mode,body.overlay-mode{background:transparent!important;}
       <div class="tn-user"><div class="av"></div><span id="tn-username">@tayles</span></div>
       <div class="tn-reset" onclick="resetDemo()" id="nl-reset">Reset</div>
     </div>
+  </div>
+  <div class="mobile-nav" id="mobile-nav">
+    <div class="tn-link" onclick="openShare()">Your link</div>
+    <div class="tn-link nav-link" data-view="sessions-host">Sessions</div>
+    <div class="tn-link nav-link" data-view="finances-overview">Finances</div>
+    <div class="tn-link nav-link" data-view="analytics">Analytics</div>
+    <div class="tn-link" onclick="toggleLangPop(event); document.getElementById('mobile-nav').classList.remove('open')">Language</div>
+    <div class="tn-link" onclick="toggleThemePop(event); document.getElementById('mobile-nav').classList.remove('open')">Design</div>
   </div>
   <div class="theme-pop" id="lang-pop">
     <div class="tp-h">Language</div>
@@ -1183,7 +1211,12 @@ async function showView(name){
   await refreshForView(name);
   render();
 }
-document.addEventListener('click', function(e){ const l = e.target.closest('.nav-link'); if(l) showView(l.getAttribute('data-view')); });
+document.addEventListener('click', function(e){ const l = e.target.closest('.nav-link'); if(l){ showView(l.getAttribute('data-view')); const mn=document.getElementById('mobile-nav'); if(mn) mn.classList.remove('open'); } });
+function toggleMobileNav(e){ e.stopPropagation(); document.getElementById('mobile-nav').classList.toggle('open'); }
+document.addEventListener('click', function(e){
+  const mn = document.getElementById('mobile-nav');
+  if(mn && mn.classList.contains('open') && !mn.contains(e.target) && !e.target.closest('#hamburger-btn')) mn.classList.remove('open');
+});
 
 function resetDemo(){
   if(!confirm("Clear locally-saved preferences on this device?\n\n(Your account, shows, and history live on the server now — this only clears the few things still stored in this browser.)")) return;
@@ -1261,7 +1294,7 @@ function renderAnalytics(){
       </div>
       <div class="card">
         <div class="chart-head"><div class="chart-sub"><h4>${t('an_top_shows')}</h4><p>${t('an_by_earnings')}</p></div></div>
-        ${topRows.length ? `<table class="table" style="margin-top:6px"><thead><tr><th>${t('th_session')}</th><th>${t('th_crowd')}</th><th>${t('th_earned')}</th></tr></thead><tbody>${topRows.map(h=>`<tr><td>${escapeHtml(h.title)}</td><td>${h.totalParticipants}</td><td class="mono">${money(h.earnings)}</td></tr>`).join('')}</tbody></table>` : `<div class="not-enough" style="margin-top:16px">${t('an_no_wrapped')}</div>`}
+        ${topRows.length ? `<div class="table-scroll"><table class="table" style="margin-top:6px"><thead><tr><th>${t('th_session')}</th><th>${t('th_crowd')}</th><th>${t('th_earned')}</th></tr></thead><tbody>${topRows.map(h=>`<tr><td>${escapeHtml(h.title)}</td><td>${h.totalParticipants}</td><td class="mono">${money(h.earnings)}</td></tr>`).join('')}</tbody></table></div>` : `<div class="not-enough" style="margin-top:16px">${t('an_no_wrapped')}</div>`}
       </div>
     </div>
     <div class="card" style="margin-top:14px"><div class="stat-h"><div><h3>${t('an_avg')}</h3><p>${t('an_avg_sub')}</p></div></div><div class="sc-val" style="font-size:24px;margin-top:8px">${money(avgEarnings)}</div></div>`;
@@ -1322,9 +1355,9 @@ async function startSession(){
 function renderSessionsHistory(){
   const el = document.getElementById('view-sessions-history');
   const rows = db.history.slice().reverse();
-  let body = rows.length ? `<div class="card" style="padding:0;overflow:hidden"><table class="table"><thead><tr><th>${t('th_session')}</th><th>${t('th_date')}</th><th>${t('th_duration')}</th><th>${t('th_crowd')}</th><th>${t('th_earned')}</th><th></th></tr></thead><tbody>` +
+  let body = rows.length ? `<div class="card" style="padding:0;overflow:hidden"><div class="table-scroll"><table class="table"><thead><tr><th>${t('th_session')}</th><th>${t('th_date')}</th><th>${t('th_duration')}</th><th>${t('th_crowd')}</th><th>${t('th_earned')}</th><th></th></tr></thead><tbody>` +
     rows.map(h=>`<tr><td>${escapeHtml(h.title)}</td><td>${fmtDate(h.endedAt)}</td><td class="mono">${fmtDur(h.durationSec)}</td><td>${h.totalParticipants}</td><td class="mono">${money(h.earnings)}</td><td><button class="btn-xs" onclick="openSetlistModal('${h.id}')">Setlist</button></td></tr>`).join('') +
-    `</tbody></table></div>`
+    `</tbody></table></div></div>`
     : `<div class="empty"><h2>${t('history_empty_title')}</h2><p>${t('history_empty_sub')}</p></div>`;
   el.innerHTML = `<div class="page-head"><h1>${t('page_sessions')}</h1>${rows.length ? `<button class="btn-xs" onclick="exportHistoryCSV()">Export CSV</button>` : ''}</div><div class="subtabs"><div class="subtab nav-link" data-view="sessions-host">${t('tab_host')}</div><div class="subtab active">${t('tab_history')}</div></div>${body}`;
 }
@@ -1437,7 +1470,7 @@ function renderFinancesTransactions(){
   el.innerHTML = `
     <div class="page-head"><h1>${t('page_finances')}</h1><div style="display:flex;gap:8px"><button class="btn-xs" onclick="exportTransactionsCSV()">Export CSV</button><button class="btn btn-ghost" onclick="requestPayout()">${t('btn_payout')} ${money(financeTotals().available)}</button></div></div>
     <div class="subtabs"><div class="subtab nav-link" data-view="finances-overview">${t('tab_overview')}</div><div class="subtab active">${t('tab_transactions')}</div><div class="subtab nav-link" data-view="finances-wallets">${t('tab_wallets')}</div></div>
-    <div class="card" style="padding:0;overflow:hidden"><table class="table"><thead><tr><th>${t('th_date')}</th><th>${t('th_type')}</th><th>${t('th_session')}</th><th>${t('th_amount')}</th><th>${t('th_status')}</th></tr></thead><tbody>${body}</tbody></table></div>`;
+    <div class="card" style="padding:0;overflow:hidden"><div class="table-scroll"><table class="table"><thead><tr><th>${t('th_date')}</th><th>${t('th_type')}</th><th>${t('th_session')}</th><th>${t('th_amount')}</th><th>${t('th_status')}</th></tr></thead><tbody>${body}</tbody></table></div></div>`;
 }
 function renderFinancesWallets(){
   const el = document.getElementById('view-finances-wallets');
