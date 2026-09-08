@@ -446,7 +446,7 @@ audio{width:100%;margin-top:16px;}
 .set-block{margin-bottom:22px;}
 .set-h{font-size:12px;font-weight:800;margin-bottom:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-dim);}
 .set-h.danger{color:var(--coral);}
-.toggle-row{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:10px;}
+.toggle-row{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:14px;}
 .toggle-row b{font-size:13px;font-weight:700;display:block;}
 .toggle-row span{font-size:11px;color:var(--ink-faint);}
 .switch{width:36px;height:20px;border-radius:20px;background:var(--bg-3);border:1px solid var(--line-strong);position:relative;flex-shrink:0;cursor:pointer;transition:background .15s;}
@@ -468,21 +468,21 @@ input[type=range]{width:100%;accent-color:var(--gold);height:3px;}
 .field-label{font-size:12px;font-weight:700;margin-bottom:8px;color:var(--ink-dim);}
 .text-input{width:100%;background:var(--bg-2);border:1.5px solid var(--line-strong);border-radius:9px;padding:11px 13px;font-size:13px;color:var(--ink);}
 .text-input:focus{outline:none;border-color:var(--gold);}
-.ctrl-overview{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px;}
-.ov-tile{background:var(--bg-3);border:1px solid var(--line);border-radius:11px;padding:10px 12px;transition:.15s;}
+.ctrl-overview{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:24px;}
+.ov-tile{background:var(--bg-3);border:1px solid var(--line);border-radius:12px;padding:14px;transition:.15s;}
 .ov-tile.ov-click{cursor:pointer;}
-.ov-tile.ov-click:hover{border-color:var(--gold);background:var(--bg-2);}
-.ov-tile .ov-label{font-size:9.5px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.05em;}
-.ov-tile .ov-val{font-size:13.5px;font-weight:700;margin-top:3px;font-family:'IBM Plex Mono',monospace;}
+.ov-tile.ov-click:hover{border-color:var(--ink-faint);background:var(--bg-2);}
+.ov-tile .ov-label{font-size:10px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;font-weight:600;}
+.ov-tile .ov-val{font-size:15px;font-weight:700;margin-top:5px;font-family:'IBM Plex Mono',monospace;}
 .ov-tile .ov-val.on{color:var(--mint);}
 .ov-tile .ov-val.off{color:var(--ink-faint);}
-.acc-section{border:1px solid var(--line);border-radius:14px;margin-bottom:10px;overflow:hidden;background:var(--bg-2);}
-.acc-head{display:flex;align-items:center;justify-content:space-between;padding:13px 14px;cursor:pointer;user-select:none;}
-.acc-title{display:flex;align-items:center;gap:9px;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-dim);}
+.acc-section{border:1px solid var(--line);border-radius:14px;margin-bottom:12px;overflow:hidden;background:var(--bg-2);}
+.acc-head{display:flex;align-items:center;justify-content:space-between;padding:16px;cursor:pointer;user-select:none;}
+.acc-title{font-size:13px;font-weight:700;color:var(--ink);}
 .acc-title svg{color:var(--gold);flex-shrink:0;}
 .acc-chev{transition:transform .2s;color:var(--ink-faint);flex-shrink:0;}
 .acc-chev.rot{transform:rotate(180deg);}
-.acc-body{padding:2px 14px 16px;}
+.acc-body{padding:4px 16px 20px;}
 .closed-badge{background:var(--coral-dim);color:var(--coral);font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;text-transform:uppercase;margin-right:6px;}
 .sound-row{margin-bottom:14px;}
 .sound-row .sr-name{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
@@ -1637,17 +1637,12 @@ function soundRow(type, label, hint){
 }
 let accState = { queue:true, pricing:false, audio:false };
 function toggleAccSection(name){ accState[name] = !accState[name]; renderLive(); }
-function accIcon(kind){
-  if(kind==='queue') return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="4" rx="1"/><rect x="3" y="11" width="18" height="4" rx="1"/><rect x="3" y="17" width="12" height="4" rx="1"/></svg>`;
-  if(kind==='pricing') return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.5 9.5c0-1.4 1.2-2 2.5-2s2.5.7 2.5 2c0 2.6-5 1.6-5 4.2 0 1.3 1.2 2 2.5 2s2.5-.7 2.5-2"/></svg>`;
-  return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M19 9a5 5 0 010 6M22 7a9 9 0 010 10"/></svg>`;
-}
 function accSection(key, title, bodyHtml){
   const open = !!accState[key];
   return `
     <div class="acc-section">
       <div class="acc-head" onclick="toggleAccSection('${key}')">
-        <div class="acc-title">${accIcon(key)}${title}</div>
+        <div class="acc-title">${title}</div>
         <svg class="acc-chev ${open?'rot':''}" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
       </div>
       ${open ? `<div class="acc-body">${bodyHtml}</div>` : ''}
@@ -1668,7 +1663,7 @@ function controlsPanelInner(s){
 
   const queueBody = `
     <div class="toggle-row"><div><b>${t('accepting')}</b><span>${t('accepting_desc')}</span></div><div class="switch ${settings.acceptingSubmissions?'on':''}" onclick="toggleSetting('acceptingSubmissions')"><div class="knob"></div></div></div>
-    <div style="margin-top:14px"><div class="field-label">${t('queue_cap')}</div><input class="text-input" type="text" value="${settings.cap ? settings.cap : t('unlimited_w')}" onchange="updateCap(this.value)" onkeydown="if(event.key==='Enter'){this.blur();}"></div>
+    <div style="margin-top:14px"><div class="field-label">${t('queue_cap')}</div><input class="text-input" type="number" min="1" step="1" placeholder="${t('unlimited_w')}" value="${settings.cap || ''}" onchange="updateCap(this.value)" onkeydown="if(event.key==='Enter'){this.blur();}"></div>
     <div style="margin-top:18px">
       <div class="field-label" style="margin-bottom:10px">${t('order_type')}</div>
       <div class="pill-row">
@@ -1709,7 +1704,7 @@ function controlsPanelInner(s){
 function captureQueueRects(){
   const rects = {};
   document.querySelectorAll('.queue-row[data-id]').forEach(el=>{
-    rects[el.dataset.id] = { top: el.getBoundingClientRect().top, wasPaid: el.dataset.paid === '1' };
+    rects[el.dataset.id] = { top: el.getBoundingClientRect().top, paid: parseFloat(el.dataset.paidAmount || '0') };
   });
   return rects;
 }
@@ -1719,9 +1714,9 @@ function animateQueueRows(prevRects){
   rows.forEach(row=>{
     const id = row.dataset.id;
     const prev = prevRects[id];
-    const isPaidNow = row.dataset.paid === '1';
+    const paidNow = parseFloat(row.dataset.paidAmount || '0');
     if(prev){
-      const justPaid = !prev.wasPaid && isPaidNow;
+      const justPaid = paidNow > prev.paid + 0.001;
       if(justPaid){ justPaidRow = { row, prevTop: prev.top }; return; }
       const newTop = row.getBoundingClientRect().top;
       const dy = prev.top - newTop;
@@ -1847,7 +1842,7 @@ function renderLive(){
       ? `<div class="qr-pos qr-pos-gold" title="Paid to skip ahead"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 3 14h7l-1 8 11-14h-7l1-6z"/></svg></div>`
       : `<div class="qr-pos">${i+1}</div>`;
     return `
-    <div class="queue-row" data-id="${q.id}" data-paid="${paid?1:0}">
+    <div class="queue-row" data-id="${q.id}" data-paid-amount="${q.paidTotal||0}">
       ${posBadge}
       <div class="qr-name">${escapeHtml(q.name)}</div>
       <div class="qr-menu-wrap">
