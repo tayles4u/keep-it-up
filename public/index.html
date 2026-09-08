@@ -722,7 +722,7 @@ const I18N = {
     skip_sound:'Skip sound', skip_sound_hint:'Plays when someone pays to jump the line. Max 6 sec.',
     default_ding:'Default sound', reset_default:'Reset to default', unpin:'Unpin', pin:'Pin', new_badge:'New',
     j_name:'Your name', j_song:'Song link', j_desc:'Description', j_desc_ph:'Anything the host should know',
-    j_paste_link:'Paste a link', j_upload_file:'Upload file', j_file:'Audio file (mp3 or wav)',
+    j_paste_link:'Paste a link', j_upload_file:'Upload file', j_file:'Audio file (mp3 or wav)', j_file_hint:'Max 8MB — a short clip works best.',
     j_send:'Send it in', j_pay_join:'Pay & join', already_queued:'already queued for a reaction',
     not_live_title:"This streamer isn't live right now.", not_live_sub:'Check back once they open the queue — this link will drop you straight in.',
     closed_title:'The host has paused new submissions right now. Check back in a bit!',
@@ -786,7 +786,7 @@ const I18N = {
     skip_sound:'Skip-Sound', skip_sound_hint:'Spielt, wenn jemand für einen Skip bezahlt. Max. 6 Sek.',
     default_ding:'Standard-Sound', reset_default:'Zurücksetzen', unpin:'Lösen', pin:'Anpinnen', new_badge:'Neu',
     j_name:'Dein Name', j_song:'Song-Link', j_desc:'Beschreibung', j_desc_ph:'Was der Host wissen sollte',
-    j_paste_link:'Link einfügen', j_upload_file:'Datei hochladen', j_file:'Audiodatei (mp3 oder wav)',
+    j_paste_link:'Link einfügen', j_upload_file:'Datei hochladen', j_file:'Audiodatei (mp3 oder wav)', j_file_hint:'Max. 8MB — ein kurzer Ausschnitt funktioniert am besten.',
     j_send:'Absenden', j_pay_join:'Zahlen & beitreten', already_queued:'bereits in der Warteschlange',
     not_live_title:'Dieser Streamer ist gerade nicht live.', not_live_sub:'Schau später vorbei — der Link bringt dich direkt rein, sobald die Queue offen ist.',
     closed_title:'Der Host hat neue Einreichungen pausiert. Schau gleich nochmal vorbei!',
@@ -2250,6 +2250,27 @@ async function saveAccountName(){
 /* ===================== PUBLIC JOIN VIEW ===================== */
 window.__joinFormActive = false;
 window.__lastJoinLiveState = null;
+let joinMode = 'link';
+let pendingJoinFile = null; // { dataUrl, name } once a fan picks a file
+function setJoinMode(mode){ joinMode = mode; pendingJoinFile = null; renderJoin(); }
+function handleJoinFileChosen(inputEl){
+  const file = inputEl.files[0];
+  const statusEl = document.getElementById('j-file-status');
+  if(!file) return;
+  if(file.size > 6*1024*1024){
+    if(statusEl) statusEl.textContent = 'That file is too big — keep it under ~6MB.';
+    pendingJoinFile = null;
+    inputEl.value = '';
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = function(){
+    pendingJoinFile = { dataUrl: reader.result, name: file.name };
+    if(statusEl) statusEl.textContent = 'Ready: ' + file.name;
+  };
+  reader.onerror = function(){ if(statusEl) statusEl.textContent = 'Could not read that file.'; pendingJoinFile = null; };
+  reader.readAsDataURL(file);
+}
 
 async function renderOverlay(){
   const code = getOverlayCode();
@@ -2324,9 +2345,17 @@ async function renderJoin(){
         <div class="admit-body">
           ${full ? `<p style="color:var(--coral);font-size:13px;text-align:center">${t('full_title')}</p>` : `
           <div class="join-field"><label>${t('j_name')} <span style="text-transform:none;font-weight:400;color:var(--coral)">*</span></label><input id="j-name" type="text" placeholder="e.g. TJ Duisburg" maxlength="30"></div>
-          <div class="join-field"><label>${t('j_song')} <span style="text-transform:none;font-weight:400;color:var(--coral)">*</span></label><input id="j-song" type="text" placeholder="Spotify, YouTube, SoundCloud, Dropbox…"></div>
+          <div class="join-field">
+            <label>${t('j_song')} <span style="text-transform:none;font-weight:400;color:var(--coral)">*</span></label>
+            <div class="seg-tabs" style="margin-bottom:10px">
+              <button type="button" class="seg-btn ${joinMode==='link'?'active':''}" onclick="setJoinMode('link')">${t('j_paste_link')}</button>
+              <button type="button" class="seg-btn ${joinMode==='file'?'active':''}" onclick="setJoinMode('file')">${t('j_upload_file')}</button>
+            </div>
+            ${joinMode==='file'
+              ? `<input id="j-file" type="file" accept="audio/*" onchange="handleJoinFileChosen(this)"><div class="join-note" id="j-file-status" style="margin-top:6px">${t('j_file_hint')}</div>`
+              : `<input id="j-song" type="text" placeholder="Spotify, YouTube, SoundCloud, Dropbox…">`}
+          </div>
           <div class="join-field"><label>${t('j_desc')} <span style="text-transform:none;font-weight:400;color:var(--ink-faint)">(optional)</span></label><input id="j-note" type="text" placeholder="${t('j_desc_ph')}" maxlength="140"></div>
-          <div class="join-note">A link or a file is required to submit — mp3/wav upload isn't wired up on the server yet, so paste a link for now.</div>
           ${data.entryFeeEnabled ? `<div class="join-note">This show charges an entry fee of ${money(data.entryFee)}.</div>` : ''}
           <button class="btn btn-gold btn-block" onclick="submitJoin('${code}')">${data.entryFeeEnabled ? t('j_pay_join')+' ('+money(data.entryFee)+')' : t('j_send')}</button>
           `}
@@ -2355,8 +2384,8 @@ async function renderJoin(){
       </div>
       <div class="admit-perf"></div>
       <div class="admit-body">
-        <h2 style="word-break:break-word">${isUrl(mySubmission.song) ? 'Your submission' : escapeHtml(mySubmission.song||'')}${platformBadge(mySubmission.song)}</h2>
-        ${isUrl(mySubmission.song) ? `<div class="jsub" style="word-break:break-all;font-size:11px">${escapeHtml(mySubmission.song)}</div>` : ''}
+        <h2 style="word-break:break-word">${mySubmission.fileName ? escapeHtml(mySubmission.fileName) : (isUrl(mySubmission.song) ? 'Your submission' : escapeHtml(mySubmission.song||''))}${mySubmission.fileName ? '' : platformBadge(mySubmission.song)}</h2>
+        ${!mySubmission.fileName && isUrl(mySubmission.song) ? `<div class="jsub" style="word-break:break-all;font-size:11px">${escapeHtml(mySubmission.song)}</div>` : ''}
         <div class="jsub">${t('sent_by')} ${escapeHtml(mySubmission.name)}</div>
         ${data.skipsEnabled ? `
         <div class="join-actions">
@@ -2370,16 +2399,25 @@ async function renderJoin(){
 
 async function submitJoin(code){
   const name = (document.getElementById('j-name').value||'').trim();
-  const song = (document.getElementById('j-song').value||'').trim();
   const note = (document.getElementById('j-note').value||'').trim();
   if(!name){ toast('Enter your name first.'); return; }
-  if(!song){ toast('Paste a link first.'); return; }
-  if(!isUrl(song)){ toast('That doesn\'t look like a working link — it needs to start with http:// or https://'); return; }
+
+  let song = '', fileData = '', fileName = '';
+  if(joinMode==='file'){
+    if(!pendingJoinFile){ toast('Choose a file first.'); return; }
+    fileData = pendingJoinFile.dataUrl;
+    fileName = pendingJoinFile.name;
+  } else {
+    song = (document.getElementById('j-song').value||'').trim();
+    if(!song){ toast('Paste a link first.'); return; }
+    if(!isUrl(song)){ toast('That doesn\'t look like a working link — it needs to start with http:// or https://'); return; }
+  }
   try{
-    const data = await apiFetch('/api/public/'+encodeURIComponent(code)+'/join', { method:'POST', body:{ name, song, note } });
+    const data = await apiFetch('/api/public/'+encodeURIComponent(code)+'/join', { method:'POST', body:{ name, song, note, fileData, fileName } });
     sessionStorage.setItem(myParticipantKey(code), data.participantId);
-    sessionStorage.setItem(myDataKey(code), JSON.stringify({ name, song, note }));
+    sessionStorage.setItem(myDataKey(code), JSON.stringify({ name, song, note, fileName: fileData ? fileName : null }));
     window.__joinFormActive = false;
+    pendingJoinFile = null;
     toast('Sent! You are in the queue.');
     renderJoin();
   }catch(e){ toast(e.message); }
