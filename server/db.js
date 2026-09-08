@@ -50,7 +50,9 @@ db.exec(`
     position   INTEGER NOT NULL,
     status     TEXT NOT NULL DEFAULT 'queued', -- queued | played | removed | bracket
     joined_at  INTEGER NOT NULL,
-    cover_url  TEXT
+    cover_url  TEXT,
+    file_data  TEXT,
+    file_name  TEXT
   );
 
   CREATE TABLE IF NOT EXISTS show_bans (
@@ -95,5 +97,8 @@ try { db.exec(`ALTER TABLE users ADD COLUMN stripe_payouts_enabled INTEGER NOT N
 try { db.exec(`ALTER TABLE transactions ADD COLUMN stripe_payment_intent_id TEXT`); } catch (e) { /* column already exists — fine */ }
 // Safe migration for databases created before cover_url existed (real Spotify/etc. artwork, fetched at submission time).
 try { db.exec(`ALTER TABLE queue_items ADD COLUMN cover_url TEXT`); } catch (e) { /* column already exists — fine */ }
+// Safe migrations for direct mp3/wav submission uploads.
+try { db.exec(`ALTER TABLE queue_items ADD COLUMN file_data TEXT`); } catch (e) { /* column already exists — fine */ }
+try { db.exec(`ALTER TABLE queue_items ADD COLUMN file_name TEXT`); } catch (e) { /* column already exists — fine */ }
 
 module.exports = db;
