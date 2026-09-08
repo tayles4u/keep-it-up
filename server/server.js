@@ -657,17 +657,24 @@ route('POST', '/api/public/:joinCode/join', async (req, res, params) => {
   const name = String(body.name || '').trim();
   const song = String(body.song || '').trim();
   const note = String(body.note || '').trim();
+  const fileData = typeof body.fileData === 'string' ? body.fileData : '';
+  const fileName = String(body.fileName || '').trim().slice(0, 120);
   if (!name) return sendJSON(res, 400, { error: 'A name is required.' });
   const banned = db.prepare(`SELECT id FROM show_bans WHERE show_id=? AND name_lower=?`).get(show.id, name.toLowerCase());
   if (banned) return sendJSON(res, 403, { error: 'You have been banned from this show.' });
-  if (!song) return sendJSON(res, 400, { error: 'A link is required.' });
-  if (!/^https?:\/\//i.test(song)) return sendJSON(res, 400, { error: 'That doesn\'t look like a working link — it needs to start with http:// or https://' });
+  if (!song && !fileData) return sendJSON(res, 400, { error: 'A link or an uploaded file is required.' });
+  if (song && !/^https?:\/\//i.test(song)) return sendJSON(res, 400, { error: 'That doesn\'t look like a working link — it needs to start with http:// or https://' });
+  if (fileData && !/^data:audio\//i.test(fileData)) return sendJSON(res, 400, { error: 'That file doesn\'t look like a valid audio file.' });
   const entry = settings.entryFeeEnabled ? Number(settings.entryFee || 0) : 0;
-  const coverUrl = await fetchCoverUrl(song);
-  const item = { id: newId(), show_id: show.id, name, song, note, paid_total: entry, position: count, status: 'queued', joined_at: Date.now(), cover_url: coverUrl };
-  db.prepare(`INSERT INTO queue_items (id,show_id,name,song,note,paid_total,position,status,joined_at,cover_url)
-              VALUES (?,?,?,?,?,?,?,?,?,?)`)
-    .run(item.id, item.show_id, item.name, item.song, item.note, item.paid_total, item.position, item.status, item.joined_at, item.cover_url);
+  const coverUrl = song ? await fetchCoverUrl(song) : null;
+  const item = {
+    id: newId(), show_id: show.id, name, song: song || null, note,
+    paid_total: entry, position: count, status: 'queued', joined_at: Date.now(),
+    cover_url: coverUrl, file_data: fileData || null, file_name: fileData ? (fileName || 'uploaded file') : null
+  };
+  db.prepare(`INSERT INTO queue_items (id,show_id,name,song,note,paid_total,position,status,joined_at,cover_url,file_data,file_name)
+              VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`)
+    .run(item.id, item.show_id, item.name, item.song, item.note, item.paid_total, item.position, item.status, item.joined_at, item.cover_url, item.file_data, item.file_name);
   db.prepare(`UPDATE shows SET total_participants = total_participants + 1 WHERE id=?`).run(show.id);
   if (entry > 0) {
     db.prepare(`INSERT INTO transactions (id,user_id,show_id,type,amount,status,date) VALUES (?,?,?,?,?,?,?)`)
@@ -770,7 +777,7 @@ function showToJSON(s) {
   };
 }
 function queueToJSON(q) {
-  return { id: q.id, name: q.name, song: q.song, note: q.note, paidTotal: q.paid_total, position: q.position, status: q.status, joinedAt: q.joined_at, coverUrl: q.cover_url };
+  return { id: q.id, name: q.name, song: q.song, note: q.note, paidTotal: q.paid_total, position: q.position, status: q.status, joinedAt: q.joined_at, coverUrl: q.cover_url, fileData: q.file_data, fileName: q.file_name };
 }
 
 route('GET', '/health', async (req, res) => { sendJSON(res, 200, { ok: true, time: Date.now() }); });
