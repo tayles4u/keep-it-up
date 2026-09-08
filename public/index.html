@@ -316,7 +316,60 @@ body.overlay-mode .help-fab,body.overlay-mode #toast{display:none!important;}
 .ondeck-label h3{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-dim);}
 .ondeck-label span{font-size:11px;color:var(--ink-faint);}
 .queue-list{display:flex;flex-direction:column;gap:10px;}
-.queue-row{display:flex;align-items:center;gap:18px;background:var(--bg-1);border:1px solid var(--line-strong);border-radius:16px;padding:20px 22px;}
+.queue-row{display:flex;align-items:center;gap:18px;background:var(--bg-1);border:1px solid var(--line-strong);border-radius:16px;padding:20px 22px;position:relative;overflow:visible;}
+.qr-flash{position:absolute;inset:-1px;border-radius:16px;background:var(--gold);opacity:0;pointer-events:none;}
+.qr-ripple{position:absolute;inset:-1px;border-radius:16px;border:2px solid var(--gold);opacity:0;pointer-events:none;}
+.qr-new-badge{position:absolute;right:18px;top:50%;transform:translateY(-50%) scale(0);background:var(--mint);color:#04241A;font-size:10px;font-weight:800;padding:4px 9px;border-radius:20px;text-transform:uppercase;letter-spacing:.04em;pointer-events:none;}
+.qr-spark{position:absolute;pointer-events:none;color:var(--gold);opacity:0;z-index:5;}
+.stage-vignette{position:fixed;inset:0;pointer-events:none;background:radial-gradient(circle at center, transparent 30%, var(--gold) 220%);opacity:0;z-index:300;}
+@keyframes qrRowIn{
+  0%{transform:translateX(-56px) scale(.85) rotate(-2deg);opacity:0;}
+  55%{transform:translateX(8px) scale(1.05) rotate(.5deg);opacity:1;}
+  75%{transform:translateX(-3px) scale(.99);}
+  100%{transform:translateX(0) scale(1) rotate(0);opacity:1;}
+}
+@keyframes qrFlashIn{ 0%{opacity:0;} 25%{opacity:.55;} 100%{opacity:0;} }
+@keyframes qrBadgePop{
+  0%{transform:translateY(-50%) scale(0) rotate(-15deg);opacity:0;}
+  45%{transform:translateY(-50%) scale(1.3) rotate(4deg);opacity:1;}
+  65%{transform:translateY(-50%) scale(.95) rotate(-2deg);opacity:1;}
+  80%{transform:translateY(-50%) scale(1.05);opacity:1;}
+  100%{transform:translateY(-50%) scale(1);opacity:0;}
+}
+@keyframes qrSquash{ 0%{transform:scaleY(1) scaleX(1);} 100%{transform:scaleY(.88) scaleX(1.04);} }
+@keyframes qrUnsquash{
+  0%{transform:scaleY(.88) scaleX(1.04);}
+  40%{transform:scaleY(1.12) scaleX(.97);}
+  70%{transform:scaleY(.96);}
+  100%{transform:scaleY(1) scaleX(1);}
+}
+@keyframes qrRipplePulse{ 0%{opacity:.9;transform:scale(1);} 100%{opacity:0;transform:scale(1.15);} }
+@keyframes qrSparkFloat{
+  0%{transform:translateY(0) scale(.4) rotate(0deg);opacity:0;}
+  15%{opacity:1;transform:translateY(-6px) scale(1.3) rotate(20deg);}
+  100%{transform:translateY(-56px) scale(.7) rotate(60deg);opacity:0;}
+}
+@keyframes qrVignetteFlash{ 0%{opacity:0;} 20%{opacity:.4;} 100%{opacity:0;} }
+@keyframes qrScreenShake{
+  0%,100%{transform:translateX(0);}
+  15%{transform:translateX(-6px) translateY(1px);}
+  30%{transform:translateX(5px) translateY(-1px);}
+  45%{transform:translateX(-4px);}
+  60%{transform:translateX(3px);}
+  75%{transform:translateX(-2px);}
+  90%{transform:translateX(1px);}
+}
+@keyframes qrShudder{ 0%,100%{transform:translateX(0);} 25%{transform:translateX(-3px);} 75%{transform:translateX(3px);} }
+.anim-qr-rowIn{animation:qrRowIn .6s cubic-bezier(.2,.8,.2,1);}
+.anim-qr-flash{animation:qrFlashIn .7s ease;}
+.anim-qr-badge{animation:qrBadgePop 1.3s ease forwards;}
+.anim-qr-ripple{animation:qrRipplePulse .8s ease forwards;}
+.anim-qr-squash{animation:qrSquash .12s ease forwards;}
+.anim-qr-unsquash{animation:qrUnsquash .5s cubic-bezier(.34,1.56,.64,1) forwards;}
+.anim-qr-spark{animation:qrSparkFloat 1.1s ease forwards;}
+.anim-qr-vignette{animation:qrVignetteFlash .6s ease;}
+.anim-qr-shake{animation:qrScreenShake .4s ease;}
+.anim-qr-shudder{animation:qrShudder .25s ease;}
 .qr-pos{flex-shrink:0;width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:18px;color:var(--ink-faint);background:var(--bg-2);}
 .qr-pos.qr-pos-gold{background:linear-gradient(140deg,var(--gold),#ffdd88);color:var(--gold-ink);}
 .qr-pos svg{width:20px;height:20px;}
@@ -594,6 +647,7 @@ html.overlay-mode,body.overlay-mode{background:transparent!important;}
 <div id="overlay" class="view"></div>
 
 <div id="toast"></div>
+<div class="stage-vignette" id="stage-vignette"></div>
 <button class="help-fab" onclick="openHelp()"><span class="q">?</span>Need help?</button>
 
 <script>
@@ -666,7 +720,7 @@ const I18N = {
     notif_sounds:'Notification sounds', notif_sounds_desc:'Play a cue on queue events', volume:'Volume',
     submission_sound:'Submission sound', submission_sound_hint:'Plays when a fan sends a track. Max 6 sec.',
     skip_sound:'Skip sound', skip_sound_hint:'Plays when someone pays to jump the line. Max 6 sec.',
-    default_ding:'Default sound', reset_default:'Reset to default', unpin:'Unpin', pin:'Pin',
+    default_ding:'Default sound', reset_default:'Reset to default', unpin:'Unpin', pin:'Pin', new_badge:'New',
     j_name:'Your name', j_song:'Song link', j_desc:'Description', j_desc_ph:'Anything the host should know',
     j_paste_link:'Paste a link', j_upload_file:'Upload file', j_file:'Audio file (mp3 or wav)',
     j_send:'Send it in', j_pay_join:'Pay & join', already_queued:'already queued for a reaction',
@@ -730,7 +784,7 @@ const I18N = {
     notif_sounds:'Benachrichtigungstöne', notif_sounds_desc:'Ton bei Queue-Ereignissen', volume:'Lautstärke',
     submission_sound:'Einreichungs-Sound', submission_sound_hint:'Spielt, wenn ein Fan einen Track schickt. Max. 6 Sek.',
     skip_sound:'Skip-Sound', skip_sound_hint:'Spielt, wenn jemand für einen Skip bezahlt. Max. 6 Sek.',
-    default_ding:'Standard-Sound', reset_default:'Zurücksetzen', unpin:'Lösen', pin:'Anpinnen',
+    default_ding:'Standard-Sound', reset_default:'Zurücksetzen', unpin:'Lösen', pin:'Anpinnen', new_badge:'Neu',
     j_name:'Dein Name', j_song:'Song-Link', j_desc:'Beschreibung', j_desc_ph:'Was der Host wissen sollte',
     j_paste_link:'Link einfügen', j_upload_file:'Datei hochladen', j_file:'Audiodatei (mp3 oder wav)',
     j_send:'Absenden', j_pay_join:'Zahlen & beitreten', already_queued:'bereits in der Warteschlange',
@@ -1654,17 +1708,23 @@ function controlsPanelInner(s){
 
 function captureQueueRects(){
   const rects = {};
-  document.querySelectorAll('.queue-row[data-id]').forEach(el=>{ rects[el.dataset.id] = el.getBoundingClientRect(); });
+  document.querySelectorAll('.queue-row[data-id]').forEach(el=>{
+    rects[el.dataset.id] = { top: el.getBoundingClientRect().top, wasPaid: el.dataset.paid === '1' };
+  });
   return rects;
 }
 function animateQueueRows(prevRects){
   const rows = document.querySelectorAll('.queue-row[data-id]');
+  let justPaidRow = null;
   rows.forEach(row=>{
     const id = row.dataset.id;
-    const oldRect = prevRects[id];
-    if(oldRect){
-      const newRect = row.getBoundingClientRect();
-      const dy = oldRect.top - newRect.top;
+    const prev = prevRects[id];
+    const isPaidNow = row.dataset.paid === '1';
+    if(prev){
+      const justPaid = !prev.wasPaid && isPaidNow;
+      if(justPaid){ justPaidRow = { row, prevTop: prev.top }; return; }
+      const newTop = row.getBoundingClientRect().top;
+      const dy = prev.top - newTop;
       if(Math.abs(dy) > 1){
         row.style.transition = 'none';
         row.style.transform = `translateY(${dy}px)`;
@@ -1672,21 +1732,70 @@ function animateQueueRows(prevRects){
           row.style.transition = 'transform .4s cubic-bezier(.2,.8,.2,1)';
           row.style.transform = '';
         });
+        if(dy < -1){
+          setTimeout(()=>{
+            row.classList.add('anim-qr-shudder');
+            setTimeout(()=>row.classList.remove('anim-qr-shudder'), 260);
+          }, 40);
+        }
       }
     } else {
-      // brand new row — fade/slide it in instead of popping into place
-      row.style.transition = 'none';
-      row.style.opacity = '0';
-      row.style.transform = 'translateX(-14px)';
-      requestAnimationFrame(()=>{
-        requestAnimationFrame(()=>{
-          row.style.transition = 'opacity .4s ease, transform .4s cubic-bezier(.2,.8,.2,1)';
-          row.style.opacity = '1';
-          row.style.transform = '';
-        });
-      });
+      row.classList.add('anim-qr-rowIn');
+      const flash = document.createElement('div');
+      flash.className = 'qr-flash anim-qr-flash';
+      row.appendChild(flash);
+      const badge = document.createElement('div');
+      badge.className = 'qr-new-badge anim-qr-badge';
+      badge.textContent = t('new_badge');
+      row.appendChild(badge);
+      setTimeout(()=>{ row.classList.remove('anim-qr-rowIn'); flash.remove(); badge.remove(); }, 1400);
     }
   });
+  if(justPaidRow) playSkipDrama(justPaidRow.row, justPaidRow.prevTop);
+}
+function playSkipDrama(row, prevTop){
+  row.classList.add('anim-qr-squash');
+
+  const stageEl = document.querySelector('.stage-main');
+  if(stageEl){ stageEl.classList.remove('anim-qr-shake'); void stageEl.offsetWidth; stageEl.classList.add('anim-qr-shake'); }
+
+  const vignette = document.getElementById('stage-vignette');
+  if(vignette){ vignette.classList.remove('anim-qr-vignette'); void vignette.offsetWidth; vignette.classList.add('anim-qr-vignette'); }
+
+  const noteSvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>';
+  const starSvg = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.6 7.2L22 12l-7.4 2.8L12 22l-2.6-7.2L2 12l7.4-2.8z"/></svg>';
+  for(let i=0;i<9;i++){
+    const spark = document.createElement('div');
+    spark.className = 'qr-spark anim-qr-spark';
+    spark.innerHTML = i % 2 === 0 ? noteSvg : starSvg;
+    spark.style.left = (10+Math.random()*60)+'px';
+    spark.style.top = (4+Math.random()*10)+'px';
+    spark.style.animationDelay = (i*0.045)+'s';
+    row.appendChild(spark);
+    setTimeout(()=>spark.remove(), 1300);
+  }
+
+  setTimeout(()=>{
+    row.classList.remove('anim-qr-squash');
+    row.classList.add('anim-qr-unsquash');
+
+    const ripple = document.createElement('div');
+    ripple.className = 'qr-ripple anim-qr-ripple';
+    row.appendChild(ripple);
+    setTimeout(()=>ripple.remove(), 800);
+
+    const newTop = row.getBoundingClientRect().top;
+    const dy = prevTop - newTop;
+    if(Math.abs(dy) > 1){
+      row.style.transition = 'none';
+      row.style.transform = `translateY(${dy}px)`;
+      requestAnimationFrame(()=>{
+        row.style.transition = 'transform .55s cubic-bezier(.34,1.56,.64,1)';
+        row.style.transform = '';
+      });
+    }
+    setTimeout(()=>row.classList.remove('anim-qr-unsquash'), 550);
+  }, 130);
 }
 function renderLive(){
   const el = document.getElementById('view-sessions-live');
@@ -1738,7 +1847,7 @@ function renderLive(){
       ? `<div class="qr-pos qr-pos-gold" title="Paid to skip ahead"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 3 14h7l-1 8 11-14h-7l1-6z"/></svg></div>`
       : `<div class="qr-pos">${i+1}</div>`;
     return `
-    <div class="queue-row" data-id="${q.id}">
+    <div class="queue-row" data-id="${q.id}" data-paid="${paid?1:0}">
       ${posBadge}
       <div class="qr-name">${escapeHtml(q.name)}</div>
       <div class="qr-menu-wrap">
