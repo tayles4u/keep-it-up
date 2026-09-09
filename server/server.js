@@ -663,8 +663,31 @@ route('GET', '/api/transactions', async (req, res) => {
   `).all(user.id);
   sendJSON(res, 200, { transactions: rows.map(tx => ({
     id: tx.id, date: tx.date, type: tx.type, amount: tx.amount, status: tx.status,
-    sessionId: tx.show_id, sessionTitle: tx.session_title || '—'
+    sessionId: tx.show_id, sessionTitle: tx.session_title || '—',
+    refundable: tx.type !== 'payout' && tx.status !== 'refunded'
   })) });
+});
+
+route('POST', '/api/shows/:showId/transactions/:txId/refund', async (req, res, params) => {
+  const user = getAuthUser(req);
+  if (!user) return sendJSON(res, 401, { error: 'Not signed in.' });
+  const show = db.prepare('SELECT * FROM shows WHERE id=? AND user_id=?').get(params.showId, user.id);
+  if (!show) return sendJSON(res, 404, { error: 'Show not found.' });
+  const tx = db.prepare('SELECT * FROM transactions WHERE id=? AND show_id=?').get(params.txId, show.id);
+  if (!tx) return sendJSON(res, 404, { error: 'Transaction not found.' });
+  if (tx.type === 'payout') return sendJSON(res, 400, { error: "Payouts can't be refunded here." });
+  if (tx.status === 'refunded') return sendJSON(res, 409, { error: 'Already refunded.' });
+
+  if (tx.stripe_payment_intent_id) {
+    // A real payment — actually return the money via Stripe, not just a local status flip.
+    try {
+      await stripeRequestV1('POST', '/refunds', { payment_intent: tx.stripe_payment_intent_id });
+    } catch (e) {
+      return sendJSON(res, 500, { error: 'Stripe refund failed: ' + e.message });
+    }
+  }
+  db.prepare(`UPDATE transactions SET status='refunded' WHERE id=?`).run(tx.id);
+  sendJSON(res, 200, { ok: true });
 });
 
 route('POST', '/api/payout', async (req, res) => {
