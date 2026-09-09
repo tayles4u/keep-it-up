@@ -737,8 +737,42 @@ route('POST', '/api/public/:joinCode/join', async (req, res, params) => {
   if (!song && !fileData) return sendJSON(res, 400, { error: 'A link or an uploaded file is required.' });
   if (song && !/^https?:\/\//i.test(song)) return sendJSON(res, 400, { error: 'That doesn\'t look like a working link — it needs to start with http:// or https://' });
   if (fileData && !/^data:audio\//i.test(fileData)) return sendJSON(res, 400, { error: 'That file doesn\'t look like a valid audio file.' });
+
   const entry = settings.entryFeeEnabled ? Number(settings.entryFee || 0) : 0;
   const coverUrl = song ? await fetchCoverUrl(song) : null;
+
+  if (entry > 0) {
+    const canUseRealStripe = !!STRIPE_SECRET_KEY && !!user.stripe_account_id && !!user.stripe_payouts_enabled;
+    if (canUseRealStripe) {
+      const pendingId = newId();
+      db.prepare(`INSERT INTO pending_submissions (id,show_id,name,song,note,cover_url,file_data,file_name,created_at)
+                  VALUES (?,?,?,?,?,?,?,?,?)`)
+        .run(pendingId, show.id, name, song || null, note, coverUrl, fileData || null, fileData ? (fileName || 'uploaded file') : null, Date.now());
+      try {
+        const origin = requestOrigin(req);
+        const session = await stripeRequestV1('POST', '/checkout/sessions', {
+          mode: 'payment',
+          line_items: [{
+            price_data: { currency: 'eur', product_data: { name: 'Queue entry fee' }, unit_amount: Math.round(entry * 100) },
+            quantity: 1
+          }],
+          payment_intent_data: {
+            application_fee_amount: Math.round(entry * 100 * PLATFORM_FEE_PCT),
+            transfer_data: { destination: user.stripe_account_id }
+          },
+          metadata: { entryPendingId: pendingId },
+          success_url: origin + '/?join=' + encodeURIComponent(params.joinCode) + '&paid=1&pending=' + encodeURIComponent(pendingId),
+          cancel_url: origin + '/?join=' + encodeURIComponent(params.joinCode)
+        });
+        return sendJSON(res, 200, { url: session.url });
+      } catch (e) {
+        db.prepare(`DELETE FROM pending_submissions WHERE id=?`).run(pendingId);
+        return sendJSON(res, 500, { error: e.message });
+      }
+    }
+  }
+
+  // No entry fee, or the host doesn't have live payouts connected yet — join instantly (old behavior).
   const item = {
     id: newId(), show_id: show.id, name, song: song || null, note,
     paid_total: entry, position: count, status: 'queued', joined_at: Date.now(),
@@ -859,6 +893,13 @@ route('POST', '/api/public/:joinCode/checkout', async (req, res, params) => {
   }
 });
 
+route('GET', '/api/public/:joinCode/pending/:pendingId', async (req, res, params) => {
+  const pending = db.prepare(`SELECT resolved_participant_id FROM pending_submissions WHERE id=?`).get(params.pendingId);
+  if (!pending) return sendJSON(res, 404, { error: 'Not found.' });
+  if (pending.resolved_participant_id) return sendJSON(res, 200, { resolved: true, participantId: pending.resolved_participant_id });
+  sendJSON(res, 200, { resolved: false });
+});
+
 route('POST', '/api/stripe/webhook', async (req, res) => {
   let rawBody;
   try { rawBody = await readRawBody(req); } catch (e) { return sendJSON(res, 400, { error: e.message }); }
@@ -874,11 +915,28 @@ route('POST', '/api/stripe/webhook', async (req, res) => {
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
     const meta = session.metadata || {};
-    const { joinCode, participantId, type } = meta;
+    const { joinCode, participantId, type, entryPendingId } = meta;
     const paymentIntentId = session.payment_intent;
-
     const already = db.prepare(`SELECT id FROM transactions WHERE stripe_payment_intent_id=?`).get(paymentIntentId);
-    if (!already && joinCode && participantId) {
+
+    if (!already && entryPendingId) {
+      const pending = db.prepare(`SELECT * FROM pending_submissions WHERE id=?`).get(entryPendingId);
+      if (pending && !pending.resolved_participant_id) {
+        const show = db.prepare(`SELECT * FROM shows WHERE id=? AND status='live'`).get(pending.show_id);
+        if (show) {
+          const cost = (session.amount_total || 0) / 100;
+          const count = db.prepare(`SELECT COUNT(*) AS c FROM queue_items WHERE show_id=? AND status='queued'`).get(show.id).c;
+          const itemId = newId();
+          db.prepare(`INSERT INTO queue_items (id,show_id,name,song,note,paid_total,position,status,joined_at,cover_url,file_data,file_name)
+                      VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`)
+            .run(itemId, show.id, pending.name, pending.song, pending.note, cost, count, 'queued', Date.now(), pending.cover_url, pending.file_data, pending.file_name);
+          db.prepare(`UPDATE shows SET total_participants = total_participants + 1 WHERE id=?`).run(show.id);
+          db.prepare(`INSERT INTO transactions (id,user_id,show_id,type,amount,status,date,stripe_payment_intent_id) VALUES (?,?,?,?,?,?,?,?)`)
+            .run(newId(), show.user_id, show.id, 'entry_fee', cost, 'available', Date.now(), paymentIntentId);
+          db.prepare(`UPDATE pending_submissions SET resolved_participant_id=? WHERE id=?`).run(itemId, entryPendingId);
+        }
+      }
+    } else if (!already && joinCode && participantId) {
       const user = findUserByCodeOrUsername(joinCode);
       const show = user ? db.prepare(`SELECT * FROM shows WHERE user_id=? AND status='live'`).get(user.id) : null;
       if (user && show) {
