@@ -3,6 +3,7 @@
 // Requires Node.js 22.5+ for node:sqlite. See README.md for deployment notes.
 'use strict';
 const http = require('node:http');
+const crypto = require('node:crypto');
 const db = require('./db.js');
 const { hashPassword, verifyPassword, newToken, newId, newJoinCode, hashToken } = require('./auth.js');
 
@@ -12,6 +13,7 @@ const CORS_ORIGIN = process.env.CORS_ORIGIN || '*'; // lock this down to your re
 const GOOGLE_CLIENT_ID = (process.env.GOOGLE_CLIENT_ID || '').trim();
 const STRIPE_SECRET_KEY = (process.env.STRIPE_SECRET_KEY || '').trim();
 const STRIPE_WEBHOOK_SECRET = (process.env.STRIPE_WEBHOOK_SECRET || '').trim();
+const PLATFORM_FEE_PCT = Number(process.env.PLATFORM_FEE_PCT || 0.10); // default: platform keeps 10%, streamer gets the rest
 
 // ---------- rate limiting (in-memory — fine for a single instance; use Redis if you ever scale to several) ----------
 const rateBuckets = new Map(); // key -> { count, resetAt }
@@ -70,6 +72,19 @@ function readBody(req) {
     req.on('error', reject);
   });
 }
+function readRawBody(req) {
+  return new Promise((resolve, reject) => {
+    let chunks = [];
+    let size = 0;
+    req.on('data', (c) => {
+      size += c.length;
+      if (size > MAX_BODY_BYTES) { reject(new Error('Body too large')); req.destroy(); return; }
+      chunks.push(c);
+    });
+    req.on('end', () => resolve(Buffer.concat(chunks)));
+    req.on('error', reject);
+  });
+}
 function getAuthUser(req) {
   const header = req.headers['authorization'] || '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : null;
@@ -121,6 +136,48 @@ async function stripeRequestV2(method, path, body) {
   const data = await res.json();
   if (!res.ok) throw new Error((data.error && data.error.message) || 'Stripe request failed.');
   return data;
+}
+function stripeFormBody(obj) {
+  // Stripe's v1 API takes classic form-encoded bodies with bracket notation for nested objects
+  // AND arrays, e.g. line_items[0][price_data][currency]=eur
+  const params = new URLSearchParams();
+  (function walk(o, prefix) {
+    for (const k in o) {
+      const key = prefix ? `${prefix}[${k}]` : k;
+      const v = o[k];
+      if (v && typeof v === 'object') { walk(v, key); }
+      else if (v !== undefined && v !== null) { params.append(key, v); }
+    }
+  })(obj, '');
+  return params.toString();
+}
+async function stripeRequestV1(method, path, body) {
+  if (!STRIPE_SECRET_KEY) throw new Error('Stripe is not configured on this server yet.');
+  const headers = { 'Authorization': 'Basic ' + Buffer.from(STRIPE_SECRET_KEY + ':').toString('base64') };
+  let fetchBody;
+  if (body) { headers['Content-Type'] = 'application/x-www-form-urlencoded'; fetchBody = stripeFormBody(body); }
+  const res = await fetch('https://api.stripe.com/v1' + path, { method, headers, body: fetchBody });
+  const data = await res.json();
+  if (!res.ok) throw new Error((data.error && data.error.message) || 'Stripe request failed.');
+  return data;
+}
+function verifyStripeSignature(rawBody, sigHeader, secret) {
+  if (!secret) throw new Error('Webhook secret not configured.');
+  if (!sigHeader) throw new Error('Missing Stripe-Signature header.');
+  const parts = {};
+  sigHeader.split(',').forEach(kv => { const [k, v] = kv.split('='); parts[k] = v; });
+  const timestamp = parts.t;
+  const sig = parts.v1;
+  if (!timestamp || !sig) throw new Error('Malformed signature header.');
+  const signedPayload = timestamp + '.' + rawBody.toString('utf8');
+  const expected = crypto.createHmac('sha256', secret).update(signedPayload).digest('hex');
+  const sigBuf = Buffer.from(sig, 'hex');
+  const expBuf = Buffer.from(expected, 'hex');
+  if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+    throw new Error('Signature mismatch.');
+  }
+  const ageSeconds = Math.abs(Date.now() / 1000 - Number(timestamp));
+  if (ageSeconds > 300) throw new Error('Timestamp too old — possible replay.');
 }
 function requestOrigin(req) {
   const raw = req.headers.origin;
@@ -683,47 +740,30 @@ route('POST', '/api/public/:joinCode/join', async (req, res, params) => {
   sendJSON(res, 201, { participantId: item.id });
 });
 
-route('POST', '/api/public/:joinCode/skip', async (req, res, params) => {
-  const user = findUserByCodeOrUsername(params.joinCode);
-  if (!user) return sendJSON(res, 404, { error: 'Invalid link.' });
-  const show = db.prepare(`SELECT * FROM shows WHERE user_id=? AND status='live'`).get(user.id);
-  if (!show) return sendJSON(res, 409, { error: 'Not live.' });
-  const settings = JSON.parse(show.settings_json);
-  if (!settings.skipsEnabled) return sendJSON(res, 409, { error: 'Skips are disabled.' });
-  const body = await readBody(req);
-  const participantId = body.participantId;
-  if (queuePaymentLocks.has(participantId)) {
-    return sendJSON(res, 429, { error: "Your last request is still processing — give it a second." });
-  }
-  queuePaymentLocks.add(participantId);
-  try {
-    const queue = db.prepare(`SELECT * FROM queue_items WHERE show_id=? AND status='queued' ORDER BY position ASC`).all(show.id);
-    const idx = queue.findIndex(q => q.id === participantId);
-    if (idx === -1) return sendJSON(res, 404, { error: 'Not found.' });
-    if (idx === 0) return sendJSON(res, 409, { error: "That song is already on stage — it can't be skipped." });
-    // The "skipped" group is whoever already paid, sitting contiguously right after now-playing.
+function applyPaidAction(show, queue, idx, type, cost) {
+  const me = queue[idx];
+  if (type === 'skip') {
     let skippedEnd = 0;
     for (let i = 1; i < queue.length; i++) {
-      if (queue[i].id === participantId) continue;
+      if (queue[i].id === me.id) continue;
       if (queue[i].paid_total > 0) skippedEnd = i; else break;
     }
-    if (idx <= skippedEnd) return sendJSON(res, 409, { error: "You've already skipped — you're already ahead of the line." });
-    const targetPos = skippedEnd + 1; // the back of the skipped group, right before the first unpaid person
-    const me = queue[idx];
-    const cost = Number(settings.skipFee || 0);
+    const targetPos = skippedEnd + 1;
     db.prepare(`UPDATE queue_items SET paid_total = paid_total + ? WHERE id=?`).run(cost, me.id);
-    // position 0 (on stage) is never touched — a payment can never interrupt whoever's currently playing.
     for (let i = idx - 1; i >= targetPos; i--) {
       db.prepare(`UPDATE queue_items SET position=? WHERE id=?`).run(i + 1, queue[i].id);
     }
     db.prepare(`UPDATE queue_items SET position=? WHERE id=?`).run(targetPos, me.id);
-    db.prepare(`INSERT INTO transactions (id,user_id,show_id,type,amount,status,date) VALUES (?,?,?,?,?,?,?)`)
-      .run(newId(), user.id, show.id, 'skip_fee', cost, 'pending', Date.now());
-    sendJSON(res, 200, { ok: true, cost });
-  } finally { queuePaymentLocks.delete(participantId); }
-});
+  } else {
+    db.prepare(`UPDATE queue_items SET paid_total = paid_total + ? WHERE id=?`).run(cost, me.id);
+    for (let i = idx - 1; i >= 1; i--) {
+      db.prepare(`UPDATE queue_items SET position=? WHERE id=?`).run(i + 1, queue[i].id);
+    }
+    db.prepare(`UPDATE queue_items SET position=1 WHERE id=?`).run(me.id);
+  }
+}
 
-route('POST', '/api/public/:joinCode/jump', async (req, res, params) => {
+route('POST', '/api/public/:joinCode/checkout', async (req, res, params) => {
   const user = findUserByCodeOrUsername(params.joinCode);
   if (!user) return sendJSON(res, 404, { error: 'Invalid link.' });
   const show = db.prepare(`SELECT * FROM shows WHERE user_id=? AND status='live'`).get(user.id);
@@ -732,38 +772,113 @@ route('POST', '/api/public/:joinCode/jump', async (req, res, params) => {
   if (!settings.skipsEnabled) return sendJSON(res, 409, { error: 'Skips are disabled.' });
   const body = await readBody(req);
   const participantId = body.participantId;
+  const type = body.type === 'jump' ? 'jump' : 'skip';
+
   if (queuePaymentLocks.has(participantId)) {
     return sendJSON(res, 429, { error: "Your last request is still processing — give it a second." });
   }
   queuePaymentLocks.add(participantId);
+
   try {
     const queue = db.prepare(`SELECT * FROM queue_items WHERE show_id=? AND status='queued' ORDER BY position ASC`).all(show.id);
     const idx = queue.findIndex(q => q.id === participantId);
     if (idx === -1) return sendJSON(res, 404, { error: 'Not found.' });
     if (idx === 0) return sendJSON(res, 409, { error: "That song is already on stage — it can't be skipped." });
-    if (idx === 1) return sendJSON(res, 409, { error: "You're already first in line." });
-    // Count how many people are already skipped and waiting ahead of you — jumping past them costs more,
-    // scaling moderately with how many there are, on top of the base "take #1" price the host set.
-    let skippedCount = 0;
-    for (let i = 1; i < queue.length; i++) {
-      if (queue[i].id === participantId) continue;
-      if (queue[i].paid_total > 0) skippedCount++; else break;
+
+    let cost;
+    if (type === 'skip') {
+      let skippedEnd = 0;
+      for (let i = 1; i < queue.length; i++) {
+        if (queue[i].paid_total > 0) skippedEnd = i; else break;
+      }
+      if (idx <= skippedEnd) return sendJSON(res, 409, { error: "You've already skipped — you're already ahead of the line." });
+      cost = Number(settings.skipFee || 0);
+    } else {
+      if (idx === 1) return sendJSON(res, 409, { error: "You're already first in line." });
+      let skippedCount = 0;
+      for (let i = 1; i < queue.length; i++) {
+        if (queue[i].id === participantId) continue;
+        if (queue[i].paid_total > 0) skippedCount++; else break;
+      }
+      const skipFee = Number(settings.skipFee || 0);
+      const baseJumpFee = Number(settings.jumpFee != null ? settings.jumpFee : 15);
+      cost = baseJumpFee + skippedCount * skipFee;
     }
-    const me = queue[idx];
-    const skipFee = Number(settings.skipFee || 0);
-    const baseJumpFee = Number(settings.jumpFee != null ? settings.jumpFee : 15);
-    const cost = baseJumpFee + skippedCount * skipFee;
-    db.prepare(`UPDATE queue_items SET paid_total = paid_total + ? WHERE id=?`).run(cost, me.id);
-    // Jump always goes all the way to position 1 — right after now-playing, ahead of everyone else,
-    // including anyone who's already skipped. Position 0 itself is still never touched.
-    for (let i = idx - 1; i >= 1; i--) {
-      db.prepare(`UPDATE queue_items SET position=? WHERE id=?`).run(i + 1, queue[i].id);
+    if (cost <= 0) return sendJSON(res, 400, { error: 'Invalid amount.' });
+
+    const canUseRealStripe = !!STRIPE_SECRET_KEY && !!user.stripe_account_id && !!user.stripe_payouts_enabled;
+
+    if (!canUseRealStripe) {
+      // No live payouts connection yet — fall back to the old instant/simulated flow so testing still works.
+      applyPaidAction(show, queue, idx, type, cost);
+      db.prepare(`INSERT INTO transactions (id,user_id,show_id,type,amount,status,date) VALUES (?,?,?,?,?,?,?)`)
+        .run(newId(), user.id, show.id, type === 'jump' ? 'overtake_fee' : 'skip_fee', cost, 'pending', Date.now());
+      return sendJSON(res, 200, { simulated: true, cost });
     }
-    db.prepare(`UPDATE queue_items SET position=1 WHERE id=?`).run(me.id);
-    db.prepare(`INSERT INTO transactions (id,user_id,show_id,type,amount,status,date) VALUES (?,?,?,?,?,?,?)`)
-      .run(newId(), user.id, show.id, 'overtake_fee', cost, 'pending', Date.now());
-    sendJSON(res, 200, { ok: true, cost });
-  } finally { queuePaymentLocks.delete(participantId); }
+
+    const origin = requestOrigin(req);
+    const platformCut = Math.round(cost * 100 * PLATFORM_FEE_PCT);
+    const session = await stripeRequestV1('POST', '/checkout/sessions', {
+      mode: 'payment',
+      line_items: [{
+        price_data: {
+          currency: 'eur',
+          product_data: { name: type === 'jump' ? 'Take the #1 spot' : 'Skip the line' },
+          unit_amount: Math.round(cost * 100)
+        },
+        quantity: 1
+      }],
+      payment_intent_data: {
+        application_fee_amount: platformCut,
+        transfer_data: { destination: user.stripe_account_id }
+      },
+      metadata: { joinCode: params.joinCode, participantId, type },
+      success_url: origin + '/?join=' + encodeURIComponent(params.joinCode) + '&paid=1',
+      cancel_url: origin + '/?join=' + encodeURIComponent(params.joinCode)
+    });
+    sendJSON(res, 200, { url: session.url });
+  } catch (e) {
+    sendJSON(res, 500, { error: e.message });
+  } finally {
+    queuePaymentLocks.delete(participantId);
+  }
+});
+
+route('POST', '/api/stripe/webhook', async (req, res) => {
+  let rawBody;
+  try { rawBody = await readRawBody(req); } catch (e) { return sendJSON(res, 400, { error: e.message }); }
+  try {
+    verifyStripeSignature(rawBody, req.headers['stripe-signature'], STRIPE_WEBHOOK_SECRET);
+  } catch (e) {
+    console.error('Stripe webhook signature check failed:', e.message);
+    return sendJSON(res, 400, { error: 'Invalid signature.' });
+  }
+  let event;
+  try { event = JSON.parse(rawBody.toString('utf8')); } catch (e) { return sendJSON(res, 400, { error: 'Invalid JSON.' }); }
+
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object;
+    const meta = session.metadata || {};
+    const { joinCode, participantId, type } = meta;
+    const paymentIntentId = session.payment_intent;
+
+    const already = db.prepare(`SELECT id FROM transactions WHERE stripe_payment_intent_id=?`).get(paymentIntentId);
+    if (!already && joinCode && participantId) {
+      const user = findUserByCodeOrUsername(joinCode);
+      const show = user ? db.prepare(`SELECT * FROM shows WHERE user_id=? AND status='live'`).get(user.id) : null;
+      if (user && show) {
+        const queue = db.prepare(`SELECT * FROM queue_items WHERE show_id=? AND status='queued' ORDER BY position ASC`).all(show.id);
+        const idx = queue.findIndex(q => q.id === participantId);
+        if (idx > 0) {
+          const cost = (session.amount_total || 0) / 100;
+          applyPaidAction(show, queue, idx, type === 'jump' ? 'jump' : 'skip', cost);
+          db.prepare(`INSERT INTO transactions (id,user_id,show_id,type,amount,status,date,stripe_payment_intent_id) VALUES (?,?,?,?,?,?,?,?)`)
+            .run(newId(), user.id, show.id, type === 'jump' ? 'overtake_fee' : 'skip_fee', cost, 'available', Date.now(), paymentIntentId);
+        }
+      }
+    }
+  }
+  sendJSON(res, 200, { received: true });
 });
 
 // ----- json helpers -----
