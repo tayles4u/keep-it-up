@@ -62,6 +62,19 @@ db.exec(`
     created_at INTEGER NOT NULL
   );
 
+  CREATE TABLE IF NOT EXISTS pending_submissions (
+    id         TEXT PRIMARY KEY,
+    show_id    TEXT NOT NULL REFERENCES shows(id) ON DELETE CASCADE,
+    name       TEXT NOT NULL,
+    song       TEXT,
+    note       TEXT,
+    cover_url  TEXT,
+    file_data  TEXT,
+    file_name  TEXT,
+    created_at INTEGER NOT NULL,
+    resolved_participant_id TEXT
+  );
+
   CREATE TABLE IF NOT EXISTS transactions (
     id       TEXT PRIMARY KEY,
     user_id  TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
