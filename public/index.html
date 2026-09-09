@@ -2527,22 +2527,24 @@ async function submitJoin(code){
 async function paySkip(code){
   const myId = sessionStorage.getItem(myParticipantKey(code));
   const btn = event && event.target ? event.target.closest('button') : null;
-  if(btn){ if(btn.disabled) return; btn.disabled = true; }
+  if(btn){ if(btn.disabled) return; btn.disabled = true; btn.textContent = 'Redirecting…'; }
   try{
-    const data = await apiFetch('/api/public/'+encodeURIComponent(code)+'/skip', { method:'POST', body:{ participantId: myId } });
+    const data = await apiFetch('/api/public/'+encodeURIComponent(code)+'/checkout', { method:'POST', body:{ participantId: myId, type:'skip' } });
+    if(data.url){ window.location.href = data.url; return; }
     toast('Skip paid — moved up 1 spot (simulated)');
     renderJoin();
-  }catch(e){ toast(e.message); if(btn) btn.disabled = false; }
+  }catch(e){ toast(e.message); renderJoin(); }
 }
 async function payJump(code){
   const myId = sessionStorage.getItem(myParticipantKey(code));
   const btn = event && event.target ? event.target.closest('button') : null;
-  if(btn){ if(btn.disabled) return; btn.disabled = true; }
+  if(btn){ if(btn.disabled) return; btn.disabled = true; btn.textContent = 'Redirecting…'; }
   try{
-    const data = await apiFetch('/api/public/'+encodeURIComponent(code)+'/jump', { method:'POST', body:{ participantId: myId } });
+    const data = await apiFetch('/api/public/'+encodeURIComponent(code)+'/checkout', { method:'POST', body:{ participantId: myId, type:'jump' } });
+    if(data.url){ window.location.href = data.url; return; }
     toast('Took #1 spot — '+money(data.cost)+' paid (simulated)');
     renderJoin();
-  }catch(e){ toast(e.message); if(btn) btn.disabled = false; }
+  }catch(e){ toast(e.message); renderJoin(); }
 }
 
 /* ===================== SOUND-CUE DETECTION (host tab only) ===================== */
@@ -2597,6 +2599,11 @@ function startPolling(){
     document.getElementById('join').classList.add('active');
     await renderJoin();
     startPolling();
+    const paidParams = new URLSearchParams(location.search);
+    if(paidParams.get('paid') === '1'){
+      history.replaceState({}, '', location.pathname + location.search.replace(/[?&]paid=1/, '').replace(/^&/, '?'));
+      toast('Payment received — updating your spot…');
+    }
     return;
   }
   const resetToken = getResetToken();
