@@ -100,5 +100,7 @@ try { db.exec(`ALTER TABLE queue_items ADD COLUMN cover_url TEXT`); } catch (e) 
 // Safe migrations for direct mp3/wav submission uploads.
 try { db.exec(`ALTER TABLE queue_items ADD COLUMN file_data TEXT`); } catch (e) { /* column already exists — fine */ }
 try { db.exec(`ALTER TABLE queue_items ADD COLUMN file_name TEXT`); } catch (e) { /* column already exists — fine */ }
+// Safe migration for the host's own profile picture.
+try { db.exec(`ALTER TABLE users ADD COLUMN profile_image TEXT`); } catch (e) { /* column already exists — fine */ }
 
 module.exports = db;
