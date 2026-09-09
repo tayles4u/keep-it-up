@@ -9,7 +9,13 @@ const { hashPassword, verifyPassword, newToken, newId, newJoinCode, hashToken } 
 
 const PORT = process.env.PORT || 8787;
 const MAX_BODY_BYTES = 8 * 1024 * 1024; // 8MB cap (mp3/wav uploads land here later; keep sane for now)
-const CORS_ORIGIN = process.env.CORS_ORIGIN || '*'; // lock this down to your real frontend URL once you're live
+const CORS_ORIGINS = (process.env.CORS_ORIGIN || '*').split(',').map(s => s.trim()).filter(Boolean); // lock this down to your real frontend URL(s) once you're live
+function corsOriginFor(req) {
+  if (CORS_ORIGINS.includes('*')) return '*';
+  const reqOrigin = req.headers.origin;
+  if (reqOrigin && CORS_ORIGINS.includes(reqOrigin)) return reqOrigin;
+  return CORS_ORIGINS[0] || '';
+}
 const GOOGLE_CLIENT_ID = (process.env.GOOGLE_CLIENT_ID || '').trim();
 const STRIPE_SECRET_KEY = (process.env.STRIPE_SECRET_KEY || '').trim();
 const STRIPE_WEBHOOK_SECRET = (process.env.STRIPE_WEBHOOK_SECRET || '').trim();
@@ -38,7 +44,6 @@ setInterval(() => {
 // ---------- tiny helpers ----------
 function sendNoBody(res, status) {
   res.writeHead(status, {
-    'Access-Control-Allow-Origin': CORS_ORIGIN,
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Allow-Methods': 'GET,POST,PATCH,DELETE,OPTIONS'
   });
@@ -49,7 +54,6 @@ function sendJSON(res, status, obj) {
   res.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
     'Content-Length': Buffer.byteLength(body),
-    'Access-Control-Allow-Origin': CORS_ORIGIN,
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Allow-Methods': 'GET,POST,PATCH,DELETE,OPTIONS'
   });
@@ -899,6 +903,7 @@ route('GET', '/health', async (req, res) => { sendJSON(res, 200, { ok: true, tim
 
 // ---------- server ----------
 const server = http.createServer(async (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', corsOriginFor(req));
   if (req.method === 'OPTIONS') return sendNoBody(res, 204);
   const url = new URL(req.url, `http://${req.headers.host}`);
   for (const r of routes) {
