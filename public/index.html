@@ -135,6 +135,18 @@ body.overlay-mode .help-fab,body.overlay-mode #toast{display:none!important;}
 .tn-link.dis{opacity:.4;cursor:default;}
 .tn-right{display:flex;align-items:center;gap:10px;flex-shrink:0;}
 .tn-user{display:flex;align-items:center;gap:8px;padding:6px 10px 6px 6px;border-radius:30px;background:var(--bg-2);border:1px solid var(--line);}
+.tn-user .av{overflow:hidden;}
+.tn-user .av img{width:100%;height:100%;object-fit:cover;display:block;}
+.acct-avatar-row{display:flex;justify-content:center;margin-bottom:18px;}
+.acct-avatar-wrap{position:relative;width:76px;height:76px;border-radius:50%;cursor:pointer;overflow:hidden;background:linear-gradient(140deg,var(--coral),var(--violet));display:flex;align-items:center;justify-content:center;}
+.acct-avatar-wrap img{width:100%;height:100%;object-fit:cover;display:block;}
+.acct-avatar-wrap .av-initial{font-family:'Bebas Neue',sans-serif;font-size:30px;color:var(--ink);}
+.acct-avatar-edit{position:absolute;inset:0;background:rgba(0,0,0,.55);color:var(--ink);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;display:flex;align-items:center;justify-content:center;opacity:0;transition:.15s;text-align:center;padding:4px;}
+.acct-avatar-wrap:hover .acct-avatar-edit{opacity:1;}
+.acct-split-card{background:var(--gold-dim);border:1px solid rgba(244,183,64,.3);border-radius:14px;padding:16px;margin-top:18px;}
+.acct-split-label{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--gold);margin-bottom:4px;}
+.acct-split-value{font-family:'Bebas Neue',sans-serif;font-size:30px;color:var(--ink);line-height:1;}
+.acct-split-desc{font-size:11.5px;color:var(--ink-dim);margin-top:6px;line-height:1.5;}
 .tn-user .av{width:22px;height:22px;border-radius:50%;background:linear-gradient(140deg,var(--coral),var(--violet));}
 .tn-user span{font-size:12px;font-weight:700;color:var(--ink-dim);}
 .tn-reset{font-size:10px;color:var(--ink-faint);cursor:pointer;text-transform:uppercase;letter-spacing:.03em;}
@@ -992,6 +1004,7 @@ function getOrCreateAccountCode(){ return currentUser ? currentUser.joinCode : n
 function refreshUsernameDisplay(){
   if(!currentUser) return;
   document.querySelectorAll('#tn-username').forEach(s=>s.textContent = currentUser.name);
+  updateTopnavAvatar();
 }
 async function refreshCurrentShow(){
   const data = await apiFetch('/api/shows/current');
@@ -2288,22 +2301,55 @@ function openHelp(){
 function openAccountSettings(){
   const acc = getCurrentAccount();
   if(!acc){ showAuthScreen('login'); return; }
+  const initial = (acc.name||'?').trim().charAt(0).toUpperCase() || '?';
+  const keepPct = Math.round((1 - (acc.platformFeePct != null ? acc.platformFeePct : 0.10)) * 100);
+  const feePct = 100 - keepPct;
   const overlayEl = document.createElement('div');
   overlayEl.className='modal-overlay';
   overlayEl.innerHTML = `
     <div class="modal">
       <h3>Account</h3>
       <div class="msub">Signed in ${acc.provider==='google'?'via Google':'with email'} as ${escapeHtml(acc.email)}</div>
+
+      <div class="acct-avatar-row">
+        <div class="acct-avatar-wrap" onclick="document.getElementById('acct-avatar-input').click()">
+          ${acc.profileImage ? `<img src="${acc.profileImage}" alt="">` : `<span class="av-initial">${escapeHtml(initial)}</span>`}
+          <div class="acct-avatar-edit">Change photo</div>
+        </div>
+        <input type="file" id="acct-avatar-input" accept="image/*" style="display:none" onchange="handleAvatarChosen(this)">
+      </div>
+
       <div class="join-field"><label>Display name</label><input id="acct-name" type="text" value="${escapeHtml(acc.name)}" maxlength="24"></div>
       <div class="join-field"><label>Your link username</label><input id="acct-username" type="text" value="${escapeHtml(acc.username||'')}" maxlength="30" placeholder="e.g. tayles" oninput="updateUsernamePreview()"></div>
       <div class="msub" id="username-preview" style="margin-top:-10px;margin-bottom:2px">${escapeHtml(location.origin)}/<b style="color:var(--gold)">${escapeHtml(acc.username||'...')}</b></div>
-      <div class="msub" style="margin-top:6px">Your account, shows and history now live on a real server (${escapeHtml(API_BASE)}). Payouts live under Finances → Wallets.</div>
+
+      <div class="acct-split-card">
+        <div class="acct-split-label">Your share of every payment</div>
+        <div class="acct-split-value">${keepPct}%</div>
+        <div class="acct-split-desc">Keep it up! keeps ${feePct}% to run the platform — the rest is transferred straight to your connected bank account.</div>
+      </div>
+
+      <div class="msub" style="margin-top:14px">Payouts live under Finances → Wallets.</div>
       <div class="modal-actions"><button class="btn btn-gold" style="flex:1" onclick="saveAccountName()">Save</button><button class="btn btn-ghost" onclick="this.closest('.modal-overlay').remove()">Close</button></div>
       <div class="msub" style="margin-top:16px;padding-top:14px;border-top:1px dashed var(--line-strong)">Team/co-host access needs a newer version of the backend — not available yet.</div>
       <button class="btn btn-outline btn-block" style="margin-top:10px;border-color:var(--coral);color:var(--coral)" onclick="handleLogout()">Log out</button>
     </div>`;
   overlayEl.addEventListener('click', e=>{ if(e.target===overlayEl) overlayEl.remove(); });
   document.body.appendChild(overlayEl);
+}
+let pendingAvatarImage = undefined; // undefined = unchanged, null = cleared, string = new image
+function handleAvatarChosen(inputEl){
+  const file = inputEl.files[0];
+  if(!file) return;
+  if(file.size > 1.5*1024*1024){ toast('Keep photos under ~1.5MB.'); inputEl.value=''; return; }
+  const reader = new FileReader();
+  reader.onload = function(){
+    pendingAvatarImage = reader.result;
+    const wrap = document.querySelector('.acct-avatar-wrap');
+    if(wrap){ wrap.innerHTML = `<img src="${reader.result}" alt=""><div class="acct-avatar-edit">Change photo</div>`; }
+  };
+  reader.onerror = function(){ toast('Could not read that image.'); };
+  reader.readAsDataURL(file);
 }
 async function refreshStripeStatus(elId){
   const el = document.getElementById(elId || 'stripe-status-section');
@@ -2341,12 +2387,20 @@ async function saveAccountName(){
   try{
     const body = { name: v };
     if(usernameInput) body.username = usernameInput;
+    if(pendingAvatarImage !== undefined) body.profileImage = pendingAvatarImage === null ? '' : pendingAvatarImage;
     const data = await apiFetch('/api/me', { method:'PATCH', body });
     currentUser = data.user;
+    pendingAvatarImage = undefined;
     refreshUsernameDisplay();
+    updateTopnavAvatar();
     toast('Saved');
     const m = document.querySelector('.modal-overlay'); if(m) m.remove();
   }catch(e){ toast(e.message); }
+}
+function updateTopnavAvatar(){
+  const av = document.querySelector('.tn-user .av');
+  if(!av) return;
+  av.innerHTML = currentUser && currentUser.profileImage ? `<img src="${currentUser.profileImage}" alt="">` : '';
 }
 
 /* ===================== PUBLIC JOIN VIEW ===================== */
