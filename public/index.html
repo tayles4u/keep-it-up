@@ -167,9 +167,9 @@ body.overlay-mode .help-fab,body.overlay-mode #toast{display:none!important;}
 .theme-opt b{font-size:12.5px;font-weight:700;}
 
 #landing{min-height:100vh;background:var(--bg);}
-#landing{position:relative;overflow:hidden;}
+.hero-wrap{position:relative;overflow:hidden;}
 .hero-glow{position:absolute;top:-200px;left:50%;transform:translateX(-50%);width:1100px;height:700px;background:radial-gradient(ellipse at center, rgba(244,183,64,.16) 0%, rgba(140,111,247,.09) 45%, transparent 72%);pointer-events:none;z-index:0;}
-.hero-split{display:grid;grid-template-columns:1.15fr 1fr;gap:40px;padding:70px 40px 30px;max-width:1240px;margin:0 auto;align-items:center;position:relative;z-index:1;}
+.hero-split{display:grid;grid-template-columns:1.15fr 1fr;gap:40px;padding:70px 40px 30px;max-width:1320px;margin:0 auto;align-items:center;position:relative;z-index:1;}
 .hero-left .eyebrow{display:inline-flex;align-items:center;gap:8px;background:var(--bg-1);border:1px solid var(--line-strong);padding:6px 14px;border-radius:30px;font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--gold);margin-bottom:22px;}
 .hero-left h1{font-size:78px;line-height:.96;font-weight:400;}
 .hero-left h1 .hl{color:var(--gold);}
@@ -177,24 +177,27 @@ body.overlay-mode .help-fab,body.overlay-mode #toast{display:none!important;}
 .hero-left .cta-row{display:flex;gap:12px;margin-top:32px;}
 
 .ticket-stack{position:relative;height:380px;}
-.stack-ticket{position:absolute;left:50%;top:40%;width:280px;background:var(--bg-1);border:1px solid var(--line-strong);border-radius:16px;display:flex;padding:0;box-shadow:0 30px 60px rgba(0,0,0,.5);animation:ticketFloat 5s ease-in-out infinite;}
-@keyframes ticketFloat{ 0%,100%{ } 50%{ margin-top:-9px; } }
-.stack-ticket.t1{animation-delay:.3s;}
-.stack-ticket.t2{animation-delay:.9s;}
-.stack-ticket.t3{animation-delay:0s;}
+.stack-ticket{position:absolute;left:50%;top:40%;width:280px;background:var(--bg-1);border:1px solid var(--line-strong);border-radius:16px;display:flex;padding:0;box-shadow:0 30px 60px rgba(0,0,0,.5);animation:ticketFloat 7s cubic-bezier(.45,0,.55,1) infinite;will-change:transform;}
+@keyframes ticketFloat{ 0%,100%{ transform:translate(-50%,var(--ty,0)) rotate(var(--tr,0)); } 50%{ transform:translate(-50%,calc(var(--ty,0) - 10px)) rotate(var(--tr,0)); } }
+.stack-ticket.t1{--ty:-70%;--tr:-9deg;animation-delay:.4s;}
+.stack-ticket.t2{--ty:-45%;--tr:4deg;animation-delay:1.6s;}
+.stack-ticket.t3{--ty:-10%;--tr:-2deg;animation-delay:0s;}
 .stack-ticket::before,.stack-ticket::after{content:"";position:absolute;width:16px;height:16px;background:var(--bg);border-radius:50%;left:58px;}
 .stack-ticket::before{top:-8px;} .stack-ticket::after{bottom:-8px;}
 .stack-ticket .st-stub{width:66px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:17px;border-right:2px dashed var(--line-strong);color:var(--gold);}
 .stack-ticket .st-body{padding:14px 16px;flex:1;min-width:0;}
 .stack-ticket .st-body b{font-size:13.5px;display:block;}
 .stack-ticket .st-body span{font-size:11px;color:var(--ink-faint);}
-.stack-ticket.t1{transform:translate(-50%,-70%) rotate(-9deg);z-index:1;opacity:.55;}
-.stack-ticket.t2{transform:translate(-50%,-45%) rotate(4deg);z-index:2;opacity:.8;}
-.stack-ticket.t3{transform:translate(-50%,-10%) rotate(-2deg);z-index:3;}
+.stack-ticket.t1{z-index:1;opacity:.55;}
+.stack-ticket.t2{z-index:2;opacity:.8;}
+.stack-ticket.t3{z-index:3;}
 .stack-ticket.t3 .st-stub{background:var(--gold);color:var(--gold-ink);}
 
-.feature-list{max-width:1240px;margin:20px auto 80px;padding:0 40px;}
-.preview-section{max-width:900px;margin:0 auto 90px;padding:0 40px;text-align:center;}
+.feature-list{max-width:1320px;margin:20px auto 80px;padding:0 40px;}
+.wide-section{max-width:1320px;margin:0 auto 100px;padding:0 40px;display:grid;grid-template-columns:1fr 1fr;gap:70px;align-items:start;}
+@media (max-width:900px){ .wide-section{grid-template-columns:1fr;gap:56px;} }
+.pm-callout{min-height:20px;margin-top:14px;font-size:12px;font-weight:700;color:var(--gold);opacity:0;transition:opacity .3s ease;}
+.pm-callout.show{opacity:1;}
 .preview-tag{display:inline-block;background:var(--gold-dim);color:var(--gold);font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;padding:5px 13px;border-radius:20px;margin-bottom:14px;}
 .preview-head h2{font-family:'Bebas Neue',sans-serif;font-size:34px;line-height:1.1;font-weight:400;margin-bottom:34px;}
 .preview-mock{background:linear-gradient(160deg,var(--bg-1),var(--bg-2));border:1px solid var(--line-strong);border-radius:22px;padding:26px;text-align:left;max-width:460px;margin:0 auto;}
@@ -207,22 +210,33 @@ body.overlay-mode .help-fab,body.overlay-mode #toast{display:none!important;}
 .pm-pos.gold{background:linear-gradient(140deg,var(--gold),#ffdd88);color:var(--gold-ink);}
 @media (max-width:640px){ .preview-head h2{font-size:26px;} }
 
-.steps-section{max-width:1000px;margin:0 auto 90px;padding:0 40px;text-align:center;}
-.steps-row{display:flex;align-items:flex-start;justify-content:center;gap:22px;margin-top:36px;}
-.step-col{flex:1;max-width:250px;text-align:left;}
-.step-num{font-family:'IBM Plex Mono',monospace;color:var(--gold);font-size:13px;font-weight:700;border:1px solid var(--line-strong);width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;margin-bottom:14px;}
-.step-col h4{font-size:15.5px;font-weight:700;margin-bottom:6px;}
-.step-col p{font-size:13px;color:var(--ink-dim);line-height:1.5;}
-.step-arrow{color:var(--ink-faint);flex-shrink:0;margin-top:26px;}
-@media (max-width:760px){ .steps-row{flex-direction:column;align-items:stretch;} .step-col{max-width:none;} .step-arrow{display:none;} }
+.rundown-sheet{background:var(--bg-1);border:1px solid var(--line-strong);border-radius:20px;padding:6px 30px;margin-top:32px;}
+.rundown-item{display:grid;grid-template-columns:20px 1fr;gap:20px;padding:24px 0;}
+.rd-marker{align-self:stretch;display:flex;flex-direction:column;align-items:center;}
+.rd-dot{width:11px;height:11px;border-radius:50%;background:var(--ink-faint);box-shadow:0 0 0 3px var(--bg-1),0 0 0 4px var(--line-strong);flex-shrink:0;margin-top:3px;}
+.rd-dot.live{background:var(--mint);box-shadow:0 0 0 3px var(--bg-1),0 0 0 4px rgba(78,214,155,.35);animation:rdPulse 1.6s ease infinite;}
+@keyframes rdPulse{ 0%,100%{box-shadow:0 0 0 3px var(--bg-1),0 0 0 4px rgba(78,214,155,.35);} 50%{box-shadow:0 0 0 3px var(--bg-1),0 0 0 7px rgba(78,214,155,.12);} }
+.rd-line{width:1.5px;flex:1;background:var(--line-strong);margin-top:6px;}
+.rd-cue{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--gold);font-weight:700;letter-spacing:.07em;margin-bottom:5px;}
+.rd-body h4{font-size:16.5px;font-weight:800;margin-bottom:5px;}
+.rd-body p{font-size:13px;color:var(--ink-dim);line-height:1.55;}
 
-.footer-tagline{font-size:12px;color:var(--ink-faint);margin-top:6px;}
+.site-footer{max-width:1320px;margin:0 auto 0;padding:60px 40px 40px;border-top:1px solid var(--line);}
+.footer-cols{display:flex;justify-content:space-between;gap:40px;flex-wrap:wrap;}
+.footer-col-brand{max-width:280px;}
+.footer-tagline{font-size:12.5px;color:var(--ink-faint);margin-top:8px;line-height:1.5;}
+.footer-col{display:flex;flex-direction:column;gap:11px;min-width:130px;}
+.footer-col-title{font-size:12.5px;font-weight:800;color:var(--ink);margin-bottom:3px;display:flex;align-items:center;gap:8px;}
+.footer-soon{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;background:var(--mint-dim);color:var(--mint);padding:2px 7px;border-radius:20px;}
+.footer-col a{color:var(--ink-faint);text-decoration:none;font-size:12.5px;}
+.footer-col a:hover{color:var(--ink);text-decoration:underline;}
+.footer-soon-link{color:var(--ink-faint);opacity:.45;font-size:12.5px;cursor:default;}
+.footer-bottom{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-top:50px;padding-top:22px;border-top:1px solid var(--line);font-size:11.5px;color:var(--ink-faint);}
 .footer-lang{cursor:pointer;color:var(--ink-faint);}
 .footer-lang:hover{color:var(--ink);text-decoration:underline;}
-.site-footer{max-width:1240px;margin:0 auto 0;padding:24px 40px 90px;border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;}
-.footer-links{display:flex;gap:20px;}
-.footer-links a{color:var(--ink-faint);text-decoration:none;font-size:12.5px;}
-.footer-links a:hover{color:var(--ink);text-decoration:underline;}
+.reveal{opacity:0;transform:translateY(28px);transition:opacity .7s cubic-bezier(.2,.8,.2,1),transform .7s cubic-bezier(.2,.8,.2,1);}
+.reveal.in{opacity:1;transform:translateY(0);}
+.pm-fade{transition:opacity .35s ease;}
 .legal-page{max-width:760px;margin:0 auto;padding:60px 24px 100px;}
 .legal-page h1{font-size:32px;margin-bottom:6px;}
 .legal-page .legal-back{display:inline-block;margin-bottom:28px;color:var(--ink-faint);text-decoration:underline;cursor:pointer;font-size:13px;}
@@ -566,7 +580,6 @@ html.overlay-mode,body.overlay-mode{background:transparent!important;}
 <body>
 
 <div id="landing" class="view">
-  <div class="hero-glow"></div>
   <div class="ticker-strip"><div class="ticker-track">
     <span>• LIVE SONG REACTIONS</span><span>• YOUR CROWD SENDS THE TRACKS</span><span>• NO SKIPPING THE LINE — UNLESS YOU PAY FOR IT</span><span>• KEEP IT UP!</span>
     <span>• LIVE SONG REACTIONS</span><span>• YOUR CROWD SENDS THE TRACKS</span><span>• NO SKIPPING THE LINE — UNLESS YOU PAY FOR IT</span><span>• KEEP IT UP!</span>
@@ -580,6 +593,8 @@ html.overlay-mode,body.overlay-mode{background:transparent!important;}
     </div>
   </div>
 
+  <div class="hero-wrap">
+  <div class="hero-glow"></div>
   <div class="hero-split">
     <div class="hero-left">
       <div class="eyebrow"><span class="pulse-dot"></span>Made for live song reaction streams</div>
@@ -596,63 +611,73 @@ html.overlay-mode,body.overlay-mode{background:transparent!important;}
       <div class="stack-ticket t3"><div class="st-stub">1</div><div class="st-body"><b>TJ Duisburg</b><span>New Poker — reaction req.</span></div></div>
     </div>
   </div>
+  </div>
 
   <div class="feature-list">
-    <div class="card">
+    <div class="card reveal">
       <div class="feature-row"><div class="fnum">01</div><div><h4>Any link, any format</h4><p>Spotify, YouTube, SoundCloud, Dropbox — or a straight-up mp3/wav upload. Fans send it however they've got it.</p></div></div>
       <div class="feature-row"><div class="fnum">02</div><div><h4>Pay to play</h4><p>Set your own skip fee. Fans can jump ahead — or go all in and take the top spot.</p></div></div>
       <div class="feature-row"><div class="fnum">03</div><div><h4>One link, every show</h4><p>Your queue link never changes. It's live the moment you are — no new link to drop in your bio each time.</p></div></div>
     </div>
   </div>
 
-  <div class="preview-section">
-    <div class="preview-head"><span class="preview-tag">What you'll see</span><h2>This is the actual queue<br>you'll be running.</h2></div>
-    <div class="preview-mock">
-      <div class="pm-now">
-        <div class="pm-livepill">ON NOW</div>
-        <div class="pm-title">Now reacting</div>
-        <div class="pm-by">sent by Mara K.</div>
-      </div>
-      <div class="pm-deck">
-        <div class="pm-row"><div class="pm-pos gold"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 3 14h7l-1 8 11-14h-7l1-6z"/></svg></div><span>Deshawn</span></div>
-        <div class="pm-row"><div class="pm-pos">2</div><span>Lina P.</span></div>
-        <div class="pm-row"><div class="pm-pos">3</div><span>Kofi B.</span></div>
+  <div class="wide-section">
+    <div class="wide-col">
+      <div class="preview-head reveal" style="text-align:left"><span class="preview-tag">Watch it happen</span><h2>Someone just paid<br>to skip the line.</h2></div>
+      <div class="preview-mock reveal" id="preview-mock-slide">
+        <div class="pm-now">
+          <div class="pm-livepill">ON NOW</div>
+          <div class="pm-title">Now reacting</div>
+          <div class="pm-by">sent by Mara K.</div>
+        </div>
+        <div class="pm-callout" id="pm-callout"></div>
+        <div class="pm-deck">
+          <div class="pm-row" data-name="Deshawn"><div class="pm-pos">1</div><span>Deshawn</span></div>
+          <div class="pm-row" data-name="Lina P."><div class="pm-pos">2</div><span>Lina P.</span></div>
+          <div class="pm-row" data-name="Kofi B."><div class="pm-pos">3</div><span>Kofi B.</span></div>
+        </div>
       </div>
     </div>
-  </div>
-
-  <div class="steps-section">
-    <div class="preview-head"><h2>It doesn't get<br>any simpler.</h2></div>
-    <div class="steps-row">
-      <div class="step-col">
-        <div class="step-num">1</div>
-        <h4>Create an account</h4>
-        <p>Sign up with email or Google. No credit card, no setup fee.</p>
-      </div>
-      <svg class="step-arrow" width="26" height="16" viewBox="0 0 26 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M1 8h22M17 2l6 6-6 6"/></svg>
-      <div class="step-col">
-        <div class="step-num">2</div>
-        <h4>Go live</h4>
-        <p>Name your session, hit Go Live. Your queue opens instantly.</p>
-      </div>
-      <svg class="step-arrow" width="26" height="16" viewBox="0 0 26 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M1 8h22M17 2l6 6-6 6"/></svg>
-      <div class="step-col">
-        <div class="step-num">3</div>
-        <h4>Share your link</h4>
-        <p>One permanent link. Drop it in your bio once — it's live whenever you are.</p>
+    <div class="wide-col">
+      <div class="preview-head reveal" style="text-align:left"><span class="preview-tag">Show day</span><h2>Every show runs<br>the same three cues.</h2></div>
+      <div class="rundown-sheet reveal">
+        <div class="rundown-item">
+          <div class="rd-marker"><span class="rd-dot"></span><span class="rd-line"></span></div>
+          <div class="rd-content"><div class="rd-cue">CUE 01</div><div class="rd-body"><h4>Soundcheck</h4><p>Create your account and set your prices. Takes less time than tuning a guitar.</p></div></div>
+        </div>
+        <div class="rundown-item">
+          <div class="rd-marker"><span class="rd-dot"></span><span class="rd-line"></span></div>
+          <div class="rd-content"><div class="rd-cue">CUE 02</div><div class="rd-body"><h4>Doors open</h4><p>Hit Go Live and your queue opens instantly — fans are already sending in tracks.</p></div></div>
+        </div>
+        <div class="rundown-item">
+          <div class="rd-marker"><span class="rd-dot live"></span></div>
+          <div class="rd-content"><div class="rd-cue">CUE 03</div><div class="rd-body"><h4>You're on</h4><p>One link, every show. Drop it in your bio once and never touch it again.</p></div></div>
+        </div>
       </div>
     </div>
   </div>
 
   <div class="site-footer">
-    <div>
-      <div class="tn-brand"><div class="eq-mark"><i></i><i></i><i></i><i></i></div>Keep it up!</div>
-      <p class="footer-tagline">Live song reactions, run by you.</p>
+    <div class="footer-cols">
+      <div class="footer-col footer-col-brand">
+        <div class="tn-brand"><div class="eq-mark"><i></i><i></i><i></i><i></i></div>Keep it up!</div>
+        <p class="footer-tagline">Live song reactions, run by you.</p>
+      </div>
+      <div class="footer-col">
+        <div class="footer-col-title">Legal</div>
+        <a href="?legal=impressum">Impressum</a>
+        <a href="?legal=datenschutz">Datenschutz</a>
+        <a href="?legal=agb">AGB</a>
+      </div>
+      <div class="footer-col">
+        <div class="footer-col-title">Resources <span class="footer-soon">Soon</span></div>
+        <span class="footer-soon-link">FAQ</span>
+        <span class="footer-soon-link">Support</span>
+        <span class="footer-soon-link">Changelog</span>
+      </div>
     </div>
-    <div class="footer-links">
-      <a href="?legal=impressum">Impressum</a>
-      <a href="?legal=datenschutz">Datenschutz</a>
-      <a href="?legal=agb">AGB</a>
+    <div class="footer-bottom">
+      <span>© 2026 Keep it up! All rights reserved.</span>
       <span class="footer-lang" id="footer-lang-toggle" onclick="setLang(getLang()==='de'?'en':'de')">Language</span>
     </div>
   </div>
@@ -2600,6 +2625,98 @@ function startPolling(){
     history.replaceState({}, '', location.pathname);
     await goApp();
     showView('finances-wallets');
+  }
+})();
+
+// Landing page polish: reveal-on-scroll for section cards, and a small rotating
+// "slideshow" of example queue states in the product preview mockup.
+(function(){
+  const revealEls = document.querySelectorAll('.reveal');
+  if(revealEls.length && 'IntersectionObserver' in window){
+    const io = new IntersectionObserver((entries)=>{
+      entries.forEach(entry=>{
+        if(entry.isIntersecting){ entry.target.classList.add('in'); io.unobserve(entry.target); }
+      });
+    }, { threshold: 0.15 });
+    revealEls.forEach(el=>io.observe(el));
+  } else {
+    revealEls.forEach(el=>el.classList.add('in')); // no IO support — just show them
+  }
+
+  const demoSets = [
+    { by:'Mara K.', names:['Deshawn','Lina P.','Kofi B.'] },
+    { by:'Priya S.', names:['Jonas M.','Aylin Y.','Sara W.'] },
+    { by:'Noah T.', names:['TJ Duisburg','Mara K.','Deshawn'] }
+  ];
+  const boltSvg = '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 3 14h7l-1 8 11-14h-7l1-6z"/></svg>';
+  const slideEl = document.getElementById('preview-mock-slide');
+  const calloutEl = document.getElementById('pm-callout');
+
+  function renderBase(set){
+    slideEl.querySelector('.pm-by').textContent = 'sent by ' + set.by;
+    slideEl.querySelector('.pm-deck').innerHTML = set.names.map((n,i)=>
+      `<div class="pm-row" data-name="${n}"><div class="pm-pos">${i+1}</div><span>${n}</span></div>`
+    ).join('');
+    if(calloutEl){ calloutEl.classList.remove('show'); calloutEl.textContent=''; }
+  }
+
+  function playSkipDemo(){
+    const deck = slideEl.querySelector('.pm-deck');
+    const rows = Array.from(deck.querySelectorAll('.pm-row'));
+    if(rows.length < 2) return;
+    const target = rows[rows.length - 1];
+    const name = target.dataset.name;
+
+    if(calloutEl){ calloutEl.textContent = name + ' just paid to skip the line →'; calloutEl.classList.add('show'); }
+
+    target.style.transition = 'transform .12s ease';
+    target.style.transform = 'scaleY(.9)';
+
+    setTimeout(()=>{
+      target.style.transform = '';
+      const posEl = target.querySelector('.pm-pos');
+      posEl.classList.add('gold');
+      posEl.innerHTML = boltSvg;
+
+      const prevTops = {};
+      rows.forEach(r=>{ prevTops[r.dataset.name] = r.getBoundingClientRect().top; });
+
+      deck.insertBefore(target, deck.firstChild);
+      Array.from(deck.querySelectorAll('.pm-row')).forEach((r,i)=>{
+        if(r !== target) r.querySelector('.pm-pos').textContent = i + 1;
+      });
+
+      requestAnimationFrame(()=>{
+        Array.from(deck.querySelectorAll('.pm-row')).forEach(r=>{
+          const prevTop = prevTops[r.dataset.name];
+          const newTop = r.getBoundingClientRect().top;
+          const dy = prevTop - newTop;
+          if(Math.abs(dy) > 1){
+            r.style.transition = 'none';
+            r.style.transform = `translateY(${dy}px)`;
+            requestAnimationFrame(()=>{
+              r.style.transition = 'transform .5s cubic-bezier(.34,1.56,.64,1)';
+              r.style.transform = '';
+            });
+          }
+        });
+      });
+    }, 130);
+  }
+
+  if(slideEl){
+    let i = 0;
+    function runCycle(){
+      renderBase(demoSets[i]);
+      slideEl.style.transition = 'opacity .4s ease';
+      slideEl.style.opacity = '1';
+      setTimeout(playSkipDemo, 2000);
+      setTimeout(()=>{
+        slideEl.style.opacity = '0';
+        setTimeout(()=>{ i = (i + 1) % demoSets.length; runCycle(); }, 420);
+      }, 5200);
+    }
+    runCycle();
   }
 })();
 </script>
