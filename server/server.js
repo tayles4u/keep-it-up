@@ -99,7 +99,7 @@ function getAuthUser(req) {
   return row || null;
 }
 function publicUser(u) {
-  return { id: u.id, email: u.email, name: u.name, provider: u.provider, joinCode: u.join_code, username: u.username || null };
+  return { id: u.id, email: u.email, name: u.name, provider: u.provider, joinCode: u.join_code, username: u.username || null, profileImage: u.profile_image || null, platformFeePct: PLATFORM_FEE_PCT };
 }
 function slugifyUsername(raw) {
   return String(raw || '').toLowerCase().trim()
@@ -448,8 +448,19 @@ route('PATCH', '/api/me', async (req, res) => {
     if (existing) return sendJSON(res, 409, { error: 'That username is already taken.' });
     username = slug;
   }
-  db.prepare('UPDATE users SET name = ?, username = ? WHERE id = ?').run(name, username, user.id);
-  sendJSON(res, 200, { user: publicUser(Object.assign({}, user, { name, username })) });
+  let profileImage = user.profile_image;
+  if (typeof body.profileImage === 'string') {
+    if (body.profileImage === '') {
+      profileImage = null; // explicit clear
+    } else if (/^data:image\//i.test(body.profileImage)) {
+      if (body.profileImage.length > 2 * 1024 * 1024) return sendJSON(res, 400, { error: 'Keep profile pictures under ~1.5MB.' });
+      profileImage = body.profileImage;
+    } else {
+      return sendJSON(res, 400, { error: "That doesn't look like a valid image." });
+    }
+  }
+  db.prepare('UPDATE users SET name = ?, username = ?, profile_image = ? WHERE id = ?').run(name, username, profileImage, user.id);
+  sendJSON(res, 200, { user: publicUser(Object.assign({}, user, { name, username, profile_image: profileImage })) });
 });
 
 // ----- shows (host side, requires auth) -----
