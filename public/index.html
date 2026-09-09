@@ -328,6 +328,7 @@ body.overlay-mode .help-fab,body.overlay-mode #toast{display:none!important;}
 .status-pill{font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;text-transform:uppercase;}
 .status-pending{background:var(--violet-dim);color:var(--violet);}
 .status-available{background:var(--mint-dim);color:var(--mint);}
+.status-refunded{background:var(--coral-dim);color:var(--coral);}
 .status-payout{background:var(--gold-dim);color:var(--gold);}
 
 .wallet-row{display:flex;align-items:center;justify-content:space-between;background:var(--bg-1);border:1px solid var(--line);border-radius:14px;padding:15px 18px;margin-bottom:10px;}
@@ -1631,15 +1632,26 @@ function renderFinancesTransactions(){
   const el = document.getElementById('view-finances-transactions');
   const rows = db.transactions.slice().sort((a,b)=>b.date-a.date);
   const typeLabel = {skip_fee:'Skip', overtake_fee:'Take #1', entry_fee:'Entry fee', payout:t('btn_payout')};
+  const statusLabel = {pending:'Pending', available:'Ready', refunded:'Refunded', payout:t('btn_payout')};
   const body = rows.length ? rows.map(tr=>`
     <tr><td class="mono">${fmtDate(tr.date)}</td><td>${typeLabel[tr.type]||tr.type}</td><td>${escapeHtml(tr.sessionTitle||'—')}</td>
     <td class="mono" style="color:${tr.amount<0?'var(--coral)':'var(--ink)'}">${tr.amount<0?'−':''}${money(Math.abs(tr.amount))}</td>
-    <td><span class="status-pill status-${tr.status}">${tr.status==='pending'?'Pending':tr.status==='available'?'Ready':t('btn_payout')}</span></td></tr>`).join('')
-    : `<tr><td colspan="5" style="text-align:center;color:var(--ink-faint);padding:40px 0">${t('no_tx')}</td></tr>`;
+    <td><span class="status-pill status-${tr.status}">${statusLabel[tr.status]||tr.status}</span></td>
+    <td>${tr.refundable ? `<button class="btn-xs" onclick="refundTransaction('${tr.sessionId}','${tr.id}')">Refund</button>` : ''}</td></tr>`).join('')
+    : `<tr><td colspan="6" style="text-align:center;color:var(--ink-faint);padding:40px 0">${t('no_tx')}</td></tr>`;
   el.innerHTML = `
     <div class="page-head"><h1>${t('page_finances')}</h1><div style="display:flex;gap:8px"><button class="btn-xs" onclick="exportTransactionsCSV()">Export CSV</button><button class="btn ${financeTotals().available>0?'btn-gold':'btn-ghost'}" onclick="requestPayout()">${t('btn_payout')} ${money(financeTotals().available)}</button></div></div>
     <div class="subtabs"><div class="subtab nav-link" data-view="finances-overview">${t('tab_overview')}</div><div class="subtab active">${t('tab_transactions')}</div><div class="subtab nav-link" data-view="finances-wallets">${t('tab_wallets')}</div></div>
-    <div class="card" style="padding:0;overflow:hidden"><div class="table-scroll"><table class="table"><thead><tr><th>${t('th_date')}</th><th>${t('th_type')}</th><th>${t('th_session')}</th><th>${t('th_amount')}</th><th>${t('th_status')}</th></tr></thead><tbody>${body}</tbody></table></div></div>`;
+    <div class="card" style="padding:0;overflow:hidden"><div class="table-scroll"><table class="table"><thead><tr><th>${t('th_date')}</th><th>${t('th_type')}</th><th>${t('th_session')}</th><th>${t('th_amount')}</th><th>${t('th_status')}</th><th></th></tr></thead><tbody>${body}</tbody></table></div></div>`;
+}
+async function refundTransaction(sessionId, txId){
+  if(!confirm('Refund this transaction? This sends the money back and can\'t be undone.')) return;
+  try{
+    await apiFetch('/api/shows/'+sessionId+'/transactions/'+txId+'/refund', { method:'POST' });
+    toast('Refunded');
+    await refreshTransactions();
+    renderFinancesTransactions();
+  }catch(e){ toast(e.message); }
 }
 function renderFinancesWallets(){
   const el = document.getElementById('view-finances-wallets');
