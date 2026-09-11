@@ -1030,7 +1030,12 @@ async function apiFetch(path, opts){
   }
   let data = null;
   try{ data = await res.json(); }catch(e){ /* empty body is fine */ }
-  if(!res.ok){ throw new Error((data && data.error) || ('Request failed ('+res.status+')')); }
+  if(!res.ok){
+    const err = new Error((data && data.error) || ('Request failed ('+res.status+')'));
+    err.status = res.status; // lets callers tell "token is actually invalid" (401) apart from a
+                              // network hiccup or the free-tier server still waking up (see below)
+    throw err;
+  }
   return data || {};
 }
 
@@ -1060,7 +1065,14 @@ async function refreshCurrentUser(){
   const token = localStorage.getItem(TOKEN_KEY);
   if(!token){ currentUser = null; return null; }
   try{ const data = await apiFetch('/api/me'); currentUser = data.user; return currentUser; }
-  catch(e){ localStorage.removeItem(TOKEN_KEY); currentUser = null; return null; }
+  catch(e){
+    // Only forget the saved login if the server actually said the token is invalid (401) —
+    // don't wipe it just because this one request failed (server briefly down/waking up from
+    // sleep on the free tier, a network blip, etc.). Otherwise every hiccup logged people out.
+    if(e && e.status === 401){ localStorage.removeItem(TOKEN_KEY); }
+    currentUser = null;
+    return null;
+  }
 }
 async function handleSignup(){
   const name = document.getElementById('auth-name') ? document.getElementById('auth-name').value : '';
