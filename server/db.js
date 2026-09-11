@@ -93,11 +93,22 @@ db.exec(`
     used       INTEGER NOT NULL DEFAULT 0
   );
 
+  -- Team / co-host access: a row means member_id may fully act on owner_id's account
+  -- (shows, queue, settings, transactions/refunds) via the X-Acting-For header —
+  -- except payouts and the Stripe Connect link, which always require the real owner.
+  CREATE TABLE IF NOT EXISTS team_members (
+    owner_id   TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    member_id  TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at INTEGER NOT NULL,
+    PRIMARY KEY (owner_id, member_id)
+  );
+
   CREATE INDEX IF NOT EXISTS idx_shows_user ON shows(user_id);
   CREATE INDEX IF NOT EXISTS idx_queue_show ON queue_items(show_id);
   CREATE INDEX IF NOT EXISTS idx_tx_user ON transactions(user_id);
   CREATE INDEX IF NOT EXISTS idx_bans_show ON show_bans(show_id, name_lower);
   CREATE INDEX IF NOT EXISTS idx_reset_user ON password_resets(user_id);
+  CREATE INDEX IF NOT EXISTS idx_team_member ON team_members(member_id);
 `);
 
 // Safe migration for databases created before bracket_json existed.
@@ -115,5 +126,8 @@ try { db.exec(`ALTER TABLE queue_items ADD COLUMN file_data TEXT`); } catch (e) 
 try { db.exec(`ALTER TABLE queue_items ADD COLUMN file_name TEXT`); } catch (e) { /* column already exists — fine */ }
 // Safe migration for the host's own profile picture.
 try { db.exec(`ALTER TABLE users ADD COLUMN profile_image TEXT`); } catch (e) { /* column already exists — fine */ }
+// Safe migration for team/co-host invite links — each user's own reusable, resettable invite code.
+try { db.exec(`ALTER TABLE users ADD COLUMN team_code TEXT`); } catch (e) { /* column already exists — fine */ }
+try { db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_team_code ON users(team_code) WHERE team_code IS NOT NULL`); } catch (e) { /* index already exists — fine */ }
 
 module.exports = db;
