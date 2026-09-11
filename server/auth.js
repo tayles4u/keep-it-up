@@ -31,10 +31,16 @@ function newJoinCode() {
   return s;
 }
 
+// Team/co-host invite codes grant real account access (not just a public show link), so they're
+// long and random rather than a short guessable code like newJoinCode().
+function newTeamCode() {
+  return crypto.randomBytes(15).toString('base64url'); // 20 chars, URL-safe
+}
+
 // Reset tokens are stored as a hash (like passwords) — never store the raw token server-side,
 // so a database leak alone can't be replayed to take over accounts.
 function hashToken(token) {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
 
-module.exports = { hashPassword, verifyPassword, newToken, newId, newJoinCode, hashToken };
+module.exports = { hashPassword, verifyPassword, newToken, newId, newJoinCode, newTeamCode, hashToken };
