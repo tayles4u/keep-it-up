@@ -19,7 +19,9 @@ function corsOriginFor(req) {
 const GOOGLE_CLIENT_ID = (process.env.GOOGLE_CLIENT_ID || '').trim();
 const STRIPE_SECRET_KEY = (process.env.STRIPE_SECRET_KEY || '').trim();
 const STRIPE_WEBHOOK_SECRET = (process.env.STRIPE_WEBHOOK_SECRET || '').trim();
-const PLATFORM_FEE_PCT = Number(process.env.PLATFORM_FEE_PCT || 0.10); // default: platform keeps 10%, streamer gets the rest
+const PLATFORM_FEE_PCT_ENV = Number(process.env.PLATFORM_FEE_PCT); // optional env override of the built-in default below
+const DEFAULT_PLATFORM_FEE_PCT = Number.isFinite(PLATFORM_FEE_PCT_ENV) ? PLATFORM_FEE_PCT_ENV : 0.20; // streamer keeps 80% unless the admin panel changes it
+const ADMIN_EMAILS = String(process.env.ADMIN_EMAILS || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
 
 // ---------- rate limiting (in-memory — fine for a single instance; use Redis if you ever scale to several) ----------
 const rateBuckets = new Map(); // key -> { count, resetAt }
@@ -101,7 +103,38 @@ function getRealAuthUser(req) {
   const row = db.prepare(`
     SELECT u.* FROM tokens t JOIN users u ON u.id = t.user_id WHERE t.token = ?
   `).get(token);
-  return row || null;
+  return row ? syncAdminFlag(row) : null;
+}
+// If this account's email is listed in ADMIN_EMAILS but isn't flagged as admin in the DB yet
+// (e.g. the env var was just added, or this is their first request since it was), flip it now.
+// This never removes admin rights — taking someone off ADMIN_EMAILS doesn't demote them; use the
+// admin panel (or a DB edit) for that, same as any invited co-admin.
+function syncAdminFlag(user) {
+  if (!user.is_admin && ADMIN_EMAILS.includes(String(user.email || '').toLowerCase())) {
+    db.prepare('UPDATE users SET is_admin = 1 WHERE id = ?').run(user.id);
+    user.is_admin = 1;
+  }
+  return user;
+}
+function requireAdmin(req, res) {
+  const user = getRealAuthUser(req); // admin status is always about the real signed-in person, never actable-for
+  if (!user) { sendJSON(res, 401, { error: 'Not signed in.' }); return null; }
+  if (!user.is_admin) { sendJSON(res, 403, { error: 'Admin access required.' }); return null; }
+  return user;
+}
+function getGlobalDefaultFeePct() {
+  const row = db.prepare(`SELECT value FROM platform_settings WHERE key = 'default_fee_pct'`).get();
+  const v = row ? Number(row.value) : NaN;
+  return Number.isFinite(v) ? v : DEFAULT_PLATFORM_FEE_PCT;
+}
+function setGlobalDefaultFeePct(pct) {
+  db.prepare(`INSERT INTO platform_settings (key, value) VALUES ('default_fee_pct', ?)
+              ON CONFLICT(key) DO UPDATE SET value = excluded.value`).run(String(pct));
+}
+// What the platform actually keeps for this specific streamer: their own override if the admin
+// panel set one, otherwise the platform-wide default.
+function effectiveFeePct(user) {
+  return (user.platform_fee_pct_override != null) ? Number(user.platform_fee_pct_override) : getGlobalDefaultFeePct();
 }
 function isTeamMember(ownerId, memberId) {
   if (ownerId === memberId) return true;
@@ -122,7 +155,7 @@ function getAuthUser(req) {
   return owner || real;
 }
 function publicUser(u) {
-  return { id: u.id, email: u.email, name: u.name, provider: u.provider, joinCode: u.join_code, username: u.username || null, profileImage: u.profile_image || null, platformFeePct: PLATFORM_FEE_PCT };
+  return { id: u.id, email: u.email, name: u.name, provider: u.provider, joinCode: u.join_code, username: u.username || null, profileImage: u.profile_image || null, platformFeePct: effectiveFeePct(u), isAdmin: !!u.is_admin };
 }
 function publicTeamUser(u) {
   return { id: u.id, name: u.name, username: u.username || null, profileImage: u.profile_image || null };
@@ -337,7 +370,7 @@ route('POST', '/api/auth/google', async (req, res) => {
   }
   const token = newToken();
   db.prepare('INSERT INTO tokens (token,user_id,created_at) VALUES (?,?,?)').run(token, user.id, Date.now());
-  sendJSON(res, 200, { token, user: publicUser(user) });
+  sendJSON(res, 200, { token, user: publicUser(syncAdminFlag(user)) });
 });
 
 route('POST', '/api/signup', async (req, res) => {
@@ -363,7 +396,7 @@ route('POST', '/api/signup', async (req, res) => {
     .run(user.id, user.email, hash, salt, user.name, user.provider, user.join_code, user.username, user.created_at);
   const token = newToken();
   db.prepare('INSERT INTO tokens (token,user_id,created_at) VALUES (?,?,?)').run(token, user.id, Date.now());
-  sendJSON(res, 201, { token, user: publicUser(user) });
+  sendJSON(res, 201, { token, user: publicUser(syncAdminFlag(user)) });
 });
 
 route('POST', '/api/login', async (req, res) => {
@@ -380,7 +413,7 @@ route('POST', '/api/login', async (req, res) => {
   }
   const token = newToken();
   db.prepare('INSERT INTO tokens (token,user_id,created_at) VALUES (?,?,?)').run(token, user.id, Date.now());
-  sendJSON(res, 200, { token, user: publicUser(user) });
+  sendJSON(res, 200, { token, user: publicUser(syncAdminFlag(user)) });
 });
 
 route('POST', '/api/logout', async (req, res) => {
@@ -557,6 +590,81 @@ route('POST', '/api/team/reset-code', async (req, res) => {
   do { code = newTeamCode(); } while (db.prepare('SELECT id FROM users WHERE team_code = ?').get(code));
   db.prepare('UPDATE users SET team_code = ? WHERE id = ?').run(code, user.id);
   sendJSON(res, 200, { code });
+});
+
+// ----- platform admin (you, not per-streamer teams) -----
+// Every route here is gated by requireAdmin, which always resolves the real signed-in person —
+// there's no "acting as an admin" via X-Acting-For.
+route('GET', '/api/admin/streamers', async (req, res) => {
+  const admin = requireAdmin(req, res); if (!admin) return;
+  const rows = db.prepare(`SELECT * FROM users ORDER BY created_at DESC`).all();
+  const liveUserIds = new Set(db.prepare(`SELECT user_id FROM shows WHERE status='live'`).all().map(r => r.user_id));
+  const streamers = rows.map(u => ({
+    id: u.id, name: u.name, username: u.username || null, email: u.email,
+    createdAt: u.created_at, isLive: liveUserIds.has(u.id),
+    platformFeePct: effectiveFeePct(u), hasOverride: u.platform_fee_pct_override != null,
+    stripeConnected: !!u.stripe_account_id, stripePayoutsEnabled: !!u.stripe_payouts_enabled,
+    isAdmin: !!u.is_admin
+  }));
+  sendJSON(res, 200, { streamers, defaultFeePct: getGlobalDefaultFeePct() });
+});
+
+route('PATCH', '/api/admin/streamers/:id/fee', async (req, res, params) => {
+  const admin = requireAdmin(req, res); if (!admin) return;
+  const target = db.prepare('SELECT id FROM users WHERE id = ?').get(params.id);
+  if (!target) return sendJSON(res, 404, { error: 'Streamer not found.' });
+  const body = await readBody(req);
+  if (body.pct === null) {
+    db.prepare('UPDATE users SET platform_fee_pct_override = NULL WHERE id = ?').run(params.id);
+    return sendJSON(res, 200, { ok: true, pct: null });
+  }
+  const pct = Number(body.pct);
+  if (!Number.isFinite(pct) || pct < 0 || pct > 1) return sendJSON(res, 400, { error: 'pct must be a number between 0 and 1 (e.g. 0.2 for 20%).' });
+  db.prepare('UPDATE users SET platform_fee_pct_override = ? WHERE id = ?').run(pct, params.id);
+  sendJSON(res, 200, { ok: true, pct });
+});
+
+route('PATCH', '/api/admin/settings', async (req, res) => {
+  const admin = requireAdmin(req, res); if (!admin) return;
+  const body = await readBody(req);
+  const pct = Number(body.defaultFeePct);
+  if (!Number.isFinite(pct) || pct < 0 || pct > 1) return sendJSON(res, 400, { error: 'defaultFeePct must be a number between 0 and 1 (e.g. 0.2 for 20%).' });
+  setGlobalDefaultFeePct(pct);
+  sendJSON(res, 200, { ok: true, defaultFeePct: pct });
+});
+
+route('GET', '/api/admin/invite', async (req, res) => {
+  const admin = requireAdmin(req, res); if (!admin) return;
+  if (!admin.admin_invite_code) {
+    let code;
+    do { code = newTeamCode(); } while (db.prepare('SELECT id FROM users WHERE admin_invite_code = ?').get(code));
+    db.prepare('UPDATE users SET admin_invite_code = ? WHERE id = ?').run(code, admin.id);
+    admin.admin_invite_code = code;
+  }
+  sendJSON(res, 200, { code: admin.admin_invite_code });
+});
+
+route('POST', '/api/admin/invite/reset', async (req, res) => {
+  const admin = requireAdmin(req, res); if (!admin) return;
+  let code;
+  do { code = newTeamCode(); } while (db.prepare('SELECT id FROM users WHERE admin_invite_code = ?').get(code));
+  db.prepare('UPDATE users SET admin_invite_code = ? WHERE id = ?').run(code, admin.id);
+  sendJSON(res, 200, { code });
+});
+
+// Redeeming promotes the signed-in account to full admin — anyone with a valid admin invite
+// link becomes a co-owner with the same rights as whoever sent it (chosen deliberately: flat,
+// no hierarchy between admins).
+route('POST', '/api/admin/invite/redeem', async (req, res) => {
+  const user = getRealAuthUser(req);
+  if (!user) return sendJSON(res, 401, { error: 'Not signed in.' });
+  const body = await readBody(req);
+  const code = String(body.code || '').trim();
+  if (!code) return sendJSON(res, 400, { error: 'Enter an invite code.' });
+  const inviter = db.prepare('SELECT * FROM users WHERE admin_invite_code = ?').get(code);
+  if (!inviter || !inviter.is_admin) return sendJSON(res, 404, { error: 'That invite link is invalid or has been reset.' });
+  db.prepare('UPDATE users SET is_admin = 1 WHERE id = ?').run(user.id);
+  sendJSON(res, 200, { ok: true });
 });
 
 // ----- shows (host side, requires auth) -----
@@ -876,7 +984,7 @@ route('POST', '/api/public/:joinCode/join', async (req, res, params) => {
             quantity: 1
           }],
           payment_intent_data: {
-            application_fee_amount: Math.round(entry * 100 * PLATFORM_FEE_PCT),
+            application_fee_amount: Math.round(entry * 100 * effectiveFeePct(user)),
             transfer_data: { destination: user.stripe_account_id }
           },
           metadata: { entryPendingId: pendingId },
@@ -985,7 +1093,7 @@ route('POST', '/api/public/:joinCode/checkout', async (req, res, params) => {
     }
 
     const origin = requestOrigin(req);
-    const platformCut = Math.round(cost * 100 * PLATFORM_FEE_PCT);
+    const platformCut = Math.round(cost * 100 * effectiveFeePct(user));
     const session = await stripeRequestV1('POST', '/checkout/sessions', {
       mode: 'payment',
       line_items: [{
