@@ -736,7 +736,7 @@ html.overlay-mode,body.overlay-mode{background:transparent!important;}
       <div class="icon-btn" id="theme-btn" onclick="toggleThemePop(event)" title="Change design">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><circle cx="9" cy="10" r="1.3" fill="currentColor" stroke="none"/><circle cx="14" cy="9" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.5" cy="13.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="10" cy="15" r="1.3" fill="currentColor" stroke="none"/></svg>
       </div>
-      <div class="tn-user"><div class="av"></div><span id="tn-username">@tayles</span></div>
+      <div class="tn-user" id="tn-user-btn" onclick="toggleTeamPop(event)" title="Switch account" style="cursor:pointer"><div class="av"></div><span id="tn-username">@tayles</span></div>
       <div class="tn-reset" onclick="resetDemo()" id="nl-reset">Reset</div>
     </div>
   </div>
@@ -757,6 +757,12 @@ html.overlay-mode,body.overlay-mode{background:transparent!important;}
     <div class="tp-h">Choose a design</div>
     <div id="theme-list"></div>
   </div>
+  <div class="theme-pop" id="team-pop">
+    <div class="tp-h">Switch account</div>
+    <div id="team-pop-list"></div>
+  </div>
+
+  <div id="acting-banner" style="display:none"></div>
 
   <div id="app-content">
     <section id="view-sessions-host" class="pageview"></section>
@@ -787,6 +793,7 @@ const API_BASE = (function(){ try{ return localStorage.getItem('kiu_api_base_ove
 const GOOGLE_CLIENT_ID = '655518852084-1qdd80e44621hr90bdlg0iphjvnho9si.apps.googleusercontent.com';
 const THEME_KEY = 'kiu_theme_v1';
 const TOKEN_KEY = 'kiu_token_v1'; // ok to keep in localStorage — it's a session credential, not user data
+const ACTING_FOR_KEY = 'kiu_acting_for_v1'; // which team account, if any, this device is currently acting as
 const PINS_KEY = 'kiu_pins_v1';
 const MY_ID_PREFIX = 'kiu_me_';
 const LASTSETTINGS_PREFIX = 'kiu_last_settings_'; // local-only convenience, not sensitive
@@ -964,6 +971,8 @@ function freshDb(){ return { session:null, history:[], transactions:[], wallets:
 let db = freshDb();
 let currentView = 'sessions-host';
 let currentUser = null; // cached from GET /api/me, refreshed on login
+let teamData = null; // { code, members, teams } from GET /api/team — refreshed on entering the app
+let actingFor = null; // { id, name, username } of the team account this device is currently acting as, or null (acting as yourself)
 
 function uid(){ return Math.random().toString(36).slice(2,10); }
 function genCode(){ const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let s=''; for(let i=0;i<6;i++) s+=c[Math.floor(Math.random()*c.length)]; return s; }
@@ -1019,6 +1028,7 @@ async function apiFetch(path, opts){
   const headers = Object.assign({'Content-Type':'application/json'}, opts.headers||{});
   const token = localStorage.getItem(TOKEN_KEY);
   if(token) headers['Authorization'] = 'Bearer '+token;
+  if(actingFor && actingFor.id) headers['X-Acting-For'] = actingFor.id; // server ignores this for account/payout/team endpoints — see server.js getRealAuthUser
   let body = opts.body;
   if(body && typeof body !== 'string') body = JSON.stringify(body);
   let res;
@@ -1048,6 +1058,7 @@ function refreshUsernameDisplay(){
   updateTopnavAvatar();
   const adminLink = document.getElementById('nl-admin'); if(adminLink) adminLink.style.display = currentUser.isAdmin ? '' : 'none';
   const adminLinkM = document.getElementById('nl-admin-mobile'); if(adminLinkM) adminLinkM.style.display = currentUser.isAdmin ? '' : 'none';
+  renderActingBanner();
 }
 async function refreshCurrentShow(){
   const data = await apiFetch('/api/shows/current');
@@ -1074,6 +1085,60 @@ async function refreshCurrentUser(){
     return null;
   }
 }
+
+/* ===================== TEAM / CO-HOST SWITCHING ===================== */
+function actingForStorageKey(){ return currentUser ? ACTING_FOR_KEY+'_'+currentUser.id : ACTING_FOR_KEY; }
+function loadActingFor(){
+  if(!currentUser){ actingFor = null; return; }
+  try{ const raw = localStorage.getItem(actingForStorageKey()); actingFor = raw ? JSON.parse(raw) : null; }
+  catch(e){ actingFor = null; }
+}
+function saveActingFor(){
+  if(!currentUser) return;
+  try{ if(actingFor) localStorage.setItem(actingForStorageKey(), JSON.stringify(actingFor)); else localStorage.removeItem(actingForStorageKey()); }catch(e){}
+}
+async function refreshTeamData(){
+  try{ teamData = await apiFetch('/api/team'); }
+  catch(e){ teamData = null; return; }
+  // If we were acting as someone whose team we're no longer part of (they removed us), drop it.
+  if(actingFor && !teamData.teams.some(t=>t.id===actingFor.id)){ actingFor = null; saveActingFor(); }
+}
+async function switchActingFor(owner){ // owner: {id,name,username} to act as, or null/undefined for yourself
+  actingFor = owner || null;
+  saveActingFor();
+  closeAllPops();
+  refreshUsernameDisplay();
+  try{ await refreshCurrentShow(); }catch(e){}
+  showView(db.session && db.session.status==='live' ? 'sessions-live' : 'sessions-host');
+}
+function renderTeamPop(){
+  const el = document.getElementById('team-pop-list'); if(!el) return;
+  if(!currentUser){ el.innerHTML = ''; return; }
+  const rows = [];
+  rows.push(`<div class="theme-opt ${!actingFor?'sel':''}" onclick="switchActingFor(null)">
+    <div class="av" style="width:22px;height:22px;flex-shrink:0"></div>
+    <div><b>${escapeHtml(currentUser.name)}</b><div style="font-size:11px;color:var(--ink-faint)">Your own account</div></div>
+  </div>`);
+  const teams = (teamData && teamData.teams) || [];
+  teams.forEach(t=>{
+    rows.push(`<div class="theme-opt ${actingFor && actingFor.id===t.id ? 'sel':''}" onclick='switchActingFor(${JSON.stringify(t)})'>
+      <div class="av" style="width:22px;height:22px;flex-shrink:0"></div>
+      <div><b>${escapeHtml(t.name)}</b><div style="font-size:11px;color:var(--ink-faint)">${t.username ? '@'+escapeHtml(t.username) : 'Co-host'}</div></div>
+    </div>`);
+  });
+  if(!teams.length){ rows.push(`<div class="msub" style="padding:8px 4px">You're not on anyone else's team yet. Ask a streamer for their invite link, or set up your own under Account → Team.</div>`); }
+  el.innerHTML = rows.join('');
+}
+function renderActingBanner(){
+  const el = document.getElementById('acting-banner'); if(!el) return;
+  if(!actingFor){ el.style.display = 'none'; el.innerHTML=''; return; }
+  el.style.display = 'block';
+  el.innerHTML = `<div style="background:var(--gold);color:var(--gold-ink);font-size:13px;font-weight:700;padding:9px 16px;display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap">
+    <span>You're helping run ${escapeHtml(actingFor.name)}'s account</span>
+    <button class="btn-xs" style="background:rgba(0,0,0,.15);color:inherit;border:none" onclick="switchActingFor(null)">Switch back to me</button>
+  </div>`;
+}
+
 async function handleSignup(){
   const name = document.getElementById('auth-name') ? document.getElementById('auth-name').value : '';
   const email = document.getElementById('auth-email').value;
@@ -1104,6 +1169,8 @@ async function handleLogout(){
   try{ await apiFetch('/api/logout', { method:'POST' }); }catch(e){}
   localStorage.removeItem(TOKEN_KEY);
   currentUser = null;
+  actingFor = null;
+  teamData = null;
   db = freshDb();
   const m = document.querySelector('.modal-overlay'); if(m) m.remove();
   toast('Logged out');
@@ -1114,10 +1181,13 @@ async function enterAppAfterAuth(){
   document.getElementById('auth').classList.remove('active');
   document.getElementById('landing').classList.remove('active');
   document.getElementById('app').classList.add('active');
+  loadActingFor();
+  await refreshTeamData();
   refreshUsernameDisplay();
   await refreshCurrentShow();
   showView(db.session && db.session.status==='live' ? 'sessions-live' : 'sessions-host');
   await maybeRedeemAdminInviteFromUrl();
+  await maybeRedeemTeamInviteFromUrl();
 }
 function showAuthScreen(mode){
   document.getElementById('landing').classList.remove('active');
@@ -1325,18 +1395,30 @@ function renderThemeList(){
   el.innerHTML = THEMES.map(t=>`<div class="theme-opt ${t.id===current?'sel':''}" onclick="applyTheme('${t.id}')"><div class="theme-swatch" data-p="${t.id}"></div><div><b>${t.name}</b><div style="font-size:10.5px;color:var(--ink-faint)">${t.desc}</div></div></div>`).join('');
   el.querySelectorAll('[data-p]').forEach(sw=>{ sw.innerHTML = THEME_COLORS[sw.getAttribute('data-p')].map(c=>`<i style="background:${c}"></i>`).join(''); });
 }
-function toggleThemePop(e){ e.stopPropagation(); const lp=document.getElementById('lang-pop'); if(lp) lp.classList.remove('open'); document.getElementById('theme-pop').classList.toggle('open'); }
+function closeAllPops(exceptId){
+  ['theme-pop','lang-pop','team-pop'].forEach(id=>{ if(id!==exceptId){ const el=document.getElementById(id); if(el) el.classList.remove('open'); } });
+}
+function toggleThemePop(e){ e.stopPropagation(); closeAllPops('theme-pop'); document.getElementById('theme-pop').classList.toggle('open'); }
 function renderLangList(){
   const current = getLang();
   const el = document.getElementById('lang-list'); if(!el) return;
   el.innerHTML = LANGS.map(l=>`<div class="theme-opt ${l.id===current?'sel':''}" onclick="setLang('${l.id}')"><span style="font-size:18px;width:18px;text-align:center">${l.flag}</span><div><b>${escapeHtml(l.name)}</b></div></div>`).join('');
 }
-function toggleLangPop(e){ e.stopPropagation(); const tp=document.getElementById('theme-pop'); if(tp) tp.classList.remove('open'); document.getElementById('lang-pop').classList.toggle('open'); }
+function toggleLangPop(e){ e.stopPropagation(); closeAllPops('lang-pop'); document.getElementById('lang-pop').classList.toggle('open'); }
+function toggleTeamPop(e){
+  e.stopPropagation();
+  closeAllPops('team-pop');
+  const willOpen = !document.getElementById('team-pop').classList.contains('open');
+  if(willOpen) renderTeamPop();
+  document.getElementById('team-pop').classList.toggle('open');
+}
 document.addEventListener('click', function(e){
   const pop = document.getElementById('theme-pop');
   const lpop = document.getElementById('lang-pop');
+  const tpop = document.getElementById('team-pop');
   if(pop && pop.classList.contains('open') && !pop.contains(e.target) && !e.target.closest('#theme-btn')) pop.classList.remove('open');
   if(lpop && lpop.classList.contains('open') && !lpop.contains(e.target) && !e.target.closest('#lang-btn')) lpop.classList.remove('open');
+  if(tpop && tpop.classList.contains('open') && !tpop.contains(e.target) && !e.target.closest('#tn-user-btn')) tpop.classList.remove('open');
 });
 
 /* ===================== PIN STATE (stats/controls docked vs. drawer) ===================== */
@@ -1400,6 +1482,8 @@ async function goApp(){
   document.getElementById('join').classList.remove('active');
   document.getElementById('auth').classList.remove('active');
   document.getElementById('app').classList.add('active');
+  loadActingFor();
+  await refreshTeamData();
   refreshUsernameDisplay();
   await refreshCurrentShow();
   if(db.session && db.session.status==='live'){ showView('sessions-live'); } else { showView('sessions-host'); }
@@ -1588,6 +1672,104 @@ async function resetAdminInviteCode(){
   if(!confirm('Reset your admin invite link? The old link will stop working — anyone you already invited stays an admin.')) return;
   try{ const data = await apiFetch('/api/admin/invite/reset', { method:'POST' }); renderAdminInviteModal(data.code); toast('Invite link reset'); }catch(e){}
 }
+/* ===================== TEAM MANAGE MODAL (invite/remove co-hosts, join/leave teams) ===================== */
+async function openTeamManageModal(){
+  if(!teamData){ await refreshTeamData(); }
+  renderTeamManageModal();
+}
+function renderTeamManageModal(){
+  const existing = document.querySelector('.modal-overlay.team-manage-modal');
+  if(existing) existing.remove();
+  const code = teamData ? teamData.code : '';
+  const url = code ? (location.origin + location.pathname + '?teamJoin=' + encodeURIComponent(code)) : '';
+  const members = (teamData && teamData.members) || [];
+  const teams = (teamData && teamData.teams) || [];
+  const membersHtml = members.length ? members.map(m=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)">
+      <div><b>${escapeHtml(m.name)}</b>${m.username?` <span style="color:var(--ink-faint);font-size:12px">@${escapeHtml(m.username)}</span>`:''}</div>
+      <button class="btn-xs" style="border-color:var(--coral);color:var(--coral)" onclick="teamRemoveMember('${m.id}')">Remove</button>
+    </div>`).join('') : `<div class="msub">No co-hosts yet — share your invite link below.</div>`;
+  const teamsHtml = teams.length ? teams.map(t=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)">
+      <div><b>${escapeHtml(t.name)}</b>${t.username?` <span style="color:var(--ink-faint);font-size:12px">@${escapeHtml(t.username)}</span>`:''}</div>
+      <button class="btn-xs" style="border-color:var(--coral);color:var(--coral)" onclick="teamLeave('${t.id}',${JSON.stringify(t.name||'their')})">Leave</button>
+    </div>`).join('') : `<div class="msub">You're not helping run anyone else's account yet.</div>`;
+
+  const modalEl = document.createElement('div');
+  modalEl.className = 'modal-overlay team-manage-modal';
+  modalEl.innerHTML = `
+    <div class="modal">
+      <h3>Team &amp; co-hosts</h3>
+      <div class="msub">Co-hosts you invite get full access to run your shows — queue, settings, refunds — but never your payouts or Stripe connection.</div>
+
+      <div class="msub" style="margin-top:16px;font-weight:700;color:var(--ink)">Your invite link</div>
+      <div class="link-box">${escapeHtml(url)}</div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="btn-xs" style="flex:1" onclick="copyShare('${url.replace(/'/g,"\\'")}')">Copy link</button>
+        <button class="btn-xs" onclick="teamResetCode()">Reset link</button>
+      </div>
+
+      <div class="msub" style="margin-top:18px;font-weight:700;color:var(--ink)">Your co-hosts</div>
+      ${membersHtml}
+
+      <div class="msub" style="margin-top:18px;font-weight:700;color:var(--ink)">Accounts you help run</div>
+      ${teamsHtml}
+
+      <div class="msub" style="margin-top:18px;font-weight:700;color:var(--ink)">Have an invite link or code?</div>
+      <div style="display:flex;gap:8px;margin-top:6px">
+        <input id="team-join-code" class="text-input" style="flex:1" type="text" placeholder="Paste it here…">
+        <button class="btn-xs" onclick="teamJoinByCode()">Join</button>
+      </div>
+
+      <div class="modal-actions" style="margin-top:18px"><button class="btn btn-ghost btn-block" onclick="this.closest('.modal-overlay').remove()">Close</button></div>
+    </div>`;
+  modalEl.addEventListener('click', e=>{ if(e.target===modalEl) modalEl.remove(); });
+  document.body.appendChild(modalEl);
+}
+async function teamResetCode(){
+  if(!confirm('Reset your invite link? The old link will stop working — co-hosts already on your team stay on your team.')) return;
+  try{ await apiFetch('/api/team/reset-code', { method:'POST' }); await refreshTeamData(); renderTeamManageModal(); toast('Invite link reset'); }catch(e){}
+}
+async function teamRemoveMember(memberId){
+  if(!confirm('Remove this co-host? They will lose access to your shows immediately.')) return;
+  try{ await apiFetch('/api/team/members/'+memberId, { method:'DELETE' }); await refreshTeamData(); renderTeamManageModal(); toast('Co-host removed'); }catch(e){}
+}
+async function teamLeave(ownerId, ownerName){
+  if(!confirm("Stop helping run "+ownerName+"'s account? You can rejoin later with a new invite link.")) return;
+  try{
+    await apiFetch('/api/team/leave', { method:'POST', body:{ ownerId } });
+    if(actingFor && actingFor.id===ownerId) await switchActingFor(null);
+    await refreshTeamData();
+    renderTeamManageModal();
+    toast('Left team');
+  }catch(e){}
+}
+async function teamJoinByCode(){
+  const input = document.getElementById('team-join-code');
+  const raw = (input.value||'').trim();
+  if(!raw){ toast('Paste an invite code or link first.'); return; }
+  let code = raw;
+  try{ const u = new URL(raw); const p = u.searchParams.get('teamJoin'); if(p) code = p; }catch(e){ /* not a full URL — use as typed */ }
+  try{
+    const data = await apiFetch('/api/team/join', { method:'POST', body:{ code } });
+    await refreshTeamData();
+    renderTeamManageModal();
+    toast("You now help run "+(data.owner ? data.owner.name : 'their')+"'s account");
+  }catch(e){}
+}
+// If someone opens a team invite link while signed in, redeem it automatically.
+async function maybeRedeemTeamInviteFromUrl(){
+  const params = new URLSearchParams(location.search);
+  const code = params.get('teamJoin');
+  if(!code || !currentUser) return;
+  history.replaceState({}, '', location.pathname);
+  try{
+    const data = await apiFetch('/api/team/join', { method:'POST', body:{ code } });
+    await refreshTeamData();
+    toast("You now help run "+(data.owner ? data.owner.name : 'their')+"'s account — switch to it from your account menu");
+  }catch(e){ /* apiFetch already toasted the error (invalid/reset link) */ }
+}
+
 function renderAdminInviteModal(code){
   const url = location.origin + location.pathname + '?adminInvite=' + encodeURIComponent(code);
   const existing = document.querySelector('.modal-overlay.admin-invite-modal');
@@ -2545,7 +2727,8 @@ function openAccountSettings(){
 
       <div class="msub" style="margin-top:14px">Payouts live under Finances → Wallets.</div>
       <div class="modal-actions"><button class="btn btn-gold" style="flex:1" onclick="saveAccountName()">Save</button><button class="btn btn-ghost" onclick="this.closest('.modal-overlay').remove()">Close</button></div>
-      ${acc.isAdmin ? `<button class="btn btn-outline btn-block" style="margin-top:16px;padding-top:14px" onclick="this.closest('.modal-overlay').remove();showView('admin')">Open admin panel</button>` : ''}
+      <button class="btn btn-outline btn-block" style="margin-top:16px;padding-top:14px" onclick="openTeamManageModal()">Team &amp; co-hosts${teamData && (teamData.members.length||teamData.teams.length) ? ` (${teamData.members.length + teamData.teams.length})` : ''}</button>
+      ${acc.isAdmin ? `<button class="btn btn-outline btn-block" style="margin-top:10px" onclick="this.closest('.modal-overlay').remove();showView('admin')">Open admin panel</button>` : ''}
       <button class="btn btn-outline btn-block" style="margin-top:10px;border-color:var(--coral);color:var(--coral)" onclick="handleLogout()">Log out</button>
     </div>`;
   overlayEl.addEventListener('click', e=>{ if(e.target===overlayEl) overlayEl.remove(); });
@@ -2904,6 +3087,13 @@ function startPolling(){
     if(currentUser){
       await goApp();
       await maybeRedeemAdminInviteFromUrl();
+    } else {
+      showAuthScreen('login'); // sign in first, then enterAppAfterAuth() redeems it
+    }
+  } else if(new URLSearchParams(location.search).get('teamJoin')){
+    if(currentUser){
+      await goApp();
+      await maybeRedeemTeamInviteFromUrl();
     } else {
       showAuthScreen('login'); // sign in first, then enterAppAfterAuth() redeems it
     }
