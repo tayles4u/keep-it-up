@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="de" data-theme="midnight">
 <head>
@@ -705,6 +704,7 @@ html.overlay-mode,body.overlay-mode{background:transparent!important;}
       <div class="tn-link nav-link" data-view="sessions-host" id="nl-sessions">Sessions</div>
       <div class="tn-link nav-link" data-view="finances-overview" id="nl-finances">Finances</div>
       <div class="tn-link nav-link" data-view="analytics" id="nl-analytics">Analytics</div>
+      <div class="tn-link nav-link" data-view="admin" id="nl-admin" style="display:none">Admin</div>
     </div>
     <div class="hamburger-btn" id="hamburger-btn" onclick="toggleMobileNav(event)" title="Menu">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
@@ -729,6 +729,7 @@ html.overlay-mode,body.overlay-mode{background:transparent!important;}
     <div class="tn-link nav-link" data-view="sessions-host">Sessions</div>
     <div class="tn-link nav-link" data-view="finances-overview">Finances</div>
     <div class="tn-link nav-link" data-view="analytics">Analytics</div>
+    <div class="tn-link nav-link" data-view="admin" id="nl-admin-mobile" style="display:none">Admin</div>
     <div class="tn-link" onclick="toggleLangPop(event); document.getElementById('mobile-nav').classList.remove('open')">Language</div>
     <div class="tn-link" onclick="toggleThemePop(event); document.getElementById('mobile-nav').classList.remove('open')">Design</div>
   </div>
@@ -748,6 +749,7 @@ html.overlay-mode,body.overlay-mode{background:transparent!important;}
     <section id="view-finances-transactions" class="pageview" style="display:none"></section>
     <section id="view-finances-wallets" class="pageview" style="display:none"></section>
     <section id="view-analytics" class="pageview" style="display:none"></section>
+    <section id="view-admin" class="pageview" style="display:none"></section>
   </div>
 
   <section id="view-sessions-live" class="pageview" style="display:none"></section>
@@ -1006,6 +1008,8 @@ function refreshUsernameDisplay(){
   if(!currentUser) return;
   document.querySelectorAll('#tn-username').forEach(s=>s.textContent = currentUser.name);
   updateTopnavAvatar();
+  const adminLink = document.getElementById('nl-admin'); if(adminLink) adminLink.style.display = currentUser.isAdmin ? '' : 'none';
+  const adminLinkM = document.getElementById('nl-admin-mobile'); if(adminLinkM) adminLinkM.style.display = currentUser.isAdmin ? '' : 'none';
 }
 async function refreshCurrentShow(){
   const data = await apiFetch('/api/shows/current');
@@ -1068,6 +1072,7 @@ async function enterAppAfterAuth(){
   refreshUsernameDisplay();
   await refreshCurrentShow();
   showView(db.session && db.session.status==='live' ? 'sessions-live' : 'sessions-host');
+  await maybeRedeemAdminInviteFromUrl();
 }
 function showAuthScreen(mode){
   document.getElementById('landing').classList.remove('active');
@@ -1362,6 +1367,7 @@ async function refreshForView(name){
     else if(name==='finances-overview' || name==='finances-transactions'){ await refreshTransactions(); }
     else if(name==='finances-wallets'){ await refreshTransactions(); }
     else if(name==='analytics'){ await refreshHistory(); await refreshTransactions(); }
+    else if(name==='admin'){ await refreshAdminStreamers(); }
   }catch(e){ /* apiFetch already shows a toast */ }
 }
 async function showView(name){
@@ -1424,6 +1430,7 @@ function render(){
       case 'finances-wallets': renderFinancesWallets(); break;
       case 'sessions-live': renderLive(); break;
       case 'analytics': renderAnalytics(); break;
+      case 'admin': renderAdmin(); break;
     }
   }
 }
@@ -1468,6 +1475,156 @@ function renderAnalytics(){
       </div>
     </div>
     <div class="card" style="margin-top:14px"><div class="stat-h"><div><h3>${t('an_avg')}</h3><p>${t('an_avg_sub')}</p></div></div><div class="sc-val" style="font-size:24px;margin-top:8px">${money(avgEarnings)}</div></div>`;
+}
+
+/* ===================== PLATFORM ADMIN (you, not per-streamer teams — see /api/admin/*) ===================== */
+let adminData = null; // { streamers:[...], defaultFeePct }
+let adminQuery = '';
+let adminSort = 'created_desc';
+
+async function refreshAdminStreamers(){
+  try{ adminData = await apiFetch('/api/admin/streamers'); }
+  catch(e){ adminData = null; }
+}
+
+function adminFilteredSortedStreamers(){
+  if(!adminData) return [];
+  const q = adminQuery.trim().toLowerCase();
+  let rows = adminData.streamers.filter(s => !q ||
+    (s.name||'').toLowerCase().includes(q) ||
+    (s.username||'').toLowerCase().includes(q) ||
+    (s.email||'').toLowerCase().includes(q));
+  const sorters = {
+    created_desc: (a,b)=>b.createdAt-a.createdAt,
+    created_asc: (a,b)=>a.createdAt-b.createdAt,
+    name_asc: (a,b)=>a.name.localeCompare(b.name),
+    live_first: (a,b)=>(b.isLive-a.isLive) || (b.createdAt-a.createdAt),
+    fee_desc: (a,b)=>b.platformFeePct-a.platformFeePct,
+    fee_asc: (a,b)=>a.platformFeePct-b.platformFeePct
+  };
+  rows = rows.slice().sort(sorters[adminSort] || sorters.created_desc);
+  return rows;
+}
+
+function adminSetQuery(v){ adminQuery = v; renderAdmin(); }
+function adminSetSort(v){ adminSort = v; renderAdmin(); }
+
+async function adminSaveDefaultFee(){
+  const input = document.getElementById('admin-default-fee');
+  const pct = Number(input.value) / 100;
+  if(!Number.isFinite(pct) || pct < 0 || pct > 100){ toast('Enter a number between 0 and 100.'); return; }
+  try{
+    await apiFetch('/api/admin/settings', { method:'PATCH', body:{ defaultFeePct: pct } });
+    toast('Default split updated');
+    await refreshAdminStreamers();
+    render();
+  }catch(e){}
+}
+
+async function adminSaveStreamerFee(userId){
+  const input = document.getElementById('admin-fee-'+userId);
+  const raw = input.value.trim();
+  const pct = raw === '' ? null : Number(raw) / 100;
+  if(pct !== null && (!Number.isFinite(pct) || pct < 0 || pct > 100)){ toast('Enter a number between 0 and 100, or clear it to use the default.'); return; }
+  try{
+    await apiFetch('/api/admin/streamers/'+userId+'/fee', { method:'PATCH', body:{ pct } });
+    toast(pct === null ? 'Reset to default split' : 'Split updated');
+    await refreshAdminStreamers();
+    render();
+  }catch(e){}
+}
+
+async function openAdminInvite(){
+  let code;
+  try{ const data = await apiFetch('/api/admin/invite'); code = data.code; }catch(e){ return; }
+  renderAdminInviteModal(code);
+}
+async function resetAdminInviteCode(){
+  if(!confirm('Reset your admin invite link? The old link will stop working — anyone you already invited stays an admin.')) return;
+  try{ const data = await apiFetch('/api/admin/invite/reset', { method:'POST' }); renderAdminInviteModal(data.code); toast('Invite link reset'); }catch(e){}
+}
+function renderAdminInviteModal(code){
+  const url = location.origin + location.pathname + '?adminInvite=' + encodeURIComponent(code);
+  const existing = document.querySelector('.modal-overlay.admin-invite-modal');
+  if(existing) existing.remove();
+  const modalEl = document.createElement('div');
+  modalEl.className = 'modal-overlay admin-invite-modal';
+  modalEl.innerHTML = `
+    <div class="modal">
+      <h3>Invite a co-owner</h3>
+      <div class="msub">Anyone who opens this link while signed in becomes a platform admin with the same rights as you — full access to this panel, including inviting further admins.</div>
+      <div class="link-box">${escapeHtml(url)}</div>
+      <div class="modal-actions"><button class="btn btn-gold" style="flex:1" onclick="copyShare('${url.replace(/'/g,"\\'")}')">Copy link</button><button class="btn btn-ghost" onclick="this.closest('.modal-overlay').remove()">Close</button></div>
+      <button class="btn btn-outline btn-block" style="margin-top:10px;border-color:var(--coral);color:var(--coral)" onclick="resetAdminInviteCode()">Reset link</button>
+    </div>`;
+  modalEl.addEventListener('click', e=>{ if(e.target===modalEl) modalEl.remove(); });
+  document.body.appendChild(modalEl);
+}
+
+// If someone opens an admin invite link while signed in, redeem it automatically and land in the panel.
+async function maybeRedeemAdminInviteFromUrl(){
+  const params = new URLSearchParams(location.search);
+  const code = params.get('adminInvite');
+  if(!code || !currentUser) return;
+  history.replaceState({}, '', location.pathname); // strip the code from the URL either way
+  try{
+    await apiFetch('/api/admin/invite/redeem', { method:'POST', body:{ code } });
+    await refreshCurrentUser();
+    refreshUsernameDisplay();
+    toast("You're now a platform admin");
+    showView('admin');
+  }catch(e){ /* apiFetch already toasted the error (invalid/reset link) */ }
+}
+
+function renderAdmin(){
+  const el = document.getElementById('view-admin');
+  if(!el) return;
+  if(!currentUser || !currentUser.isAdmin){
+    el.innerHTML = `<div class="page-head"><h1>Admin</h1></div><div class="empty"><h2>Admins only</h2><p>You don't have platform admin access.</p></div>`;
+    return;
+  }
+  const rows = adminFilteredSortedStreamers();
+  const defaultPct = adminData ? Math.round(adminData.defaultFeePct*1000)/10 : 20;
+  const rowsHtml = rows.map(s => `
+    <tr>
+      <td>${escapeHtml(s.name)}${s.isAdmin ? ' <span class="badge badge-mint" style="margin-left:4px">Admin</span>' : ''}</td>
+      <td>${s.username ? '@'+escapeHtml(s.username) : '—'}</td>
+      <td class="mono" style="font-size:12px">${escapeHtml(s.email)}</td>
+      <td>${s.isLive ? '<span class="badge badge-mint">Live</span>' : '<span class="badge">Offline</span>'}</td>
+      <td>${s.stripePayoutsEnabled ? '<span class="badge badge-mint">Connected</span>' : '<span class="badge">Not connected</span>'}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:4px">
+          <input id="admin-fee-${s.id}" class="text-input" type="number" min="0" max="100" step="0.1" style="width:70px" placeholder="${defaultPct}" value="${s.hasOverride ? Math.round(s.platformFeePct*1000)/10 : ''}">
+          <span style="font-size:12px;color:var(--ink-dim)">% you keep</span>
+          <button class="btn-xs" onclick="adminSaveStreamerFee('${s.id}')">Save</button>
+        </div>
+      </td>
+    </tr>`).join('');
+
+  el.innerHTML = `
+    <div class="page-head"><h1>Admin</h1><button class="btn btn-gold" onclick="openAdminInvite()">Invite co-owner</button></div>
+    <div class="card" style="margin-bottom:14px">
+      <div class="stat-h"><div><h3>Default split</h3><p>What you keep from every new streamer by default (they keep the rest). Existing streamers with a custom split below are unaffected.</p></div></div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
+        <input id="admin-default-fee" class="text-input" type="number" min="0" max="100" step="0.1" style="width:90px" value="${defaultPct}">
+        <span style="font-size:13px;color:var(--ink-dim)">% you keep</span>
+        <button class="btn-xs" onclick="adminSaveDefaultFee()">Save</button>
+      </div>
+    </div>
+    <div class="card">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+        <input class="text-input" style="flex:1;min-width:180px" type="text" placeholder="Search by name, username or email…" value="${escapeHtml(adminQuery)}" oninput="adminSetQuery(this.value)">
+        <select class="text-input" style="width:auto" onchange="adminSetSort(this.value)">
+          <option value="created_desc" ${adminSort==='created_desc'?'selected':''}>Newest first</option>
+          <option value="created_asc" ${adminSort==='created_asc'?'selected':''}>Oldest first</option>
+          <option value="name_asc" ${adminSort==='name_asc'?'selected':''}>Name A–Z</option>
+          <option value="live_first" ${adminSort==='live_first'?'selected':''}>Live first</option>
+          <option value="fee_desc" ${adminSort==='fee_desc'?'selected':''}>Highest split first</option>
+          <option value="fee_asc" ${adminSort==='fee_asc'?'selected':''}>Lowest split first</option>
+        </select>
+      </div>
+      ${rows.length ? `<div class="table-scroll"><table class="table"><thead><tr><th>Name</th><th>Link</th><th>Email</th><th>Status</th><th>Payouts</th><th>Split</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>` : `<div class="not-enough">No streamers match.</div>`}
+    </div>`;
 }
 
 /* ===================== SESSIONS / HOST ===================== */
@@ -2343,7 +2500,7 @@ function openAccountSettings(){
 
       <div class="msub" style="margin-top:14px">Payouts live under Finances → Wallets.</div>
       <div class="modal-actions"><button class="btn btn-gold" style="flex:1" onclick="saveAccountName()">Save</button><button class="btn btn-ghost" onclick="this.closest('.modal-overlay').remove()">Close</button></div>
-      <div class="msub" style="margin-top:16px;padding-top:14px;border-top:1px dashed var(--line-strong)">Team/co-host access needs a newer version of the backend — not available yet.</div>
+      ${acc.isAdmin ? `<button class="btn btn-outline btn-block" style="margin-top:16px;padding-top:14px" onclick="this.closest('.modal-overlay').remove();showView('admin')">Open admin panel</button>` : ''}
       <button class="btn btn-outline btn-block" style="margin-top:10px;border-color:var(--coral);color:var(--coral)" onclick="handleLogout()">Log out</button>
     </div>`;
   overlayEl.addEventListener('click', e=>{ if(e.target===overlayEl) overlayEl.remove(); });
@@ -2698,6 +2855,13 @@ function startPolling(){
     history.replaceState({}, '', location.pathname);
     await goApp();
     showView('finances-wallets');
+  } else if(new URLSearchParams(location.search).get('adminInvite')){
+    if(currentUser){
+      await goApp();
+      await maybeRedeemAdminInviteFromUrl();
+    } else {
+      showAuthScreen('login'); // sign in first, then enterAppAfterAuth() redeems it
+    }
   }
 })();
 
