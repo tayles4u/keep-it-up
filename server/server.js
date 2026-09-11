@@ -5,8 +5,8 @@
 const http = require('node:http');
 const crypto = require('node:crypto');
 const db = require('./db.js');
-const { hashPassword, verifyPassword, newToken, newId, newJoinCode, hashToken } = require('./auth.js');
- 
+const { hashPassword, verifyPassword, newToken, newId, newJoinCode, newTeamCode, hashToken } = require('./auth.js');
+
 const PORT = process.env.PORT || 8787;
 const MAX_BODY_BYTES = 8 * 1024 * 1024; // 8MB cap (mp3/wav uploads land here later; keep sane for now)
 const CORS_ORIGINS = (process.env.CORS_ORIGIN || '*').split(',').map(s => s.trim()).filter(Boolean); // lock this down to your real frontend URL(s) once you're live
@@ -20,7 +20,7 @@ const GOOGLE_CLIENT_ID = (process.env.GOOGLE_CLIENT_ID || '').trim();
 const STRIPE_SECRET_KEY = (process.env.STRIPE_SECRET_KEY || '').trim();
 const STRIPE_WEBHOOK_SECRET = (process.env.STRIPE_WEBHOOK_SECRET || '').trim();
 const PLATFORM_FEE_PCT = Number(process.env.PLATFORM_FEE_PCT || 0.10); // default: platform keeps 10%, streamer gets the rest
- 
+
 // ---------- rate limiting (in-memory — fine for a single instance; use Redis if you ever scale to several) ----------
 const rateBuckets = new Map(); // key -> { count, resetAt }
 function rateLimited(key, max, windowMs) {
@@ -40,7 +40,7 @@ setInterval(() => {
   const now = Date.now();
   for (const [key, bucket] of rateBuckets) { if (now > bucket.resetAt) rateBuckets.delete(key); }
 }, 10 * 60 * 1000);
- 
+
 // ---------- tiny helpers ----------
 function sendNoBody(res, status) {
   res.writeHead(status, {
@@ -89,7 +89,12 @@ function readRawBody(req) {
     req.on('error', reject);
   });
 }
-function getAuthUser(req) {
+// The real, literally-signed-in user — resolved only from the Authorization token, never
+// affected by X-Acting-For. Use this directly (instead of getAuthUser) for anything tied to the
+// signed-in person's own identity: their account settings, their own payouts, their Stripe
+// Connect link, and all team-management endpoints. Getting this wrong would let a co-host
+// reconnect/redirect the host's own bank account, so it's kept as a separate, explicit function.
+function getRealAuthUser(req) {
   const header = req.headers['authorization'] || '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : null;
   if (!token) return null;
@@ -98,8 +103,37 @@ function getAuthUser(req) {
   `).get(token);
   return row || null;
 }
+function isTeamMember(ownerId, memberId) {
+  if (ownerId === memberId) return true;
+  return !!db.prepare('SELECT 1 FROM team_members WHERE owner_id = ? AND member_id = ?').get(ownerId, memberId);
+}
+// The "acting" user for everything show-related: normally the signed-in person, but if they're
+// switched into a team and send X-Acting-For with an owner's user id, and they're actually a
+// member of that owner's team, requests act as the owner instead (full access to shows, queue,
+// settings, transactions/refunds). An invalid/unauthorized header is silently ignored rather than
+// rejected, so it can never grant more than the caller's own identity already has.
+function getAuthUser(req) {
+  const real = getRealAuthUser(req);
+  if (!real) return null;
+  const actingFor = String(req.headers['x-acting-for'] || '').trim();
+  if (!actingFor || actingFor === real.id) return real;
+  if (!isTeamMember(actingFor, real.id)) return real;
+  const owner = db.prepare('SELECT * FROM users WHERE id = ?').get(actingFor);
+  return owner || real;
+}
 function publicUser(u) {
   return { id: u.id, email: u.email, name: u.name, provider: u.provider, joinCode: u.join_code, username: u.username || null, profileImage: u.profile_image || null, platformFeePct: PLATFORM_FEE_PCT };
+}
+function publicTeamUser(u) {
+  return { id: u.id, name: u.name, username: u.username || null, profileImage: u.profile_image || null };
+}
+function ensureTeamCode(user) {
+  if (user.team_code) return user.team_code;
+  let code;
+  do { code = newTeamCode(); } while (db.prepare('SELECT id FROM users WHERE team_code = ?').get(code));
+  db.prepare('UPDATE users SET team_code = ? WHERE id = ?').run(code, user.id);
+  user.team_code = code;
+  return code;
 }
 function slugifyUsername(raw) {
   return String(raw || '').toLowerCase().trim()
@@ -117,7 +151,7 @@ function generateUniqueUsername(base) {
   }
   return candidate;
 }
- 
+
 // ---------- route handlers ----------
 const routes = [];
 function route(method, pattern, handler) {
@@ -126,7 +160,7 @@ function route(method, pattern, handler) {
   const regex = new RegExp('^' + pattern.replace(/:[^/]+/g, (m) => { paramNames.push(m.slice(1)); return '([^/]+)'; }) + '$');
   routes.push({ method, regex, paramNames, handler });
 }
- 
+
 // ----- Stripe (raw REST calls via fetch — no npm dependency, same style as the rest of this server) -----
 const STRIPE_API_VERSION = '2026-01-28.clover';
 async function stripeRequestV2(method, path, body) {
@@ -187,13 +221,13 @@ function requestOrigin(req) {
   const raw = req.headers.origin;
   return (raw && raw !== 'null' && /^https?:\/\//.test(raw)) ? raw : (process.env.WEB_URL || 'http://localhost:8787');
 }
- 
+
 // Closes the race window where two near-simultaneous clicks (skip and/or jump) from the same
 // fan could both read the queue before either had written its update, charging them twice.
 const queuePaymentLocks = new Set();
- 
+
 route('POST', '/api/stripe/connect', async (req, res) => {
-  const user = getAuthUser(req);
+  const user = getRealAuthUser(req); // never actable-for — a co-host must not redirect the host's own bank account
   if (!user) return sendJSON(res, 401, { error: 'Not signed in.' });
   try {
     let accountId = user.stripe_account_id;
@@ -233,9 +267,9 @@ route('POST', '/api/stripe/connect', async (req, res) => {
     sendJSON(res, 200, { url: link.url });
   } catch (e) { sendJSON(res, 500, { error: e.message }); }
 });
- 
+
 route('GET', '/api/stripe/status', async (req, res) => {
-  const user = getAuthUser(req);
+  const user = getRealAuthUser(req); // never actable-for — this is the host's own payout status
   if (!user) return sendJSON(res, 401, { error: 'Not signed in.' });
   if (!user.stripe_account_id) return sendJSON(res, 200, { connected: false });
   try {
@@ -253,7 +287,7 @@ route('GET', '/api/stripe/status', async (req, res) => {
     });
   } catch (e) { sendJSON(res, 500, { error: e.message }); }
 });
- 
+
 // ----- auth -----
 async function fetchCoverUrl(song) {
   try {
@@ -266,7 +300,7 @@ async function fetchCoverUrl(song) {
     return data.thumbnail_url || null;
   } catch (e) { return null; }
 }
- 
+
 async function verifyGoogleIdToken(idToken) {
   const res = await fetch('https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(idToken));
   if (!res.ok) throw new Error('Could not verify Google sign-in.');
@@ -275,7 +309,7 @@ async function verifyGoogleIdToken(idToken) {
   if (payload.email_verified !== 'true' && payload.email_verified !== true) throw new Error('Your Google email is not verified.');
   return payload;
 }
- 
+
 route('POST', '/api/auth/google', async (req, res) => {
   if (!GOOGLE_CLIENT_ID) return sendJSON(res, 500, { error: 'Google sign-in is not configured on this server yet.' });
   if (rateLimited('google-auth:' + clientIp(req), 20, 15 * 60 * 1000)) {
@@ -284,15 +318,15 @@ route('POST', '/api/auth/google', async (req, res) => {
   const body = await readBody(req);
   const idToken = String(body.credential || '');
   if (!idToken) return sendJSON(res, 400, { error: 'Missing Google credential.' });
- 
+
   let payload;
   try { payload = await verifyGoogleIdToken(idToken); }
   catch (e) { return sendJSON(res, 401, { error: e.message || 'Could not verify Google sign-in.' }); }
- 
+
   const email = String(payload.email || '').trim().toLowerCase();
   if (!email) return sendJSON(res, 400, { error: 'Google did not provide an email address.' });
   const name = String(payload.name || email.split('@')[0]).trim();
- 
+
   let user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
   if (!user) {
     const username = generateUniqueUsername(name);
@@ -305,7 +339,7 @@ route('POST', '/api/auth/google', async (req, res) => {
   db.prepare('INSERT INTO tokens (token,user_id,created_at) VALUES (?,?,?)').run(token, user.id, Date.now());
   sendJSON(res, 200, { token, user: publicUser(user) });
 });
- 
+
 route('POST', '/api/signup', async (req, res) => {
   if (rateLimited('signup:' + clientIp(req), 5, 60 * 60 * 1000)) {
     return sendJSON(res, 429, { error: 'Too many accounts created from this connection. Try again later.' });
@@ -331,7 +365,7 @@ route('POST', '/api/signup', async (req, res) => {
   db.prepare('INSERT INTO tokens (token,user_id,created_at) VALUES (?,?,?)').run(token, user.id, Date.now());
   sendJSON(res, 201, { token, user: publicUser(user) });
 });
- 
+
 route('POST', '/api/login', async (req, res) => {
   const body = await readBody(req);
   const email = String(body.email || '').trim().toLowerCase();
@@ -348,14 +382,14 @@ route('POST', '/api/login', async (req, res) => {
   db.prepare('INSERT INTO tokens (token,user_id,created_at) VALUES (?,?,?)').run(token, user.id, Date.now());
   sendJSON(res, 200, { token, user: publicUser(user) });
 });
- 
+
 route('POST', '/api/logout', async (req, res) => {
   const header = req.headers['authorization'] || '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : null;
   if (token) db.prepare('DELETE FROM tokens WHERE token = ?').run(token);
   sendJSON(res, 200, { ok: true });
 });
- 
+
 // ----- password reset -----
 // Sends via a real provider if RESEND_API_KEY is set (see README); otherwise logs the link to
 // the server console so the flow is fully testable without signing up for an email service.
@@ -385,7 +419,7 @@ async function sendPasswordResetEmail(toEmail, resetUrl) {
     console.log('  Fallback — link was:', resetUrl);
   }
 }
- 
+
 route('POST', '/api/request-password-reset', async (req, res) => {
   const body = await readBody(req);
   const email = String(body.email || '').trim().toLowerCase();
@@ -409,7 +443,7 @@ route('POST', '/api/request-password-reset', async (req, res) => {
   }
   sendJSON(res, 200, { ok: true, message: 'If that email has an account, a reset link is on its way.' });
 });
- 
+
 route('POST', '/api/reset-password', async (req, res) => {
   const body = await readBody(req);
   const token = String(body.token || '');
@@ -427,15 +461,15 @@ route('POST', '/api/reset-password', async (req, res) => {
   db.prepare('DELETE FROM tokens WHERE user_id=?').run(row.user_id); // log out everywhere, for safety
   sendJSON(res, 200, { ok: true });
 });
- 
+
 route('GET', '/api/me', async (req, res) => {
-  const user = getAuthUser(req);
+  const user = getRealAuthUser(req); // never actable-for — this is always the signed-in person's own account
   if (!user) return sendJSON(res, 401, { error: 'Not signed in.' });
   sendJSON(res, 200, { user: publicUser(user) });
 });
- 
+
 route('PATCH', '/api/me', async (req, res) => {
-  const user = getAuthUser(req);
+  const user = getRealAuthUser(req); // never actable-for — a co-host must not edit the host's own profile
   if (!user) return sendJSON(res, 401, { error: 'Not signed in.' });
   const body = await readBody(req);
   const name = String(body.name || '').trim();
@@ -462,7 +496,69 @@ route('PATCH', '/api/me', async (req, res) => {
   db.prepare('UPDATE users SET name = ?, username = ?, profile_image = ? WHERE id = ?').run(name, username, profileImage, user.id);
   sendJSON(res, 200, { user: publicUser(Object.assign({}, user, { name, username, profile_image: profileImage })) });
 });
- 
+
+// ----- team / co-hosts -----
+// Every route here uses getRealAuthUser — team membership itself is always managed as yourself,
+// never while "acting as" someone else.
+route('GET', '/api/team', async (req, res) => {
+  const user = getRealAuthUser(req);
+  if (!user) return sendJSON(res, 401, { error: 'Not signed in.' });
+  const code = ensureTeamCode(user);
+  const members = db.prepare(`
+    SELECT u.* FROM team_members tm JOIN users u ON u.id = tm.member_id
+    WHERE tm.owner_id = ? ORDER BY tm.created_at ASC
+  `).all(user.id).map(publicTeamUser);
+  const teams = db.prepare(`
+    SELECT u.* FROM team_members tm JOIN users u ON u.id = tm.owner_id
+    WHERE tm.member_id = ? ORDER BY tm.created_at ASC
+  `).all(user.id).map(publicTeamUser);
+  sendJSON(res, 200, { code, members, teams });
+});
+
+route('POST', '/api/team/join', async (req, res) => {
+  const user = getRealAuthUser(req);
+  if (!user) return sendJSON(res, 401, { error: 'Not signed in.' });
+  const body = await readBody(req);
+  const code = String(body.code || '').trim();
+  if (!code) return sendJSON(res, 400, { error: 'Enter an invite link or code.' });
+  const owner = db.prepare('SELECT * FROM users WHERE team_code = ?').get(code);
+  if (!owner) return sendJSON(res, 404, { error: 'That invite link is invalid or has been reset.' });
+  if (owner.id === user.id) return sendJSON(res, 400, { error: "That's your own invite link." });
+  const already = db.prepare('SELECT 1 FROM team_members WHERE owner_id=? AND member_id=?').get(owner.id, user.id);
+  if (!already) {
+    db.prepare('INSERT INTO team_members (owner_id, member_id, created_at) VALUES (?,?,?)').run(owner.id, user.id, Date.now());
+  }
+  sendJSON(res, 200, { owner: publicTeamUser(owner) });
+});
+
+route('DELETE', '/api/team/members/:memberId', async (req, res, params) => {
+  const user = getRealAuthUser(req);
+  if (!user) return sendJSON(res, 401, { error: 'Not signed in.' });
+  db.prepare('DELETE FROM team_members WHERE owner_id=? AND member_id=?').run(user.id, params.memberId);
+  sendJSON(res, 200, { ok: true });
+});
+
+route('POST', '/api/team/leave', async (req, res) => {
+  const user = getRealAuthUser(req);
+  if (!user) return sendJSON(res, 401, { error: 'Not signed in.' });
+  const body = await readBody(req);
+  const ownerId = String(body.ownerId || '').trim();
+  if (!ownerId) return sendJSON(res, 400, { error: 'Missing ownerId.' });
+  db.prepare('DELETE FROM team_members WHERE owner_id=? AND member_id=?').run(ownerId, user.id);
+  sendJSON(res, 200, { ok: true });
+});
+
+// Invalidates the old invite link (anyone who has it can no longer join) without removing
+// existing team members — useful if a link leaked or someone left who might still have it.
+route('POST', '/api/team/reset-code', async (req, res) => {
+  const user = getRealAuthUser(req);
+  if (!user) return sendJSON(res, 401, { error: 'Not signed in.' });
+  let code;
+  do { code = newTeamCode(); } while (db.prepare('SELECT id FROM users WHERE team_code = ?').get(code));
+  db.prepare('UPDATE users SET team_code = ? WHERE id = ?').run(code, user.id);
+  sendJSON(res, 200, { code });
+});
+
 // ----- shows (host side, requires auth) -----
 route('POST', '/api/shows', async (req, res) => {
   const user = getAuthUser(req);
@@ -482,7 +578,7 @@ route('POST', '/api/shows', async (req, res) => {
     .run(show.id, show.user_id, show.title, show.status, show.settings_json, show.started_at, show.ended_at, show.total_participants);
   sendJSON(res, 201, { show: showToJSON(show) });
 });
- 
+
 route('GET', '/api/shows/current', async (req, res) => {
   const user = getAuthUser(req);
   if (!user) return sendJSON(res, 401, { error: 'Not signed in.' });
@@ -492,7 +588,7 @@ route('GET', '/api/shows/current', async (req, res) => {
   const earn = db.prepare(`SELECT COALESCE(SUM(amount),0) AS total FROM transactions WHERE show_id=? AND status!='payout'`).get(show.id).total;
   sendJSON(res, 200, { show: Object.assign(showToJSON(show), { earnings: earn }), queue: queue.map(queueToJSON) });
 });
- 
+
 route('POST', '/api/shows/:id/end', async (req, res, params) => {
   const user = getAuthUser(req);
   if (!user) return sendJSON(res, 401, { error: 'Not signed in.' });
@@ -502,7 +598,7 @@ route('POST', '/api/shows/:id/end', async (req, res, params) => {
   db.prepare(`UPDATE transactions SET status='available' WHERE show_id=? AND status='pending'`).run(show.id);
   sendJSON(res, 200, { ok: true });
 });
- 
+
 route('GET', '/api/shows/history', async (req, res) => {
   const user = getAuthUser(req);
   if (!user) return sendJSON(res, 401, { error: 'Not signed in.' });
@@ -517,7 +613,7 @@ route('GET', '/api/shows/history', async (req, res) => {
   });
   sendJSON(res, 200, { history: withEarnings });
 });
- 
+
 // ----- Bracket Wars engine -----
 function nextPowerOfTwo(n) { let p = 1; while (p < n) p *= 2; return p; }
 function resolveByes(round) {
@@ -541,7 +637,7 @@ function advanceBracketIfRoundDone(bracket) {
     round = bracket.rounds[bracket.roundIndex];
   }
 }
- 
+
 route('POST', '/api/shows/:id/bracket/start', async (req, res, params) => {
   const user = getAuthUser(req);
   if (!user) return sendJSON(res, 401, { error: 'Not signed in.' });
@@ -555,7 +651,7 @@ route('POST', '/api/shows/:id/bracket/start', async (req, res, params) => {
   }
   const queue = db.prepare(`SELECT * FROM queue_items WHERE show_id=? AND status='queued' ORDER BY position ASC`).all(show.id);
   if (queue.length < 2) return sendJSON(res, 409, { error: 'Need at least 2 tracks queued to start a bracket.' });
- 
+
   let entries = queue.map(queueToJSON);
   for (let i = entries.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); const tmp = entries[i]; entries[i] = entries[j]; entries[j] = tmp; }
   const size = nextPowerOfTwo(entries.length);
@@ -565,12 +661,12 @@ route('POST', '/api/shows/:id/bracket/start', async (req, res, params) => {
   resolveByes(round0);
   const bracket = { rounds: [round0], roundIndex: 0, champion: null };
   advanceBracketIfRoundDone(bracket);
- 
+
   db.prepare(`UPDATE queue_items SET status='bracket' WHERE show_id=? AND status='queued'`).run(show.id);
   db.prepare(`UPDATE shows SET bracket_json=? WHERE id=?`).run(JSON.stringify(bracket), show.id);
   sendJSON(res, 200, { bracket });
 });
- 
+
 route('POST', '/api/shows/:id/bracket/pick', async (req, res, params) => {
   const user = getAuthUser(req);
   if (!user) return sendJSON(res, 401, { error: 'Not signed in.' });
@@ -589,7 +685,7 @@ route('POST', '/api/shows/:id/bracket/pick', async (req, res, params) => {
   db.prepare(`UPDATE shows SET bracket_json=? WHERE id=?`).run(JSON.stringify(bracket), show.id);
   sendJSON(res, 200, { bracket });
 });
- 
+
 route('POST', '/api/shows/:id/bracket/cancel', async (req, res, params) => {
   const user = getAuthUser(req);
   if (!user) return sendJSON(res, 401, { error: 'Not signed in.' });
@@ -608,7 +704,7 @@ route('POST', '/api/shows/:id/bracket/cancel', async (req, res, params) => {
   db.prepare(`UPDATE shows SET bracket_json=NULL WHERE id=?`).run(show.id);
   sendJSON(res, 200, { ok: true });
 });
- 
+
 // ----- queue management (host side) -----
 route('POST', '/api/shows/:id/queue/:itemId/played', async (req, res, params) => {
   const user = getAuthUser(req);
@@ -618,7 +714,7 @@ route('POST', '/api/shows/:id/queue/:itemId/played', async (req, res, params) =>
   db.prepare(`UPDATE queue_items SET status='played' WHERE id=? AND show_id=?`).run(params.itemId, show.id);
   sendJSON(res, 200, { ok: true });
 });
- 
+
 route('DELETE', '/api/shows/:id/queue/:itemId', async (req, res, params) => {
   const user = getAuthUser(req);
   if (!user) return sendJSON(res, 401, { error: 'Not signed in.' });
@@ -627,7 +723,7 @@ route('DELETE', '/api/shows/:id/queue/:itemId', async (req, res, params) => {
   db.prepare(`UPDATE queue_items SET status='removed' WHERE id=? AND show_id=?`).run(params.itemId, show.id);
   sendJSON(res, 200, { ok: true });
 });
- 
+
 route('POST', '/api/shows/:id/queue/:itemId/ban', async (req, res, params) => {
   const user = getAuthUser(req);
   if (!user) return sendJSON(res, 401, { error: 'Not signed in.' });
@@ -640,7 +736,7 @@ route('POST', '/api/shows/:id/queue/:itemId/ban', async (req, res, params) => {
     .run(newId(), show.id, item.name.toLowerCase(), Date.now());
   sendJSON(res, 200, { ok: true });
 });
- 
+
 route('PATCH', '/api/shows/:id/settings', async (req, res, params) => {
   const user = getAuthUser(req);
   if (!user) return sendJSON(res, 401, { error: 'Not signed in.' });
@@ -651,7 +747,7 @@ route('PATCH', '/api/shows/:id/settings', async (req, res, params) => {
   db.prepare(`UPDATE shows SET settings_json=? WHERE id=?`).run(JSON.stringify(settings), show.id);
   sendJSON(res, 200, { settings });
 });
- 
+
 // ----- finances (host side) -----
 route('GET', '/api/transactions', async (req, res) => {
   const user = getAuthUser(req);
@@ -667,7 +763,7 @@ route('GET', '/api/transactions', async (req, res) => {
     refundable: tx.type !== 'payout' && tx.status !== 'refunded'
   })) });
 });
- 
+
 route('POST', '/api/shows/:showId/transactions/:txId/refund', async (req, res, params) => {
   const user = getAuthUser(req);
   if (!user) return sendJSON(res, 401, { error: 'Not signed in.' });
@@ -677,7 +773,7 @@ route('POST', '/api/shows/:showId/transactions/:txId/refund', async (req, res, p
   if (!tx) return sendJSON(res, 404, { error: 'Transaction not found.' });
   if (tx.type === 'payout') return sendJSON(res, 400, { error: "Payouts can't be refunded here." });
   if (tx.status === 'refunded') return sendJSON(res, 409, { error: 'Already refunded.' });
- 
+
   if (tx.stripe_payment_intent_id) {
     // A real payment — actually return the money via Stripe, not just a local status flip.
     try {
@@ -689,9 +785,9 @@ route('POST', '/api/shows/:showId/transactions/:txId/refund', async (req, res, p
   db.prepare(`UPDATE transactions SET status='refunded' WHERE id=?`).run(tx.id);
   sendJSON(res, 200, { ok: true });
 });
- 
+
 route('POST', '/api/payout', async (req, res) => {
-  const user = getAuthUser(req);
+  const user = getRealAuthUser(req); // never actable-for — cashing out always applies to the real owner's balance
   if (!user) return sendJSON(res, 401, { error: 'Not signed in.' });
   const row = db.prepare(`SELECT COALESCE(SUM(amount),0) AS total FROM transactions WHERE user_id=? AND status='available'`).get(user.id);
   const available = row.total;
@@ -701,12 +797,12 @@ route('POST', '/api/payout', async (req, res) => {
     .run(newId(), user.id, null, 'payout', -available, 'payout', Date.now());
   sendJSON(res, 200, { ok: true, amount: available });
 });
- 
+
 // ----- public fan-facing endpoints (no auth; resolved via join code) -----
 function findUserByCodeOrUsername(value) {
   return db.prepare('SELECT * FROM users WHERE join_code = ? OR username = ?').get(value, value);
 }
- 
+
 route('GET', '/api/public/:joinCode', async (req, res, params) => {
   const user = findUserByCodeOrUsername(params.joinCode);
   if (!user) return sendJSON(res, 404, { error: 'Invalid link.' });
@@ -737,7 +833,7 @@ route('GET', '/api/public/:joinCode', async (req, res, params) => {
     skippedCount, cap: settings.cap, mine
   });
 });
- 
+
 route('POST', '/api/public/:joinCode/join', async (req, res, params) => {
   const user = findUserByCodeOrUsername(params.joinCode);
   if (!user) return sendJSON(res, 404, { error: 'Invalid link.' });
@@ -747,7 +843,7 @@ route('POST', '/api/public/:joinCode/join', async (req, res, params) => {
   if (!settings.acceptingSubmissions) return sendJSON(res, 409, { error: 'Submissions are paused right now.' });
   const count = db.prepare(`SELECT COUNT(*) AS c FROM queue_items WHERE show_id=? AND status='queued'`).get(show.id).c;
   if (settings.cap && count >= settings.cap) return sendJSON(res, 409, { error: 'Queue is full.' });
- 
+
   const body = await readBody(req);
   const name = String(body.name || '').trim();
   const song = String(body.song || '').trim();
@@ -760,10 +856,10 @@ route('POST', '/api/public/:joinCode/join', async (req, res, params) => {
   if (!song && !fileData) return sendJSON(res, 400, { error: 'A link or an uploaded file is required.' });
   if (song && !/^https?:\/\//i.test(song)) return sendJSON(res, 400, { error: 'That doesn\'t look like a working link — it needs to start with http:// or https://' });
   if (fileData && !/^data:audio\//i.test(fileData)) return sendJSON(res, 400, { error: 'That file doesn\'t look like a valid audio file.' });
- 
+
   const entry = settings.entryFeeEnabled ? Number(settings.entryFee || 0) : 0;
   const coverUrl = song ? await fetchCoverUrl(song) : null;
- 
+
   if (entry > 0) {
     const canUseRealStripe = !!STRIPE_SECRET_KEY && !!user.stripe_account_id && !!user.stripe_payouts_enabled;
     if (canUseRealStripe) {
@@ -794,7 +890,7 @@ route('POST', '/api/public/:joinCode/join', async (req, res, params) => {
       }
     }
   }
- 
+
   // No entry fee, or the host doesn't have live payouts connected yet — join instantly (old behavior).
   const item = {
     id: newId(), show_id: show.id, name, song: song || null, note,
@@ -811,7 +907,7 @@ route('POST', '/api/public/:joinCode/join', async (req, res, params) => {
   }
   sendJSON(res, 201, { participantId: item.id });
 });
- 
+
 function applyPaidAction(show, queue, idx, type, cost) {
   const me = queue[idx];
   if (type === 'skip') {
@@ -834,7 +930,7 @@ function applyPaidAction(show, queue, idx, type, cost) {
     db.prepare(`UPDATE queue_items SET position=1 WHERE id=?`).run(me.id);
   }
 }
- 
+
 route('POST', '/api/public/:joinCode/checkout', async (req, res, params) => {
   const user = findUserByCodeOrUsername(params.joinCode);
   if (!user) return sendJSON(res, 404, { error: 'Invalid link.' });
@@ -845,18 +941,18 @@ route('POST', '/api/public/:joinCode/checkout', async (req, res, params) => {
   const body = await readBody(req);
   const participantId = body.participantId;
   const type = body.type === 'jump' ? 'jump' : 'skip';
- 
+
   if (queuePaymentLocks.has(participantId)) {
     return sendJSON(res, 429, { error: "Your last request is still processing — give it a second." });
   }
   queuePaymentLocks.add(participantId);
- 
+
   try {
     const queue = db.prepare(`SELECT * FROM queue_items WHERE show_id=? AND status='queued' ORDER BY position ASC`).all(show.id);
     const idx = queue.findIndex(q => q.id === participantId);
     if (idx === -1) return sendJSON(res, 404, { error: 'Not found.' });
     if (idx === 0) return sendJSON(res, 409, { error: "That song is already on stage — it can't be skipped." });
- 
+
     let cost;
     if (type === 'skip') {
       let skippedEnd = 0;
@@ -877,9 +973,9 @@ route('POST', '/api/public/:joinCode/checkout', async (req, res, params) => {
       cost = baseJumpFee + skippedCount * skipFee;
     }
     if (cost <= 0) return sendJSON(res, 400, { error: 'Invalid amount.' });
- 
+
     const canUseRealStripe = !!STRIPE_SECRET_KEY && !!user.stripe_account_id && !!user.stripe_payouts_enabled;
- 
+
     if (!canUseRealStripe) {
       // No live payouts connection yet — fall back to the old instant/simulated flow so testing still works.
       applyPaidAction(show, queue, idx, type, cost);
@@ -887,7 +983,7 @@ route('POST', '/api/public/:joinCode/checkout', async (req, res, params) => {
         .run(newId(), user.id, show.id, type === 'jump' ? 'overtake_fee' : 'skip_fee', cost, 'pending', Date.now());
       return sendJSON(res, 200, { simulated: true, cost });
     }
- 
+
     const origin = requestOrigin(req);
     const platformCut = Math.round(cost * 100 * PLATFORM_FEE_PCT);
     const session = await stripeRequestV1('POST', '/checkout/sessions', {
@@ -915,14 +1011,14 @@ route('POST', '/api/public/:joinCode/checkout', async (req, res, params) => {
     queuePaymentLocks.delete(participantId);
   }
 });
- 
+
 route('GET', '/api/public/:joinCode/pending/:pendingId', async (req, res, params) => {
   const pending = db.prepare(`SELECT resolved_participant_id FROM pending_submissions WHERE id=?`).get(params.pendingId);
   if (!pending) return sendJSON(res, 404, { error: 'Not found.' });
   if (pending.resolved_participant_id) return sendJSON(res, 200, { resolved: true, participantId: pending.resolved_participant_id });
   sendJSON(res, 200, { resolved: false });
 });
- 
+
 route('POST', '/api/stripe/webhook', async (req, res) => {
   let rawBody;
   try { rawBody = await readRawBody(req); } catch (e) { return sendJSON(res, 400, { error: e.message }); }
@@ -934,14 +1030,14 @@ route('POST', '/api/stripe/webhook', async (req, res) => {
   }
   let event;
   try { event = JSON.parse(rawBody.toString('utf8')); } catch (e) { return sendJSON(res, 400, { error: 'Invalid JSON.' }); }
- 
+
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
     const meta = session.metadata || {};
     const { joinCode, participantId, type, entryPendingId } = meta;
     const paymentIntentId = session.payment_intent;
     const already = db.prepare(`SELECT id FROM transactions WHERE stripe_payment_intent_id=?`).get(paymentIntentId);
- 
+
     if (!already && entryPendingId) {
       const pending = db.prepare(`SELECT * FROM pending_submissions WHERE id=?`).get(entryPendingId);
       if (pending && !pending.resolved_participant_id) {
@@ -976,7 +1072,7 @@ route('POST', '/api/stripe/webhook', async (req, res) => {
   }
   sendJSON(res, 200, { received: true });
 });
- 
+
 // ----- json helpers -----
 function showToJSON(s) {
   return {
@@ -990,9 +1086,9 @@ function showToJSON(s) {
 function queueToJSON(q) {
   return { id: q.id, name: q.name, song: q.song, note: q.note, paidTotal: q.paid_total, position: q.position, status: q.status, joinedAt: q.joined_at, coverUrl: q.cover_url, fileData: q.file_data, fileName: q.file_name };
 }
- 
+
 route('GET', '/health', async (req, res) => { sendJSON(res, 200, { ok: true, time: Date.now() }); });
- 
+
 // ---------- server ----------
 const server = http.createServer(async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', corsOriginFor(req));
@@ -1014,10 +1110,9 @@ const server = http.createServer(async (req, res) => {
   }
   sendJSON(res, 404, { error: 'Not found' });
 });
- 
+
 server.listen(PORT, () => {
   console.log(`Keep it up! API listening on http://localhost:${PORT}`);
 });
- 
+
 module.exports = server;
- 
