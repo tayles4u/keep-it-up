@@ -103,6 +103,12 @@ db.exec(`
     PRIMARY KEY (owner_id, member_id)
   );
 
+  -- Platform-wide key/value settings (currently just the global default streamer split).
+  CREATE TABLE IF NOT EXISTS platform_settings (
+    key   TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+  );
+
   CREATE INDEX IF NOT EXISTS idx_shows_user ON shows(user_id);
   CREATE INDEX IF NOT EXISTS idx_queue_show ON queue_items(show_id);
   CREATE INDEX IF NOT EXISTS idx_tx_user ON transactions(user_id);
@@ -129,5 +135,11 @@ try { db.exec(`ALTER TABLE users ADD COLUMN profile_image TEXT`); } catch (e) { 
 // Safe migration for team/co-host invite links — each user's own reusable, resettable invite code.
 try { db.exec(`ALTER TABLE users ADD COLUMN team_code TEXT`); } catch (e) { /* column already exists — fine */ }
 try { db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_team_code ON users(team_code) WHERE team_code IS NOT NULL`); } catch (e) { /* index already exists — fine */ }
+// Safe migrations for the platform-admin panel: who's an admin, each admin's own invite link,
+// and a per-streamer split override (falls back to the platform default when NULL).
+try { db.exec(`ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0`); } catch (e) { /* column already exists — fine */ }
+try { db.exec(`ALTER TABLE users ADD COLUMN admin_invite_code TEXT`); } catch (e) { /* column already exists — fine */ }
+try { db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_admin_invite_code ON users(admin_invite_code) WHERE admin_invite_code IS NOT NULL`); } catch (e) { /* index already exists — fine */ }
+try { db.exec(`ALTER TABLE users ADD COLUMN platform_fee_pct_override REAL`); } catch (e) { /* column already exists — fine */ }
 
 module.exports = db;
