@@ -1910,7 +1910,7 @@ function renderSessionsHistory(){
   const el = document.getElementById('view-sessions-history');
   const rows = db.history.slice().reverse();
   let body = rows.length ? `<div class="card" style="padding:0;overflow:hidden"><div class="table-scroll"><table class="table"><thead><tr><th>${t('th_session')}</th><th>${t('th_date')}</th><th>${t('th_duration')}</th><th>${t('th_crowd')}</th><th>${t('th_earned')}</th><th></th></tr></thead><tbody>` +
-    rows.map(h=>`<tr><td>${escapeHtml(h.title)}</td><td>${fmtDate(h.endedAt)}</td><td class="mono">${fmtDur(h.durationSec)}</td><td>${h.totalParticipants}</td><td class="mono">${money(h.earnings)}</td><td><button class="btn-xs" onclick="openSetlistModal('${h.id}')">Setlist</button></td></tr>`).join('') +
+    rows.map(h=>`<tr><td>${escapeHtml(h.title)}</td><td>${fmtDate(h.endedAt)}</td><td class="mono">${fmtDur(h.durationSec)}</td><td>${h.totalParticipants}</td><td class="mono">${money(h.earnings)}</td><td style="display:flex;gap:6px"><button class="btn-xs" onclick="openShowRecapById('${h.id}')">Recap</button><button class="btn-xs" onclick="openSetlistModal('${h.id}')">Setlist</button></td></tr>`).join('') +
     `</tbody></table></div></div>`
     : `<div class="empty"><h2>${t('history_empty_title')}</h2><p>${t('history_empty_sub')}</p></div>`;
   el.innerHTML = `<div class="page-head"><h1>${t('page_sessions')}</h1>${rows.length ? `<button class="btn-xs" onclick="exportHistoryCSV()">Export CSV</button>` : ''}</div><div class="subtabs"><div class="subtab nav-link" data-view="sessions-host">${t('tab_host')}</div><div class="subtab active">${t('tab_history')}</div></div>${body}`;
@@ -2618,11 +2618,61 @@ async function endSession(){
   try{
     await apiFetch('/api/shows/'+s.id+'/end', { method:'POST' });
     saveLastSettings(s.settings);
+    const endedId = s.id;
     db.session = null;
     clearInterval(liveTimerHandle); openDrawer=null;
     toast('Show ended');
     showView('sessions-history');
+    // The live session object only ever holds still-queued items (see /api/shows/current), never
+    // played ones — so the recap needs a fresh copy from history, which now includes this show.
+    try{
+      await refreshHistory();
+      const ended = db.history.find(h=>h.id===endedId);
+      if(ended) openShowRecap(ended);
+    }catch(e){ /* recap is a nice-to-have — a failed refresh here shouldn't block anything */ }
   }catch(e){ toast(e.message); }
+}
+function copyRecapSummary(text){ if(navigator.clipboard){ navigator.clipboard.writeText(text).then(()=>toast('Summary copied')); } else toast('Could not copy — select the text manually.'); }
+function openShowRecap(show){
+  const existing = document.querySelector('.modal-overlay.recap-modal');
+  if(existing) existing.remove();
+  const songs = show.songs || [];
+  const songsPlayed = songs.length;
+  const topSupporters = songs.filter(s=>s.paidTotal>0).slice().sort((a,b)=>b.paidTotal-a.paidTotal).slice(0,3);
+  const medals = ['🥇','🥈','🥉'];
+  const topHtml = topSupporters.length ? topSupporters.map((s,i)=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--line)">
+      <div>${medals[i]} <b>${escapeHtml(s.name)}</b></div>
+      <div class="mono">${money(s.paidTotal)}</div>
+    </div>`).join('') : `<div class="msub">No paid skips or entry fees this show.</div>`;
+  const summaryText = `${show.title} — recap\n`
+    + `${money(show.earnings)} earned · ${show.totalParticipants} fans · ${songsPlayed} played · ${fmtDur(show.durationSec)}`
+    + (topSupporters.length ? `\nTop supporter: ${topSupporters[0].name} (${money(topSupporters[0].paidTotal)})` : '');
+
+  const modalEl = document.createElement('div');
+  modalEl.className = 'modal-overlay recap-modal';
+  modalEl.innerHTML = `
+    <div class="modal" style="width:440px">
+      <h3>Show recap</h3>
+      <div class="msub">${escapeHtml(show.title)} · ${fmtDur(show.durationSec)}</div>
+      <div class="bento" style="margin-top:14px">
+        <div class="card b-main"><div class="stat-h"><div><h3>Earned</h3></div></div><div class="sc-val">${money(show.earnings)}</div></div>
+        <div class="card b-side"><div class="stat-h"><div><h3>Fans</h3></div></div><div class="sc-val">${show.totalParticipants}</div></div>
+        <div class="card b-side"><div class="stat-h"><div><h3>Played</h3></div></div><div class="sc-val">${songsPlayed}</div></div>
+      </div>
+      <div class="msub" style="margin-top:16px;font-weight:700;color:var(--ink)">Biggest supporters</div>
+      ${topHtml}
+      <div class="modal-actions" style="margin-top:18px">
+        <button class="btn btn-gold" style="flex:1" onclick='copyRecapSummary(${JSON.stringify(summaryText)})'>Copy summary</button>
+        <button class="btn btn-ghost" onclick="this.closest('.modal-overlay').remove()">Done</button>
+      </div>
+    </div>`;
+  modalEl.addEventListener('click', e=>{ if(e.target===modalEl) modalEl.remove(); });
+  document.body.appendChild(modalEl);
+}
+function openShowRecapById(historyId){
+  const h = db.history.find(x=>x.id===historyId);
+  if(h) openShowRecap(h);
 }
 
 /* Custom skip/submission sounds are stored as a data URL right in the show's settings —
