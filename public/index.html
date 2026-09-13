@@ -322,6 +322,36 @@ body.overlay-mode .help-fab,body.overlay-mode #toast{display:none!important;}
 .resume-card b{font-size:20px;display:block;margin-bottom:4px;}
 .resume-card span{color:var(--ink-faint);font-size:12.5px;}
 
+/* ----- Sessions/Host hero (the screen before/around going live — was flat form fields on
+   blank space, now a proper "stage" moment) ----- */
+.host-hero{display:flex;flex-direction:column;align-items:center;}
+.host-hero-glow{position:relative;width:100px;height:56px;display:flex;align-items:center;justify-content:center;margin-bottom:20px;}
+.host-hero-glow::before{content:'';position:absolute;inset:-34px;background:radial-gradient(circle, var(--gold) 0%, transparent 68%);opacity:.16;filter:blur(18px);border-radius:50%;pointer-events:none;}
+.host-hero-glow .eq-mark{height:46px;gap:6px;position:relative;z-index:1;}
+.host-hero-glow .eq-mark i{width:8px;border-radius:5px;transform-origin:bottom;animation:eqBounce 1.15s ease-in-out infinite;}
+.host-hero-glow .eq-mark i:nth-child(1){animation-delay:-.95s;}
+.host-hero-glow .eq-mark i:nth-child(2){animation-delay:-.55s;}
+.host-hero-glow .eq-mark i:nth-child(3){animation-delay:-.75s;}
+.host-hero-glow .eq-mark i:nth-child(4){animation-delay:-.15s;}
+@keyframes eqBounce{0%,100%{transform:scaleY(.38);}50%{transform:scaleY(1);}}
+@media (prefers-reduced-motion: reduce){ .host-hero-glow .eq-mark i{animation:none;transform:scaleY(.8);} }
+.host-hero h2{font-size:40px;margin-bottom:6px;}
+.host-hero p{color:var(--ink-dim);font-size:14px;max-width:380px;line-height:1.5;margin-bottom:26px;}
+.host-hero .sess-name-input{width:320px;font-size:15px;padding:15px 18px;border-radius:14px;background:var(--bg-2);}
+.host-hero .sess-name-input:focus{box-shadow:0 0 0 4px var(--gold-dim);}
+.go-live-btn{position:relative;padding:16px 44px;font-size:14px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;border-radius:100px;margin-top:24px;}
+.go-live-btn::before{content:'';position:absolute;inset:-4px;border-radius:inherit;border:1.5px solid var(--gold);opacity:.45;animation:goLiveRing 2.2s ease-out infinite;pointer-events:none;}
+@media (prefers-reduced-motion: reduce){ .go-live-btn::before{animation:none;display:none;} }
+@keyframes goLiveRing{0%{transform:scale(1);opacity:.45;}100%{transform:scale(1.18);opacity:0;}}
+
+.host-live-card{position:relative;background:linear-gradient(165deg,var(--bg-1),var(--bg-2));border:1px solid var(--line-strong);border-radius:24px;padding:38px 42px;text-align:center;max-width:420px;overflow:hidden;}
+.host-live-card::before{content:'';position:absolute;top:-45%;left:-15%;width:170%;height:170%;background:radial-gradient(circle at 28% 22%, var(--mint) 0%, transparent 46%);opacity:.09;pointer-events:none;}
+.host-live-badge{position:relative;display:inline-flex;align-items:center;gap:7px;background:var(--mint-dim);color:var(--mint);font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;padding:6px 14px;border-radius:100px;margin-bottom:16px;}
+.host-live-card h2{position:relative;font-size:34px;line-height:1.05;margin-bottom:6px;word-break:break-word;}
+.host-live-meta{position:relative;color:var(--ink-dim);font-size:13px;margin-bottom:26px;}
+.host-live-card .btn{position:relative;}
+.host-panel-row{display:flex;flex-direction:column;gap:12px;width:100%;max-width:420px;margin-top:28px;}
+
 .card{background:var(--bg-1);border:1px solid var(--line);border-radius:var(--r-lg);padding:20px;}
 .bento{display:grid;grid-template-columns:1.3fr 1fr;grid-template-rows:auto auto;gap:14px;}
 .bento .b-main{grid-row:span 2;display:flex;flex-direction:column;justify-content:space-between;}
@@ -619,6 +649,9 @@ html.overlay-mode,body.overlay-mode{background:transparent!important;}
 .join-field input[type=text],.join-field input[type=password],.join-field input[type=email]{width:100%;background:var(--bg-2);border:1.5px solid var(--line-strong);border-radius:10px;padding:12px 14px;font-size:13.5px;color:var(--ink);}
 .join-field input:focus{outline:none;border-color:var(--gold);}
 .join-note{font-size:11.5px;color:var(--ink-faint);margin:-4px 0 14px;}
+.info-banner{display:flex;align-items:flex-start;gap:12px;background:var(--bg-2);border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:12px;padding:14px 16px;margin:14px 0;text-align:left;}
+.info-banner .ib-icon{flex-shrink:0;color:var(--gold);margin-top:1px;}
+.info-banner .ib-text{font-size:12.5px;color:var(--ink-dim);line-height:1.5;margin-bottom:10px;}
 .join-actions{display:flex;flex-direction:column;gap:9px;margin-top:16px;}
 .join-hint{font-size:10.5px;color:var(--ink-faint);text-align:center;margin-top:16px;}
 
@@ -821,7 +854,7 @@ html.overlay-mode,body.overlay-mode{background:transparent!important;}
 
 <script>
 /* ===================== STATE / PERSISTENCE (connected to a real backend) ===================== */
-const APP_VERSION = '1.8.0'; // bump this on every deploy — shown small under the logo, top left, so you can confirm a deploy actually landed
+const APP_VERSION = '1.10.0'; // bump this on every deploy — shown small under the logo, top left, so you can confirm a deploy actually landed
 const API_BASE = (function(){ try{ return localStorage.getItem('kiu_api_base_override'); }catch(e){ return null; } })() || window.KIU_API_BASE || 'https://keepitup-api-4fky.onrender.com';
 const GOOGLE_CLIENT_ID = '655518852084-1qdd80e44621hr90bdlg0iphjvnho9si.apps.googleusercontent.com';
 const THEME_KEY = 'kiu_theme_v1';
@@ -862,7 +895,7 @@ const I18N = {
     already_live:'Already on stage', queued_up:'queued up', back_to_stage:'Back to stage',
     history_empty_title:'No shows yet', history_empty_sub:"Sessions you've hosted will line up here once you wrap one.",
     th_session:'Session', th_date:'Date', th_duration:'Duration', th_crowd:'Crowd', th_earned:'Earned',
-    btn_share:'Share', btn_end_show:'End show', btn_payout:'Payout',
+    btn_share:'Share', btn_end_show:'End show', btn_payout:'Payout', btn_copy:'Copy',
     ready_cashout:'Ready to cash out', ready_cashout_sub:'Available for payout right now',
     in_pot:'In the pot', in_pot_sub:'Being processed live',
     on_way:'On its way', on_way_sub:'Sent to your bank',
@@ -926,7 +959,7 @@ const I18N = {
     already_live:'Bereits auf der Bühne', queued_up:'in der Warteschlange', back_to_stage:'Zurück zur Bühne',
     history_empty_title:'Noch keine Shows', history_empty_sub:'Sessions, die du gehostet hast, tauchen hier auf, sobald du eine abschließt.',
     th_session:'Session', th_date:'Datum', th_duration:'Dauer', th_crowd:'Crowd', th_earned:'Verdient',
-    btn_share:'Teilen', btn_end_show:'Show beenden', btn_payout:'Auszahlung',
+    btn_share:'Teilen', btn_end_show:'Show beenden', btn_payout:'Auszahlung', btn_copy:'Kopieren',
     ready_cashout:'Auszahlbar', ready_cashout_sub:'Gerade verfügbar für Auszahlung',
     in_pot:'In Bearbeitung', in_pot_sub:'Wird live verarbeitet',
     on_way:'Unterwegs', on_way_sub:'An deine Bank unterwegs',
@@ -1980,11 +2013,19 @@ function renderAdmin(){
 function renderSessionsHost(){
   const el = document.getElementById('view-sessions-host');
   const subtabs = `<div class="subtabs"><div class="subtab active">${t('tab_host')}</div><div class="subtab nav-link" data-view="sessions-history">${t('tab_history')}</div></div>`;
-  const linkLine = `<div class="code-inline">${t('permanent_link')} <span onclick="openShare()" style="text-decoration:underline;cursor:pointer;color:var(--gold)">${escapeHtml(joinUrl(getOrCreateAccountCode()))}</span></div>`;
+  const shareUrl = joinUrl(getOrCreateAccountCode());
+  const linkLine = `
+    <div class="code-inline" style="display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--bg-1);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-top:0;text-align:left">
+      <span onclick="openShare()" style="cursor:pointer;text-decoration:underline;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(shareUrl)}</span>
+      <button class="btn-xs" onclick="copyShare('${shareUrl}')" style="flex-shrink:0">${t('btn_copy')}</button>
+    </div>`;
   const stripeNudge = (currentUser && !currentUser.stripePayoutsEnabled)
-    ? `<div class="join-note" style="background:var(--coral-dim);color:var(--coral);border-radius:10px;padding:10px 12px;margin:14px 0;text-align:left">
-         <div style="margin-bottom:8px">${t('stripe_nudge')}</div>
-         <button class="btn-xs" onclick="showView('finances-wallets')">${t('stripe_nudge_btn')}</button>
+    ? `<div class="info-banner" style="text-align:left">
+         <div class="ib-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v5M12 16h.01"/><circle cx="12" cy="12" r="9"/></svg></div>
+         <div>
+           <div class="ib-text">${t('stripe_nudge')}</div>
+           <button class="btn-xs" onclick="showView('finances-wallets')">${t('stripe_nudge_btn')}</button>
+         </div>
        </div>`
     : '';
   if(db.session && db.session.status==='live'){
@@ -1992,22 +2033,33 @@ function renderSessionsHost(){
       <div class="page-head"><h1>${t('page_sessions')}</h1><button class="btn btn-ghost" onclick="openShare()">${t('btn_share')}</button></div>
       ${subtabs}
       <div class="empty">
-        <div class="resume-card"><b>${escapeHtml(db.session.title)}</b><span>${t('already_live')} · ${db.session.queue.length} ${t('queued_up')}</span></div>
-        <button class="btn btn-gold" onclick="showView('sessions-live')">${t('back_to_stage')}</button>
-        ${linkLine}
-        ${stripeNudge}
+        <div class="host-live-card">
+          <div class="host-live-badge"><span class="livedot" style="margin-right:0"></span>${t('already_live')}</div>
+          <h2>${escapeHtml(db.session.title)}</h2>
+          <div class="host-live-meta">${db.session.queue.length} ${t('queued_up')}</div>
+          <button class="btn btn-gold btn-block" onclick="showView('sessions-live')">${t('back_to_stage')}</button>
+        </div>
+        <div class="host-panel-row">
+          ${linkLine}
+          ${stripeNudge}
+        </div>
       </div>`;
   } else {
     el.innerHTML = `
       <div class="page-head"><h1>${t('page_sessions')}</h1></div>
       ${subtabs}
       <div class="empty">
-        <h2>${t('host_empty_title')}</h2>
-        <p>${t('host_empty_sub')}</p>
-        <input id="new-sess-name" class="sess-name-input" type="text" placeholder="${t('sess_name_ph')}" maxlength="40">
-        <button class="btn btn-gold" onclick="startSession()">${t('btn_go_live')}</button>
-        ${linkLine}
-        ${stripeNudge}
+        <div class="host-hero">
+          <div class="host-hero-glow"><div class="eq-mark"><i></i><i></i><i></i><i></i></div></div>
+          <h2>${t('host_empty_title')}</h2>
+          <p>${t('host_empty_sub')}</p>
+          <input id="new-sess-name" class="sess-name-input" type="text" placeholder="${t('sess_name_ph')}" maxlength="40" onkeydown="if(event.key==='Enter'){startSession();}">
+          <button class="btn btn-gold go-live-btn" onclick="startSession()">${t('btn_go_live')}</button>
+        </div>
+        <div class="host-panel-row">
+          ${linkLine}
+          ${stripeNudge}
+        </div>
       </div>`;
   }
 }
@@ -2291,12 +2343,19 @@ function accSection(key, title, bodyHtml){
 }
 function controlsPanelInner(s){
   const settings = s.settings;
+  const shareUrl = joinUrl(getOrCreateAccountCode());
+
+  const linkRow = `
+    <div class="code-inline" style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:16px">
+      <span onclick="openShare()" style="cursor:pointer;text-decoration:underline;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(shareUrl)}</span>
+      <button class="btn-xs" onclick="copyShare('${shareUrl}')" style="flex-shrink:0">${t('btn_copy')}</button>
+    </div>`;
 
   const overview = `
     <div class="ctrl-overview">
       <div class="ov-tile ov-click" onclick="quickToggleQueueOpen()"><div class="ov-label">${t('ov_queue')}</div><div class="ov-val ${settings.acceptingSubmissions?'on':'off'}">${settings.acceptingSubmissions?t('open_w'):t('closed_w')}</div></div>
       <div class="ov-tile ov-click" onclick="quickEditCap()"><div class="ov-label">${t('ov_cap')}</div><div class="ov-val">${settings.cap ? settings.cap : t('unlimited_w')}</div></div>
-      <div class="ov-tile ov-click" onclick="focusAccSection('pricing')"><div class="ov-label">${t('ov_skipfee')}</div><div class="ov-val">${money(settings.skipFee)}</div></div>
+      <div class="ov-tile ov-click" onclick="focusAccSection('pricing')"><div class="ov-label">${t('ov_skipfee')}</div><div class="ov-val" id="ov-skipfee-val">${money(settings.skipFee)}</div></div>
       <div class="ov-tile ov-click" onclick="quickToggleEntryFee()"><div class="ov-label">${t('ov_entryfee')}</div><div class="ov-val ${settings.entryFeeEnabled?'on':'off'}">${settings.entryFeeEnabled?money(settings.entryFee):t('off_w')}</div></div>
       <div class="ov-tile ov-click" onclick="quickCycleOrder()"><div class="ov-label">${t('ov_order')}</div><div class="ov-val">${settings.streamType==='trophy'?t('trophy_w'):settings.streamType==='bracket'?t('bracket_w'):t('list_w')}</div></div>
       <div class="ov-tile ov-click" onclick="quickToggleSkips()"><div class="ov-label">${t('ov_skips')}</div><div class="ov-val ${settings.skipsEnabled?'on':'off'}">${settings.skipsEnabled?t('on_w'):t('off_w')}</div></div>
@@ -2336,7 +2395,8 @@ function controlsPanelInner(s){
     ${soundRow('submissionSound', t('submission_sound'), t('submission_sound_hint'))}
     ${soundRow('skipSound', t('skip_sound'), t('skip_sound_hint'))}`;
 
-  return overview
+  return linkRow
+    + overview
     + accSection('queue', t('acc_queue'), queueBody)
     + accSection('pricing', t('acc_pricing'), pricingBody)
     + accSection('audio', t('acc_audio'), audioBody);
@@ -2447,6 +2507,12 @@ function renderLive(){
   const bracketActive = isBracket && s.bracket && !s.bracket.champion;
 
   const prevRects = captureQueueRects();
+  // A settings change (toggle, order type, cap, sound upload…) re-renders this whole panel — without
+  // this, the scroll position inside an open drawer or pinned panel snapped back to the top every
+  // single time, which felt broken especially deep in "Pricing & skips" or "Audio".
+  const scrollKeep = {};
+  ['drawer-stats', 'drawer-controls'].forEach(id => { const n=document.getElementById(id); if(n) scrollKeep[id]=n.scrollTop; });
+  document.querySelectorAll('.pin-col').forEach(n => { scrollKeep[n.className] = n.scrollTop; });
 
   const nowPlayingHtml = nowUp ? `
     <div class="now-playing">
@@ -2526,6 +2592,8 @@ function renderLive(){
     ${!pins.controls ? `<div class="drawer" id="drawer-controls"><div class="drawer-head"><b>${t('show_controls')}</b><div class="dh-actions"><button class="btn-xs" onclick="togglePin('controls')">${t('pin')}</button><div class="icon-btn" onclick="closeDrawers()">✕</div></div></div>${controlsInner}</div>` : ''}`;
 
   if(openDrawer){ const d=document.getElementById('drawer-'+openDrawer); if(d){ d.classList.add('open'); document.getElementById('drawer-backdrop').classList.add('open'); } }
+  ['drawer-stats', 'drawer-controls'].forEach(id => { const n=document.getElementById(id); if(n && scrollKeep[id]) n.scrollTop = scrollKeep[id]; });
+  document.querySelectorAll('.pin-col').forEach(n => { if(scrollKeep[n.className]) n.scrollTop = scrollKeep[n.className]; });
   positionOpenMenu();
   animateQueueRows(prevRects);
   clearInterval(liveTimerHandle);
@@ -2542,10 +2610,13 @@ function updateTimer(){
   timerEl.textContent = fmtDur(Math.floor((Date.now()-s.startedAt)/1000));
 }
 function sessionEarnings(s){ return s && typeof s.earnings === 'number' ? s.earnings : 0; }
-async function patchSettings(partial){
+async function patchSettings(partial, opts){
   const s = db.session; if(!s) return;
   Object.assign(s.settings, partial); // optimistic local update, so sliders/toggles feel instant
-  renderLive();
+  // Sliders already update their own label live (see updateSkipFeeLive/updateVolumeLive/etc) without
+  // touching the DOM tree, so their commit step can skip the full re-render entirely — replacing the
+  // <input type=range> mid-gesture is what was causing "have to drag it twice" on some browsers/touch.
+  if(!opts || !opts.skipRender) renderLive();
   try{ await apiFetch('/api/shows/'+s.id+'/settings', { method:'PATCH', body: partial }); }
   catch(e){ toast(e.message); }
 }
@@ -2567,11 +2638,15 @@ function quickCycleOrder(){
   setStreamType(next);
 }
 function updateVolumeLive(v){ db.session.settings.notifVolume = parseInt(v,10); const sr=document.getElementById('volume-val'); if(sr) sr.textContent = v+'%'; }
-function updateVolumeCommit(v){ patchSettings({ notifVolume: parseInt(v,10) }); }
-function updateSkipFeeLive(v){ db.session.settings.skipFee = parseFloat(v); const sr=document.getElementById('skipfee-val'); if(sr) sr.textContent = money(parseFloat(v)); }
-function updateSkipFeeCommit(v){ patchSettings({ skipFee: parseFloat(v) }); }
+function updateVolumeCommit(v){ patchSettings({ notifVolume: parseInt(v,10) }, {skipRender:true}); }
+function updateSkipFeeLive(v){
+  db.session.settings.skipFee = parseFloat(v);
+  const sr=document.getElementById('skipfee-val'); if(sr) sr.textContent = money(parseFloat(v));
+  const ov=document.getElementById('ov-skipfee-val'); if(ov) ov.textContent = money(parseFloat(v)); // overview tile, kept in sync without a full re-render
+}
+function updateSkipFeeCommit(v){ patchSettings({ skipFee: parseFloat(v) }, {skipRender:true}); }
 function updateJumpFeeLive(v){ db.session.settings.jumpFee = parseFloat(v); const sr=document.getElementById('jumpfee-val'); if(sr) sr.textContent = money(parseFloat(v)); }
-function updateJumpFeeCommit(v){ patchSettings({ jumpFee: parseFloat(v) }); }
+function updateJumpFeeCommit(v){ patchSettings({ jumpFee: parseFloat(v) }, {skipRender:true}); }
 function quickEditCap(){
   const s = db.session; if(!s) return;
   const current = s.settings.cap ? String(s.settings.cap) : '';
