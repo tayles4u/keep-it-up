@@ -309,7 +309,10 @@ route('POST', '/api/stripe/connect', async (req, res) => {
       use_case: {
         type: 'account_onboarding',
         account_onboarding: {
-          configurations: ['recipient'],
+          // Must list every configuration actually applied to the account (see createRecipientAccount) —
+          // 'recipient' alone here now fails with "You must correctly specify the applied configurations
+          // on the account in order to use v2/core/account_links" now that 'merchant' is also applied.
+          configurations: ['recipient', 'merchant'],
           refresh_url: origin + '/?stripe_refresh=1',
           return_url: origin + '/?stripe_return=1'
         }
