@@ -1,3 +1,5 @@
+
+
 <!DOCTYPE html>
 <html lang="de" data-theme="midnight">
 <head>
@@ -24,6 +26,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Keep it up! — live song reactions</title>
+<link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAABf0lEQVR4nO2bMQ7CMAxFA2IBiZWLcBMOyk24CCsSjDAFlZI0cev6x47fRItK/F/dKBVtCI7j9MxmycGH/fHNVchSnq/HrCzkg1oKnYMiY0v5YQ3hQ6DVWWVKS/AUpW4odoDm8CGU658UoD18ZCoHaQ6wSFaAlbMfyeVJCrAWPpLK5ZcAugA0fwKstn9knM87AF0Amu4F7CQHu1/P38+ny01y6CxiHTAMn9pGISIgF7YFCd3PAeoE3K9n1s5RJWAYnEuCGgGpwBwS1AhYCxeALgCN6EqwBGKl2EwHoFaKTQhArhSbEIDEBaALQMMqgHudLgGbgDXW6RKwCFhrnS6BzwHoAtC4AHQBaFwAugA0LAJSt67Dfblb27i/9H3NGHNh6wBqsdTtmjHm8PcImfW/x0P4fXTO5wB0AWhcwHjH3KeutTDO5x2ALkCSVHcnBVi/DIZkO8CahFyeLi6BqZM5KcBCFyx+YUKzhJraSeE03SfUnjhzb41RO7b79wYdp3M+kpeGu2ZicaIAAAAASUVORK5CYII=">
+<link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAYAAAA9zQYyAAAEAklEQVR4nO3cO24UQRiF0QaRgETKRtgJC2UnbIQUCYcQjWRZbbsf9bx1Tgi4p+T++F3MNLVtAAAAAAAAADC1D70XcMWXz1//9V7DKv4+/ZmqkeEXK96xjB74kIsT8RxGjHuoBQl5XqPEPcQihJyjd9hdX1zIuXqF3eVFhbyGHlE3f0Exr6dl2B9bvdC2iXlVLe97k785Quah9rSuPqHFzHO1e6gatJjZU7OLakGLmbfU6qNK0GLmiBqdFA9azJxRupemb9tBbUWDNp25omQ3xYIWM3eU6qdI0GKmhBId2UMT5XbQpjMl3e3JhCbKraBNZ2q405UJTZTLQZvO1HS1LxOaKJeCNp1p4UpnJjRRBE2U00HbbtDS2d5MaKIImiiCJoqgiXIqaP8gpIcz3ZnQRBE0UQRNFEETRdBEETRRPvVewGx+//y+++vffvxqvBL2mNAnvBbze79HO6dOU1/1g5WzsZrW5R09+d+EJoqg33FlK2H70Y+g33AnTFH3IWiiCJoogiaKoIkiaKIImiiCJoqgieJpu4XsfdiT9tyJoBdw5CnBlLBtOcId/Qg+5aN6QQc7G2lC1IIOdTXO2aMWNFEEHejulJ15SguaKIImiqCJImiiCJoogiaKoIkiaKJ42m4gDoK8z4QehIMgyzChOzv7eKdp/TYTmiiC7shBkOUJuhMHQdYhaKIImiiCJoqgiSJoogiaKIImiqCJImiiCJoogiaKoIkS+Tz0Cgd7sy8q6JUO9mZfzJZjtYO92RcR9IoHe7Nv+qBXPdibfdMHDc9NHfTKB3uzb+qg4SVBE0XQRBE0UQRNFEETRdBEETRRBE0UQRNF0EQRNFEETRRBE0XQRBE0UQRNlKmDvnskQeqRBit/X6YOurY7N/a9r6157ZVNH/TVm3v0665cf9Zr3/m6UUwf9Ladvwmz37SjVvy+fDjzh798/vqv1kJKOPK/uO/ctPeuP+u1716/hb9Pfw61GhX0Q83DGl+Lo8T1a177teuPHvLD0kGT52jQEXtoeBA0UQRNFEETRdBEETRRTgV99K0TKOlMdyY0UQRNFEET5XTQ9tG0dLY3E5oogibKpaBtO2jhSmcmNFEETZTLQdt2UNPVvkxootwK2pSmhjtdmdBEuR20KU1Jd3sqMqFFTQklOrLlIEqxoE1p7ijVT9EJLWquKNmNLQddlR6CxYM2pempyoQWNUfU6KTalkPUvKVWH1X30KJmT80umgTnGF62rc2AazpBhb2uVj+tm75tZwuyppb3vUtgJvUaegywrhNT2Ll6/TQeYgsg7By9t5VDBP0g7Hn1DvlhiEW8JOw5jBLxc8Mt6CVxj2XEiJ8benGvEXk7owcMAAAAAAAAsG3/AaM5Sz1MXrxyAAAAAElFTkSuQmCC">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Sora:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -816,7 +820,7 @@ html.overlay-mode,body.overlay-mode{background:transparent!important;}
 
 <script>
 /* ===================== STATE / PERSISTENCE (connected to a real backend) ===================== */
-const APP_VERSION = '1.3.0'; // bump this on every deploy — shown small under the logo, top left, so you can confirm a deploy actually landed
+const APP_VERSION = '1.4.0'; // bump this on every deploy — shown small under the logo, top left, so you can confirm a deploy actually landed
 const API_BASE = (function(){ try{ return localStorage.getItem('kiu_api_base_override'); }catch(e){ return null; } })() || window.KIU_API_BASE || 'https://keepitup-api-4fky.onrender.com';
 const GOOGLE_CLIENT_ID = '655518852084-1qdd80e44621hr90bdlg0iphjvnho9si.apps.googleusercontent.com';
 const THEME_KEY = 'kiu_theme_v1';
