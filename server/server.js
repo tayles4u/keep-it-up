@@ -259,35 +259,46 @@ function requestOrigin(req) {
 // fan could both read the queue before either had written its update, charging them twice.
 const queuePaymentLocks = new Set();
 
+// Stripe account IDs are scoped to a single mode (test vs. live) — an account created while
+// STRIPE_SECRET_KEY was a test key (sk_test_...) simply doesn't exist once the key is swapped
+// for a live one (sk_live_...), and vice versa. Stripe reports that as a 'resource_missing' /
+// "No such account" error. Rather than surfacing that as a dead end, we treat it as a sign the
+// stored account_id is stale for the currently-configured key and transparently create a fresh
+// one — this is exactly what happens the first time a host connects after switching to live mode.
+function looksLikeStaleAccount(err) {
+  return /no such account/i.test(err.message || '');
+}
+async function createRecipientAccount(user) {
+  // 'recipient' configuration = this account only ever receives transferred funds and gets paid out —
+  // it never processes its own card charges, which keeps the onboarding form as short as possible.
+  const account = await stripeRequestV2('POST', '/v2/core/accounts', {
+    contact_email: user.email,
+    display_name: user.name,
+    dashboard: 'express',
+    identity: { country: 'de' },
+    configuration: {
+      recipient: { capabilities: { stripe_balance: { stripe_transfers: { requested: true } } } }
+    },
+    defaults: {
+      currency: 'eur',
+      responsibilities: { fees_collector: 'application', losses_collector: 'application' },
+      locales: ['de-DE']
+    },
+    include: ['configuration.recipient']
+  });
+  db.prepare('UPDATE users SET stripe_account_id=?, stripe_payouts_enabled=0 WHERE id=?').run(account.id, user.id);
+  return account.id;
+}
+
 route('POST', '/api/stripe/connect', async (req, res) => {
   const user = getRealAuthUser(req); // never actable-for — a co-host must not redirect the host's own bank account
   if (!user) return sendJSON(res, 401, { error: 'Not signed in.' });
   try {
     let accountId = user.stripe_account_id;
-    if (!accountId) {
-      // 'recipient' configuration = this account only ever receives transferred funds and gets paid out —
-      // it never processes its own card charges, which keeps the onboarding form as short as possible.
-      const account = await stripeRequestV2('POST', '/v2/core/accounts', {
-        contact_email: user.email,
-        display_name: user.name,
-        dashboard: 'express',
-        identity: { country: 'de' },
-        configuration: {
-          recipient: { capabilities: { stripe_balance: { stripe_transfers: { requested: true } } } }
-        },
-        defaults: {
-          currency: 'eur',
-          responsibilities: { fees_collector: 'application', losses_collector: 'application' },
-          locales: ['de-DE']
-        },
-        include: ['configuration.recipient']
-      });
-      accountId = account.id;
-      db.prepare('UPDATE users SET stripe_account_id=? WHERE id=?').run(accountId, user.id);
-    }
+    if (!accountId) accountId = await createRecipientAccount(user);
     const origin = requestOrigin(req);
-    const link = await stripeRequestV2('POST', '/v2/core/account_links', {
-      account: accountId,
+    const makeLink = (acct) => stripeRequestV2('POST', '/v2/core/account_links', {
+      account: acct,
       use_case: {
         type: 'account_onboarding',
         account_onboarding: {
@@ -297,6 +308,15 @@ route('POST', '/api/stripe/connect', async (req, res) => {
         }
       }
     });
+    let link;
+    try {
+      link = await makeLink(accountId);
+    } catch (e) {
+      if (!looksLikeStaleAccount(e)) throw e;
+      // Stale account from a different Stripe mode (e.g. left over from test mode) — start fresh.
+      accountId = await createRecipientAccount(user);
+      link = await makeLink(accountId);
+    }
     sendJSON(res, 200, { url: link.url });
   } catch (e) { sendJSON(res, 500, { error: e.message }); }
 });
@@ -318,7 +338,16 @@ route('GET', '/api/stripe/status', async (req, res) => {
       chargesEnabled: payoutsEnabled,
       detailsSubmitted: currentlyDue.length === 0
     });
-  } catch (e) { sendJSON(res, 500, { error: e.message }); }
+  } catch (e) {
+    if (looksLikeStaleAccount(e)) {
+      // Left over from a different Stripe mode (e.g. connected while STRIPE_SECRET_KEY was
+      // still a test key) — clear it so the UI offers a normal "Connect payouts" button again
+      // instead of a scary error, and /api/stripe/connect will create a fresh account for it.
+      db.prepare('UPDATE users SET stripe_account_id=NULL, stripe_payouts_enabled=0 WHERE id=?').run(user.id);
+      return sendJSON(res, 200, { connected: false });
+    }
+    sendJSON(res, 500, { error: e.message });
+  }
 });
 
 // ----- auth -----
