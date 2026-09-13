@@ -232,6 +232,32 @@ async function stripeRequestV1(method, path, body) {
   if (!res.ok) throw new Error((data.error && data.error.message) || 'Stripe request failed.');
   return data;
 }
+// Fans can pay skip/jump/entry fees even for a host who hasn't connected Stripe yet (or whose
+// payouts aren't active there yet) — the checkout webhook records those as transactions.status='held'
+// instead of 'available', since the charge landed on the platform's own Stripe balance rather than
+// being transferred straight to the host. Once the host connects payouts, this sweeps everything
+// they're owed over to their account in one Stripe Transfer and flips those rows to 'available'.
+async function sweepHeldTransactions(user) {
+  if (!user.stripe_account_id) return;
+  const rows = db.prepare(`SELECT * FROM transactions WHERE user_id=? AND status='held'`).all(user.id);
+  if (!rows.length) return;
+  const totalCents = Math.round(rows.reduce((sum, t) => sum + t.amount, 0) * 100);
+  if (totalCents <= 0) return;
+  try {
+    await stripeRequestV1('POST', '/transfers', {
+      amount: totalCents,
+      currency: 'eur',
+      destination: user.stripe_account_id,
+      description: 'Keep it up! — held earnings released after connecting payouts'
+    });
+    const ids = rows.map(r => r.id);
+    db.prepare(`UPDATE transactions SET status='available' WHERE id IN (${ids.map(() => '?').join(',')})`).run(...ids);
+  } catch (e) {
+    // Leave rows as 'held' — this is retried automatically the next time /api/stripe/status is
+    // checked with payouts enabled (e.g. next time the host opens Finances → Wallets).
+    console.error('Failed to sweep held transactions for user', user.id, ':', e.message);
+  }
+}
 function verifyStripeSignature(rawBody, sigHeader, secret) {
   if (!secret) throw new Error('Webhook secret not configured.');
   if (!sigHeader) throw new Error('Missing Stripe-Signature header.');
@@ -331,10 +357,15 @@ route('POST', '/api/stripe/connect', async (req, res) => {
   } catch (e) { sendJSON(res, 500, { error: e.message }); }
 });
 
+function heldTotalFor(userId) {
+  const row = db.prepare(`SELECT COALESCE(SUM(amount),0) AS total FROM transactions WHERE user_id=? AND status='held'`).get(userId);
+  return row.total;
+}
+
 route('GET', '/api/stripe/status', async (req, res) => {
   const user = getRealAuthUser(req); // never actable-for — this is the host's own payout status
   if (!user) return sendJSON(res, 401, { error: 'Not signed in.' });
-  if (!user.stripe_account_id) return sendJSON(res, 200, { connected: false });
+  if (!user.stripe_account_id) return sendJSON(res, 200, { connected: false, heldAmount: heldTotalFor(user.id) });
   try {
     const account = await stripeRequestV2('GET', '/v2/core/accounts/' + user.stripe_account_id + '?include[0]=configuration.recipient&include[1]=requirements');
     const recipientCap = account.configuration && account.configuration.recipient && account.configuration.recipient.capabilities;
@@ -342,11 +373,16 @@ route('GET', '/api/stripe/status', async (req, res) => {
     const payoutsEnabled = transferStatus === 'active';
     const currentlyDue = (account.requirements && account.requirements.currently_due) || [];
     db.prepare('UPDATE users SET stripe_payouts_enabled=? WHERE id=?').run(payoutsEnabled ? 1 : 0, user.id);
+    if (payoutsEnabled) {
+      const freshUser = db.prepare('SELECT * FROM users WHERE id=?').get(user.id);
+      await sweepHeldTransactions(freshUser);
+    }
     sendJSON(res, 200, {
       connected: true,
       payoutsEnabled,
       chargesEnabled: payoutsEnabled,
-      detailsSubmitted: currentlyDue.length === 0
+      detailsSubmitted: currentlyDue.length === 0,
+      heldAmount: heldTotalFor(user.id)
     });
   } catch (e) {
     if (looksLikeStaleAccount(e)) {
@@ -354,7 +390,7 @@ route('GET', '/api/stripe/status', async (req, res) => {
       // still a test key) — clear it so the UI offers a normal "Connect payouts" button again
       // instead of a scary error, and /api/stripe/connect will create a fresh account for it.
       db.prepare('UPDATE users SET stripe_account_id=NULL, stripe_payouts_enabled=0 WHERE id=?').run(user.id);
-      return sendJSON(res, 200, { connected: false });
+      return sendJSON(res, 200, { connected: false, heldAmount: heldTotalFor(user.id) });
     }
     sendJSON(res, 500, { error: e.message });
   }
@@ -1008,37 +1044,45 @@ route('POST', '/api/public/:joinCode/join', async (req, res, params) => {
   const coverUrl = song ? await fetchCoverUrl(song) : null;
 
   if (entry > 0) {
-    const canUseRealStripe = !!STRIPE_SECRET_KEY && !!user.stripe_account_id && !!user.stripe_payouts_enabled;
-    if (canUseRealStripe) {
-      const pendingId = newId();
-      db.prepare(`INSERT INTO pending_submissions (id,show_id,name,song,note,cover_url,file_data,file_name,created_at)
-                  VALUES (?,?,?,?,?,?,?,?,?)`)
-        .run(pendingId, show.id, name, song || null, note, coverUrl, fileData || null, fileData ? (fileName || 'uploaded file') : null, Date.now());
-      try {
-        const origin = requestOrigin(req);
-        const session = await stripeRequestV1('POST', '/checkout/sessions', {
-          mode: 'payment',
-          line_items: [{
-            price_data: { currency: 'eur', product_data: { name: 'Queue entry fee' }, unit_amount: Math.round(entry * 100) },
-            quantity: 1
-          }],
-          payment_intent_data: {
-            application_fee_amount: Math.round(entry * 100 * effectiveFeePct(user)),
-            transfer_data: { destination: user.stripe_account_id }
-          },
-          metadata: { entryPendingId: pendingId },
-          success_url: origin + '/?join=' + encodeURIComponent(params.joinCode) + '&paid=1&pending=' + encodeURIComponent(pendingId),
-          cancel_url: origin + '/?join=' + encodeURIComponent(params.joinCode)
-        });
-        return sendJSON(res, 200, { url: session.url });
-      } catch (e) {
-        db.prepare(`DELETE FROM pending_submissions WHERE id=?`).run(pendingId);
-        return sendJSON(res, 500, { error: e.message });
+    if (!STRIPE_SECRET_KEY) {
+      return sendJSON(res, 409, { error: 'Payments are not configured on this server yet.' });
+    }
+    // Host may not have a connected Stripe account yet (or payouts not enabled there) — in that
+    // case the charge still goes through on the platform's own Stripe account, and the host's net
+    // share is held (transactions.status='held') until they connect payouts, at which point it's
+    // swept over to them automatically (see sweepHeldTransactions).
+    const hostConnected = !!user.stripe_account_id && !!user.stripe_payouts_enabled;
+    const pendingId = newId();
+    db.prepare(`INSERT INTO pending_submissions (id,show_id,name,song,note,cover_url,file_data,file_name,created_at)
+                VALUES (?,?,?,?,?,?,?,?,?)`)
+      .run(pendingId, show.id, name, song || null, note, coverUrl, fileData || null, fileData ? (fileName || 'uploaded file') : null, Date.now());
+    try {
+      const origin = requestOrigin(req);
+      const sessionParams = {
+        mode: 'payment',
+        line_items: [{
+          price_data: { currency: 'eur', product_data: { name: 'Queue entry fee' }, unit_amount: Math.round(entry * 100) },
+          quantity: 1
+        }],
+        metadata: { entryPendingId: pendingId, held: hostConnected ? '' : '1' },
+        success_url: origin + '/?join=' + encodeURIComponent(params.joinCode) + '&paid=1&pending=' + encodeURIComponent(pendingId),
+        cancel_url: origin + '/?join=' + encodeURIComponent(params.joinCode)
+      };
+      if (hostConnected) {
+        sessionParams.payment_intent_data = {
+          application_fee_amount: Math.round(entry * 100 * effectiveFeePct(user)),
+          transfer_data: { destination: user.stripe_account_id }
+        };
       }
+      const session = await stripeRequestV1('POST', '/checkout/sessions', sessionParams);
+      return sendJSON(res, 200, { url: session.url });
+    } catch (e) {
+      db.prepare(`DELETE FROM pending_submissions WHERE id=?`).run(pendingId);
+      return sendJSON(res, 500, { error: e.message });
     }
   }
 
-  // No entry fee, or the host doesn't have live payouts connected yet — join instantly (old behavior).
+  // No entry fee for this show — join instantly.
   const item = {
     id: newId(), show_id: show.id, name, song: song || null, note,
     paid_total: entry, position: count, status: 'queued', joined_at: Date.now(),
@@ -1121,19 +1165,18 @@ route('POST', '/api/public/:joinCode/checkout', async (req, res, params) => {
     }
     if (cost <= 0) return sendJSON(res, 400, { error: 'Invalid amount.' });
 
-    const canUseRealStripe = !!STRIPE_SECRET_KEY && !!user.stripe_account_id && !!user.stripe_payouts_enabled;
-
-    if (!canUseRealStripe) {
-      // No live payouts connection yet — fall back to the old instant/simulated flow so testing still works.
-      applyPaidAction(show, queue, idx, type, cost);
-      db.prepare(`INSERT INTO transactions (id,user_id,show_id,type,amount,status,date) VALUES (?,?,?,?,?,?,?)`)
-        .run(newId(), user.id, show.id, type === 'jump' ? 'overtake_fee' : 'skip_fee', cost, 'pending', Date.now());
-      return sendJSON(res, 200, { simulated: true, cost });
+    if (!STRIPE_SECRET_KEY) {
+      return sendJSON(res, 409, { error: 'Payments are not configured on this server yet.' });
     }
+    // Host may not have a connected Stripe account yet (or payouts not enabled there) — in that
+    // case the charge still goes through on the platform's own Stripe account, and the host's net
+    // share is held (transactions.status='held') until they connect payouts, at which point it's
+    // swept over to them automatically (see sweepHeldTransactions).
+    const hostConnected = !!user.stripe_account_id && !!user.stripe_payouts_enabled;
 
     const origin = requestOrigin(req);
     const platformCut = Math.round(cost * 100 * effectiveFeePct(user));
-    const session = await stripeRequestV1('POST', '/checkout/sessions', {
+    const sessionParams = {
       mode: 'payment',
       line_items: [{
         price_data: {
@@ -1143,14 +1186,17 @@ route('POST', '/api/public/:joinCode/checkout', async (req, res, params) => {
         },
         quantity: 1
       }],
-      payment_intent_data: {
-        application_fee_amount: platformCut,
-        transfer_data: { destination: user.stripe_account_id }
-      },
-      metadata: { joinCode: params.joinCode, participantId, type },
+      metadata: { joinCode: params.joinCode, participantId, type, held: hostConnected ? '' : '1' },
       success_url: origin + '/?join=' + encodeURIComponent(params.joinCode) + '&paid=1',
       cancel_url: origin + '/?join=' + encodeURIComponent(params.joinCode)
-    });
+    };
+    if (hostConnected) {
+      sessionParams.payment_intent_data = {
+        application_fee_amount: platformCut,
+        transfer_data: { destination: user.stripe_account_id }
+      };
+    }
+    const session = await stripeRequestV1('POST', '/checkout/sessions', sessionParams);
     sendJSON(res, 200, { url: session.url });
   } catch (e) {
     sendJSON(res, 500, { error: e.message });
@@ -1181,7 +1227,10 @@ route('POST', '/api/stripe/webhook', async (req, res) => {
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
     const meta = session.metadata || {};
-    const { joinCode, participantId, type, entryPendingId } = meta;
+    const { joinCode, participantId, type, entryPendingId, held } = meta;
+    const isHeld = held === '1'; // host had no connected/active Stripe account at checkout time — the
+    // charge went to the platform's own Stripe balance instead of a destination charge, so the
+    // streamer's net share is held here until they connect payouts (see sweepHeldTransactions).
     const paymentIntentId = session.payment_intent;
     const already = db.prepare(`SELECT id FROM transactions WHERE stripe_payment_intent_id=?`).get(paymentIntentId);
 
@@ -1204,7 +1253,7 @@ route('POST', '/api/stripe/webhook', async (req, res) => {
             .run(itemId, show.id, pending.name, pending.song, pending.note, cost, count, 'queued', Date.now(), pending.cover_url, pending.file_data, pending.file_name);
           db.prepare(`UPDATE shows SET total_participants = total_participants + 1 WHERE id=?`).run(show.id);
           db.prepare(`INSERT INTO transactions (id,user_id,show_id,type,amount,status,date,stripe_payment_intent_id) VALUES (?,?,?,?,?,?,?,?)`)
-            .run(newId(), show.user_id, show.id, 'entry_fee', netAmount, 'available', Date.now(), paymentIntentId);
+            .run(newId(), show.user_id, show.id, 'entry_fee', netAmount, isHeld ? 'held' : 'available', Date.now(), paymentIntentId);
           db.prepare(`UPDATE pending_submissions SET resolved_participant_id=? WHERE id=?`).run(itemId, entryPendingId);
         }
       }
@@ -1221,7 +1270,7 @@ route('POST', '/api/stripe/webhook', async (req, res) => {
           // share (after our platform cut), since that's what Stripe actually transfers to their account.
           const netAmount = Math.round((cost - cost * effectiveFeePct(user)) * 100) / 100;
           db.prepare(`INSERT INTO transactions (id,user_id,show_id,type,amount,status,date,stripe_payment_intent_id) VALUES (?,?,?,?,?,?,?,?)`)
-            .run(newId(), user.id, show.id, type === 'jump' ? 'overtake_fee' : 'skip_fee', netAmount, 'available', Date.now(), paymentIntentId);
+            .run(newId(), user.id, show.id, type === 'jump' ? 'overtake_fee' : 'skip_fee', netAmount, isHeld ? 'held' : 'available', Date.now(), paymentIntentId);
         }
       }
     }
