@@ -820,7 +820,7 @@ html.overlay-mode,body.overlay-mode{background:transparent!important;}
 
 <script>
 /* ===================== STATE / PERSISTENCE (connected to a real backend) ===================== */
-const APP_VERSION = '1.4.0'; // bump this on every deploy — shown small under the logo, top left, so you can confirm a deploy actually landed
+const APP_VERSION = '1.5.0'; // bump this on every deploy — shown small under the logo, top left, so you can confirm a deploy actually landed
 const API_BASE = (function(){ try{ return localStorage.getItem('kiu_api_base_override'); }catch(e){ return null; } })() || window.KIU_API_BASE || 'https://keepitup-api-4fky.onrender.com';
 const GOOGLE_CLIENT_ID = '655518852084-1qdd80e44621hr90bdlg0iphjvnho9si.apps.googleusercontent.com';
 const THEME_KEY = 'kiu_theme_v1';
@@ -904,7 +904,6 @@ const I18N = {
     skip_fee_desc:'Moves you to the back of the paid line — behind others who already skipped, ahead of everyone who hasn\'t.',
     jump_fee:'Take #1 base price', base_price:'Starting price', jump_fee_desc:'Guarantees the very front spot. Costs more if others are already waiting in the paid line — one skip fee extra per person you jump ahead of.',
     skips_off:'Skips are turned off by the host right now.',
-    sim_note:'Payments here are simulated — no real money moves.',
     an_total_earned:'Total earned', an_total_earned_sub:'Across every show, all-time',
     an_shows:'Shows hosted', an_shows_sub:'Live + wrapped', an_crowd:'Total crowd', an_crowd_sub:'All fans, ever',
     an_per_show:'Earnings per show', an_top_shows:'Top shows', an_by_earnings:'By earnings',
@@ -968,7 +967,6 @@ const I18N = {
     skip_fee_desc:'Bringt dich ans Ende der bezahlten Reihe — hinter alle, die schon geskippt haben, vor alle, die noch nicht bezahlt haben.',
     jump_fee:'Grundpreis für Platz 1', base_price:'Startpreis', jump_fee_desc:'Garantiert den allerersten Platz. Wird teurer, wenn schon andere in der bezahlten Reihe warten — pro übersprungener Person kommt eine Skip-Gebühr obendrauf.',
     skips_off:'Skips sind gerade vom Host deaktiviert.',
-    sim_note:'Zahlungen hier sind simuliert — es fließt kein echtes Geld.',
     an_total_earned:'Insgesamt verdient', an_total_earned_sub:'Über alle Shows, gesamt',
     an_shows:'Shows gehostet', an_shows_sub:'Live + abgeschlossen', an_crowd:'Crowd gesamt', an_crowd_sub:'Alle Fans, jemals',
     an_per_show:'Einnahmen pro Show', an_top_shows:'Top-Shows', an_by_earnings:'Nach Einnahmen',
@@ -1257,7 +1255,7 @@ const LEGAL_CONTENT = {
   datenschutz: {
     title: 'Datenschutzerklärung',
     html: `
-      <div class="legal-note">Vorlage — die eckigen Klammern [...] müssen noch mit echten Angaben ausgefüllt werden. Zahlungen sind aktuell simuliert; sobald ein echter Zahlungsanbieter eingebunden wird, muss Abschnitt 10 ergänzt werden.</div>
+      <div class="legal-note">Vorlage — die eckigen Klammern [...] müssen noch mit echten Angaben ausgefüllt werden.</div>
       <h2>1. Verantwortlicher</h2>
       <p>[Vollständiger Name / Firmenname], [Straße und Hausnummer], [PLZ und Ort]. E-Mail: [deine@email-adresse.de]</p>
       <h2>2. Übersicht der Verarbeitungen</h2>
@@ -1293,7 +1291,7 @@ const LEGAL_CONTENT = {
       <h2>9. Cookies und lokale Speicherung</h2>
       <p>Wir verwenden keine Tracking- oder Werbe-Cookies. Die genutzte lokale Speicherung (localStorage) ist technisch notwendig (z. B. damit du eingeloggt bleibst) und fällt unter die Ausnahme nach § 25 Abs. 2 TTDSG — hierfür ist keine gesonderte Einwilligung erforderlich.</p>
       <h2>10. Zahlungsdaten</h2>
-      <p>Aktuell werden auf der Plattform <strong>keine echten Zahlungen verarbeitet</strong> — Skip-Gebühren und Einnahmen sind zu Demonstrationszwecken simuliert. Es werden keine Kreditkarten- oder Bankdaten erhoben.</p>
+      <p>Zahlungen (Einstiegsgebühren, Skip- und Overtake-Gebühren) werden über unseren Zahlungsdienstleister Stripe Payments Europe, Ltd., 1 Grand Canal Street Lower, Dublin 2, Irland (<a href="https://stripe.com/de/privacy" target="_blank" rel="noopener">Datenschutzerklärung</a>) abgewickelt. Kreditkarten- und Bankdaten werden ausschließlich von Stripe verarbeitet und laufen nicht über unsere eigenen Server. Hosts, die Auszahlungen empfangen möchten, richten dafür ein eigenes Stripe-Konto ein (Stripe Connect); die dafür nötigen Angaben (z. B. Bankverbindung, Identitätsnachweis) erhebt Stripe direkt und unterliegt Stripes eigener Datenschutzerklärung.</p>
       <h2>11. Änderungen dieser Datenschutzerklärung</h2>
       <p>Wir passen diese Erklärung bei Bedarf an. Die jeweils aktuelle Version findest du immer auf dieser Seite.</p>
       <p>Stand: [Datum eintragen]</p>`
@@ -1301,12 +1299,12 @@ const LEGAL_CONTENT = {
   agb: {
     title: 'AGB / Nutzungsbedingungen',
     html: `
-      <div class="legal-note">Vorlage — die eckigen Klammern [...] müssen noch mit echten Angaben ausgefüllt werden. Diese AGB gehen von simulierten Zahlungen aus; vor Einbindung echter Zahlungen bitte rechtlich prüfen lassen.</div>
+      <div class="legal-note">Vorlage — die eckigen Klammern [...] müssen noch mit echten Angaben ausgefüllt werden. Diese AGB gehen von echten, über Stripe abgewickelten Zahlungen aus; bitte rechtlich prüfen lassen.</div>
       <h2>1. Geltungsbereich</h2>
       <p>Diese Nutzungsbedingungen gelten für die Nutzung der Plattform "Keep it up!", betrieben von [Vollständiger Name / Firmenname], [Adresse]. Mit der Erstellung eines Kontos oder der Nutzung als Fan erklärst du dich mit diesen Bedingungen einverstanden.</p>
       <h2>2. Leistungsbeschreibung</h2>
       <p>Die Plattform ermöglicht es Streamer:innen ("Hosts"), Live-Sessions zu eröffnen, in denen Zuschauer:innen ("Fans") Songs zur Reaktion einreichen und optional dafür bezahlen können, in der Warteschlange vorzurücken ("Skip") oder direkt an die erste Stelle zu springen ("Overtake").</p>
-      <p><strong>Wichtiger Hinweis zum aktuellen Stand:</strong> Zahlungen innerhalb der Plattform sind derzeit <strong>simuliert</strong> — es fließt kein echtes Geld, und Hosts erhalten aktuell keine echten Auszahlungen.</p>
+      <p><strong>Hinweis zu Zahlungen:</strong> Zahlungen innerhalb der Plattform werden über den Zahlungsdienstleister Stripe abgewickelt. Der Anteil des Hosts wird automatisch an dessen verbundenes Stripe-Konto überwiesen; Stripe zahlt diesen Betrag nach eigenem Zeitplan an das hinterlegte Bankkonto des Hosts aus.</p>
       <h2>3. Registrierung und Konto</h2>
       <p>Zur Nutzung als Host ist ein Konto mit E-Mail-Adresse und Passwort erforderlich. Du bist verpflichtet, wahrheitsgemäße Angaben zu machen und dein Passwort geheim zu halten. Die Nutzung als Fan erfordert kein eigenes Konto. Die Nutzung ist Personen ab [16/18] Jahren gestattet.</p>
       <h2>4. Pflichten der Hosts</h2>
@@ -1323,7 +1321,7 @@ const LEGAL_CONTENT = {
         <li>Keine automatisierte Nutzung/Spam</li>
       </ul>
       <h2>6. Preise und Zahlungen</h2>
-      <p>Solange Zahlungen simuliert sind: alle angezeigten Beträge sind zu Demonstrationszwecken simuliert, es entstehen keine echten Zahlungsverpflichtungen. Sobald echte Zahlungen eingebunden werden, ist dieser Abschnitt um Zahlungsanbieter, Plattformgebühren, Auszahlungsbedingungen und Widerrufsrecht zu ergänzen.</p>
+      <p>Angezeigte Beträge (Einstiegsgebühren, Skip- und Overtake-Gebühren) sind reale Zahlungsverpflichtungen und werden über Stripe per Karte abgerechnet. Die Plattform behält einen Anteil als Vermittlungsgebühr ein; der verbleibende Betrag wird automatisch an das Stripe-Konto des jeweiligen Hosts überwiesen. [Genaue Höhe der Plattformgebühr, Auszahlungsbedingungen und Widerrufsrecht sind hier rechtlich zu ergänzen.]</p>
       <h2>7. Inhalte Dritter</h2>
       <p>Songs und Links stammen von externen Plattformen (Spotify, YouTube, SoundCloud, Dropbox u. a.) oder werden als eigene Dateien hochgeladen. Für deren Rechtmäßigkeit sind die einreichenden Fans verantwortlich. Wir behalten uns vor, Inhalte zu entfernen oder Konten zu sperren.</p>
       <h2>8. Haftung</h2>
@@ -1387,7 +1385,6 @@ function renderAuth(){
         <div class="join-hint" style="margin-top:16px">${isSignup
           ? `Already have an account? <span style="text-decoration:underline;cursor:pointer;color:var(--gold)" onclick="switchAuthMode('login')">Sign in</span>`
           : `New here? <span style="text-decoration:underline;cursor:pointer;color:var(--gold)" onclick="switchAuthMode('signup')">Create an account</span>`}</div>
-        <div class="join-hint" style="margin-top:12px">Your account lives on a real server now (${escapeHtml(API_BASE)}) — but payments here are still simulated, no real money moves.</div>
         <div style="text-align:center;margin-top:16px"><span style="font-size:11px;color:var(--ink-faint);text-decoration:underline;cursor:pointer" onclick="goLanding()">← Back to Keep it up!</span></div>
       </div>
     </div>`;
@@ -2129,7 +2126,7 @@ async function requestPayout(){
     const status = await apiFetch('/api/stripe/status');
     if(!status.connected || !status.payoutsEnabled){ toast('Connect payouts under Finances → Wallets first.'); return; }
     const data = await apiFetch('/api/payout', { method:'POST' });
-    toast('Payout of '+money(data.amount)+' requested (simulated)');
+    toast('Marked '+money(data.amount)+' as cashed out — Stripe already sent it to your account, and pays it out to your bank on its own schedule.');
     await refreshTransactions();
     render();
   }catch(e){ toast(e.message); }
@@ -2858,7 +2855,7 @@ function openHelp(){
         <p style="margin-bottom:10px"><b style="color:var(--ink)">Fans submitting —</b> they can paste any link (Spotify, YouTube, SoundCloud, Dropbox) or upload an mp3/wav straight from their device.</p>
         <p style="margin-bottom:10px"><b style="color:var(--ink)">Pausing the queue —</b> toggle "Accepting submissions" off in Show Controls → Queue to stop new joins without ending the show.</p>
         <p style="margin-bottom:10px"><b style="color:var(--ink)">Pin panels —</b> open Stats or Show Controls, then hit "Pin" to keep them docked on screen instead of popping up as a drawer.</p>
-        <p style="margin:0"><b style="color:var(--ink)">Payments —</b> everything here is simulated for this demo — no real money moves.</p>
+        <p style="margin:0"><b style="color:var(--ink)">Payments —</b> handled securely through Stripe. Fans pay by card at checkout, your share lands in your connected Stripe account automatically, and Stripe pays it out to your bank on its own schedule.</p>
       </div>
       <div class="modal-actions"><button class="btn btn-gold btn-block" onclick="this.closest('.modal-overlay').remove()">Got it</button></div>
     </div>`;
@@ -3084,7 +3081,6 @@ async function renderJoin(){
           ${data.entryFeeEnabled ? `<div class="join-note">This show charges an entry fee of ${money(data.entryFee)}.</div>` : ''}
           <button class="btn btn-gold btn-block" onclick="submitJoin('${code}')">${data.entryFeeEnabled ? t('j_pay_join')+' ('+money(data.entryFee)+')' : t('j_send')}</button>
           `}
-          <div class="join-hint">${t('sim_note')}</div>
         </div>
       </div>`;
     return;
@@ -3117,7 +3113,6 @@ async function renderJoin(){
           ${!isFirst && !alreadySkipped ? `<button class="btn btn-outline btn-block" onclick="paySkip('${code}')">${t('jump_1')} ${money(skipCost)}</button>` : ''}
           ${!isFirst ? `<button class="btn btn-gold btn-block" onclick="payJump('${code}')">${t('take_1')} ${money(jumpCost)}</button>` : ''}
         </div>` : `<p class="join-hint" style="margin-top:16px">${t('skips_off')}</p>`}
-        <div class="join-hint">${t('sim_note')}</div>
       </div>
     </div>`;
 }
@@ -3154,7 +3149,7 @@ async function paySkip(code){
   try{
     const data = await apiFetch('/api/public/'+encodeURIComponent(code)+'/checkout', { method:'POST', body:{ participantId: myId, type:'skip' } });
     if(data.url){ window.location.href = data.url; return; }
-    toast('Skip paid — moved up 1 spot (simulated)');
+    toast('Skip paid — moved up 1 spot');
     renderJoin();
   }catch(e){ toast(e.message); renderJoin(); }
 }
@@ -3165,7 +3160,7 @@ async function payJump(code){
   try{
     const data = await apiFetch('/api/public/'+encodeURIComponent(code)+'/checkout', { method:'POST', body:{ participantId: myId, type:'jump' } });
     if(data.url){ window.location.href = data.url; return; }
-    toast('Took #1 spot — '+money(data.cost)+' paid (simulated)');
+    toast('Took #1 spot — '+money(data.cost)+' paid');
     renderJoin();
   }catch(e){ toast(e.message); renderJoin(); }
 }
