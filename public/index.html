@@ -125,7 +125,11 @@ input,textarea{font-family:inherit;}
 .modal-actions{display:flex;gap:8px;margin-top:16px;}
 
 .help-fab{position:fixed;bottom:22px;right:22px;z-index:200;background:var(--bg-2);border:1px solid var(--line-strong);color:var(--ink);padding:10px 16px;border-radius:30px;font-size:12px;font-weight:700;display:flex;align-items:center;gap:6px;text-transform:uppercase;letter-spacing:.03em;}
-.help-fab .q{width:16px;height:16px;border-radius:50%;border:1.5px solid var(--gold);color:var(--gold);display:flex;align-items:center;justify-content:center;font-size:10px;}
+.help-fab .q{width:16px;height:16px;border-radius:50%;border:1.5px solid var(--gold);color:var(--gold);display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;}
+@media (max-width:640px){
+  .help-fab{bottom:calc(14px + env(safe-area-inset-bottom));right:14px;width:38px;height:38px;padding:0;border-radius:50%;justify-content:center;}
+  .help-fab .fab-label{display:none;}
+}
 body.overlay-mode .help-fab,body.overlay-mode #toast{display:none!important;}
 
 .eq-mark{display:flex;align-items:flex-end;gap:2px;height:20px;}
@@ -329,7 +333,11 @@ body.overlay-mode .help-fab,body.overlay-mode #toast{display:none!important;}
 .chart-head{display:flex;justify-content:space-between;align-items:flex-start;}
 .chart-sub h4{font-size:16px;font-weight:700;}
 .chart-sub p{font-size:12px;color:var(--ink-faint);margin-top:2px;}
-.bars{display:flex;align-items:flex-end;gap:22px;height:190px;margin-top:22px;border-top:1px dashed var(--line-strong);padding-top:10px;}
+.bars{display:flex;align-items:flex-end;gap:22px;height:190px;margin-top:22px;border-top:1px dashed var(--line-strong);padding-top:10px;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;}
+@media (max-width:480px){
+  .bars{gap:12px;}
+  .bars .b{width:16px;}
+}
 .bars .grp{display:flex;gap:4px;align-items:flex-end;flex:1;justify-content:center;height:100%;}
 .bars .b{width:22px;border-radius:5px 5px 0 0;min-height:2px;}
 .bars .b.earn{background:var(--gold);}
@@ -612,7 +620,13 @@ html.overlay-mode,body.overlay-mode{background:transparent!important;}
 .join-hint{font-size:10.5px;color:var(--ink-faint);text-align:center;margin-top:16px;}
 
 @media (max-width:1000px){
-  .pin-col{display:none;}
+  /* Pinned Stats/Controls used to just vanish here (display:none) — if a host had
+     pinned either panel, it became completely unreachable on tablet/phone. Now they
+     stack full-width above/below the stage instead of sitting in a sticky side rail. */
+  .stage-body{flex-direction:column;}
+  .pin-col{width:100%;position:static;max-height:none;overflow-y:visible;border:none;}
+  .pin-col.left{border-bottom:1px solid var(--line);}
+  .pin-col.right{border-top:1px solid var(--line);}
 }
 @media (max-width:760px){
   .bento{grid-template-columns:1fr;}
@@ -800,11 +814,11 @@ html.overlay-mode,body.overlay-mode{background:transparent!important;}
 
 <div id="toast"></div>
 <div class="stage-vignette" id="stage-vignette"></div>
-<button class="help-fab" onclick="openHelp()"><span class="q">?</span>Need help?</button>
+<button class="help-fab" onclick="openHelp()"><span class="q">?</span><span class="fab-label">Need help?</span></button>
 
 <script>
 /* ===================== STATE / PERSISTENCE (connected to a real backend) ===================== */
-const APP_VERSION = '1.1.0'; // bump this on every deploy — shown small under the logo, top left, so you can confirm a deploy actually landed
+const APP_VERSION = '1.2.0'; // bump this on every deploy — shown small under the logo, top left, so you can confirm a deploy actually landed
 const API_BASE = (function(){ try{ return localStorage.getItem('kiu_api_base_override'); }catch(e){ return null; } })() || window.KIU_API_BASE || 'https://keepitup-api-4fky.onrender.com';
 const GOOGLE_CLIENT_ID = '655518852084-1qdd80e44621hr90bdlg0iphjvnho9si.apps.googleusercontent.com';
 const THEME_KEY = 'kiu_theme_v1';
