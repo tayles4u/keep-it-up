@@ -1190,7 +1190,13 @@ route('POST', '/api/stripe/webhook', async (req, res) => {
       if (pending && !pending.resolved_participant_id) {
         const show = db.prepare(`SELECT * FROM shows WHERE id=? AND status='live'`).get(pending.show_id);
         if (show) {
-          const cost = (session.amount_total || 0) / 100;
+          const cost = (session.amount_total || 0) / 100; // what the fan paid — this is what paid_total / queue ordering should reflect
+          const hostUser = db.prepare('SELECT * FROM users WHERE id=?').get(show.user_id);
+          // The Finances/Analytics/Recap numbers shown to the streamer must reflect what actually lands
+          // in THEIR Stripe balance, not the full amount the fan paid — Stripe already keeps our
+          // application_fee_amount cut automatically (see the checkout session above), so the
+          // streamer-facing transaction record should only carry their net share.
+          const netAmount = hostUser ? Math.round((cost - cost * effectiveFeePct(hostUser)) * 100) / 100 : cost;
           const count = db.prepare(`SELECT COUNT(*) AS c FROM queue_items WHERE show_id=? AND status='queued'`).get(show.id).c;
           const itemId = newId();
           db.prepare(`INSERT INTO queue_items (id,show_id,name,song,note,paid_total,position,status,joined_at,cover_url,file_data,file_name)
@@ -1198,7 +1204,7 @@ route('POST', '/api/stripe/webhook', async (req, res) => {
             .run(itemId, show.id, pending.name, pending.song, pending.note, cost, count, 'queued', Date.now(), pending.cover_url, pending.file_data, pending.file_name);
           db.prepare(`UPDATE shows SET total_participants = total_participants + 1 WHERE id=?`).run(show.id);
           db.prepare(`INSERT INTO transactions (id,user_id,show_id,type,amount,status,date,stripe_payment_intent_id) VALUES (?,?,?,?,?,?,?,?)`)
-            .run(newId(), show.user_id, show.id, 'entry_fee', cost, 'available', Date.now(), paymentIntentId);
+            .run(newId(), show.user_id, show.id, 'entry_fee', netAmount, 'available', Date.now(), paymentIntentId);
           db.prepare(`UPDATE pending_submissions SET resolved_participant_id=? WHERE id=?`).run(itemId, entryPendingId);
         }
       }
@@ -1209,10 +1215,13 @@ route('POST', '/api/stripe/webhook', async (req, res) => {
         const queue = db.prepare(`SELECT * FROM queue_items WHERE show_id=? AND status='queued' ORDER BY position ASC`).all(show.id);
         const idx = queue.findIndex(q => q.id === participantId);
         if (idx > 0) {
-          const cost = (session.amount_total || 0) / 100;
+          const cost = (session.amount_total || 0) / 100; // what the fan paid — drives queue ordering / paid_total
           applyPaidAction(show, queue, idx, type === 'jump' ? 'jump' : 'skip', cost);
+          // Same as the entry-fee path above: the streamer's transaction record must show their net
+          // share (after our platform cut), since that's what Stripe actually transfers to their account.
+          const netAmount = Math.round((cost - cost * effectiveFeePct(user)) * 100) / 100;
           db.prepare(`INSERT INTO transactions (id,user_id,show_id,type,amount,status,date,stripe_payment_intent_id) VALUES (?,?,?,?,?,?,?,?)`)
-            .run(newId(), user.id, show.id, type === 'jump' ? 'overtake_fee' : 'skip_fee', cost, 'available', Date.now(), paymentIntentId);
+            .run(newId(), user.id, show.id, type === 'jump' ? 'overtake_fee' : 'skip_fee', netAmount, 'available', Date.now(), paymentIntentId);
         }
       }
     }
