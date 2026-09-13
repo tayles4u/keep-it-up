@@ -155,7 +155,7 @@ function getAuthUser(req) {
   return owner || real;
 }
 function publicUser(u) {
-  return { id: u.id, email: u.email, name: u.name, provider: u.provider, joinCode: u.join_code, username: u.username || null, profileImage: u.profile_image || null, platformFeePct: effectiveFeePct(u), isAdmin: !!u.is_admin };
+  return { id: u.id, email: u.email, name: u.name, provider: u.provider, joinCode: u.join_code, username: u.username || null, profileImage: u.profile_image || null, platformFeePct: effectiveFeePct(u), isAdmin: !!u.is_admin, stripeConnected: !!u.stripe_account_id, stripePayoutsEnabled: !!u.stripe_payouts_enabled };
 }
 function publicTeamUser(u) {
   return { id: u.id, name: u.name, username: u.username || null, profileImage: u.profile_image || null };
