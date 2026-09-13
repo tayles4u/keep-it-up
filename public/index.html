@@ -368,6 +368,7 @@ body.overlay-mode .help-fab,body.overlay-mode #toast{display:none!important;}
 .status-available{background:var(--mint-dim);color:var(--mint);}
 .status-refunded{background:var(--coral-dim);color:var(--coral);}
 .status-payout{background:var(--gold-dim);color:var(--gold);}
+.status-held{background:var(--violet-dim);color:var(--violet);}
 
 .wallet-row{display:flex;align-items:center;justify-content:space-between;background:var(--bg-1);border:1px solid var(--line);border-radius:14px;padding:15px 18px;margin-bottom:10px;}
 .wallet-row b{font-size:13.5px;display:block;font-family:'IBM Plex Mono',monospace;}
@@ -820,7 +821,7 @@ html.overlay-mode,body.overlay-mode{background:transparent!important;}
 
 <script>
 /* ===================== STATE / PERSISTENCE (connected to a real backend) ===================== */
-const APP_VERSION = '1.5.0'; // bump this on every deploy — shown small under the logo, top left, so you can confirm a deploy actually landed
+const APP_VERSION = '1.7.0'; // bump this on every deploy — shown small under the logo, top left, so you can confirm a deploy actually landed
 const API_BASE = (function(){ try{ return localStorage.getItem('kiu_api_base_override'); }catch(e){ return null; } })() || window.KIU_API_BASE || 'https://keepitup-api-4fky.onrender.com';
 const GOOGLE_CLIENT_ID = '655518852084-1qdd80e44621hr90bdlg0iphjvnho9si.apps.googleusercontent.com';
 const THEME_KEY = 'kiu_theme_v1';
@@ -2070,13 +2071,14 @@ function openSetlistModal(historyId){
 
 /* ===================== FINANCES ===================== */
 function financeTotals(){
-  let pending=0, available=0, payouts=0;
+  let pending=0, available=0, payouts=0, held=0;
   db.transactions.forEach(t=>{
     if(t.status==='pending') pending += t.amount;
     else if(t.status==='available') available += t.amount;
     else if(t.status==='payout') payouts += Math.abs(t.amount);
+    else if(t.status==='held') held += t.amount;
   });
-  return {pending, available, payouts};
+  return {pending, available, payouts, held};
 }
 function monthKey(ts){ const d=new Date(ts); return d.getFullYear()+'-'+d.getMonth(); }
 
@@ -2135,7 +2137,7 @@ function renderFinancesTransactions(){
   const el = document.getElementById('view-finances-transactions');
   const rows = db.transactions.slice().sort((a,b)=>b.date-a.date);
   const typeLabel = {skip_fee:'Skip', overtake_fee:'Take #1', entry_fee:'Entry fee', payout:t('btn_payout')};
-  const statusLabel = {pending:'Pending', available:'Ready', refunded:'Refunded', payout:t('btn_payout')};
+  const statusLabel = {pending:'Pending', available:'Ready', refunded:'Refunded', payout:t('btn_payout'), held:'Held'};
   const body = rows.length ? rows.map(tr=>`
     <tr><td class="mono">${fmtDate(tr.date)}</td><td>${typeLabel[tr.type]||tr.type}</td><td>${escapeHtml(tr.sessionTitle||'—')}</td>
     <td class="mono" style="color:${tr.amount<0?'var(--coral)':'var(--ink)'}">${tr.amount<0?'−':''}${money(Math.abs(tr.amount))}</td>
@@ -2922,12 +2924,16 @@ async function refreshStripeStatus(elId){
   if(!el) return;
   try{
     const data = await apiFetch('/api/stripe/status');
+    const heldNote = data.heldAmount > 0
+      ? `<div class="msub" style="margin-top:8px;margin-bottom:0">${money(data.heldAmount)} from fans is waiting for you — it'll land in your account automatically as soon as payouts are set up here.</div>`
+      : '';
     if(!data.connected){
-      el.innerHTML = `<button class="btn-xs" onclick="connectStripe()">Connect payouts (Stripe)</button>`;
+      el.innerHTML = `<button class="btn-xs" onclick="connectStripe()">Connect payouts (Stripe)</button>` + heldNote;
     } else if(!data.payoutsEnabled){
-      el.innerHTML = `<div class="msub" style="margin-bottom:8px;color:var(--coral)">Almost there — Stripe needs a bit more info before payouts can start.</div><button class="btn-xs" onclick="connectStripe()">Finish setting up payouts</button>`;
+      el.innerHTML = `<div class="msub" style="margin-bottom:8px;color:var(--coral)">Almost there — Stripe needs a bit more info before payouts can start.</div><button class="btn-xs" onclick="connectStripe()">Finish setting up payouts</button>` + heldNote;
     } else {
-      el.innerHTML = `<div style="display:flex;align-items:center;gap:8px"><span class="badge badge-mint">Connected</span><span class="msub" style="margin:0">Payouts are active on this account.</span></div>`;
+      el.innerHTML = `<div style="display:flex;align-items:center;gap:8px"><span class="badge badge-mint">Connected</span><span class="msub" style="margin:0">Payouts are active on this account.</span></div>` + heldNote;
+      refreshTransactions().then(render).catch(()=>{}); // pick up anything the server just swept over to 'available'
     }
   }catch(e){ el.innerHTML = `<div class="msub" style="color:var(--coral);margin-bottom:8px">${escapeHtml(e.message)}</div><button class="btn-xs" onclick="connectStripe()">Connect payouts (Stripe)</button>`; }
 }
