@@ -18,6 +18,10 @@ function corsOriginFor(req) {
 }
 const GOOGLE_CLIENT_ID = (process.env.GOOGLE_CLIENT_ID || '').trim();
 const STRIPE_SECRET_KEY = (process.env.STRIPE_SECRET_KEY || '').trim();
+// One secret, or several comma-separated ones if you have more than one Stripe webhook
+// destination pointed at this same /api/stripe/webhook URL (e.g. a classic v1 destination for
+// checkout.session.completed plus a v2 destination for Connect account updates) — each Stripe
+// destination signs with its own secret, and this server accepts a request signed by any of them.
 const STRIPE_WEBHOOK_SECRET = (process.env.STRIPE_WEBHOOK_SECRET || '').trim();
 const PLATFORM_FEE_PCT_ENV = Number(process.env.PLATFORM_FEE_PCT); // optional env override of the built-in default below
 const DEFAULT_PLATFORM_FEE_PCT = Number.isFinite(PLATFORM_FEE_PCT_ENV) ? PLATFORM_FEE_PCT_ENV : 0.20; // streamer keeps 80% unless the admin panel changes it
@@ -258,8 +262,13 @@ async function sweepHeldTransactions(user) {
     console.error('Failed to sweep held transactions for user', user.id, ':', e.message);
   }
 }
-function verifyStripeSignature(rawBody, sigHeader, secret) {
-  if (!secret) throw new Error('Webhook secret not configured.');
+function verifyStripeSignature(rawBody, sigHeader, secrets) {
+  // secrets may be a single webhook signing secret, or several comma-separated ones — Stripe's
+  // newer "event destinations" can point a v1 (classic, e.g. checkout.session.completed) and a v2
+  // (thin, e.g. account updates) destination at the same URL, each with its own signing secret, so
+  // this endpoint needs to accept whichever one actually signed the incoming request.
+  const secretList = String(secrets || '').split(',').map(s => s.trim()).filter(Boolean);
+  if (!secretList.length) throw new Error('Webhook secret not configured.');
   if (!sigHeader) throw new Error('Missing Stripe-Signature header.');
   const parts = {};
   sigHeader.split(',').forEach(kv => { const [k, v] = kv.split('='); parts[k] = v; });
@@ -267,12 +276,13 @@ function verifyStripeSignature(rawBody, sigHeader, secret) {
   const sig = parts.v1;
   if (!timestamp || !sig) throw new Error('Malformed signature header.');
   const signedPayload = timestamp + '.' + rawBody.toString('utf8');
-  const expected = crypto.createHmac('sha256', secret).update(signedPayload).digest('hex');
   const sigBuf = Buffer.from(sig, 'hex');
-  const expBuf = Buffer.from(expected, 'hex');
-  if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
-    throw new Error('Signature mismatch.');
-  }
+  const matched = secretList.some(secret => {
+    const expected = crypto.createHmac('sha256', secret).update(signedPayload).digest('hex');
+    const expBuf = Buffer.from(expected, 'hex');
+    return sigBuf.length === expBuf.length && crypto.timingSafeEqual(sigBuf, expBuf);
+  });
+  if (!matched) throw new Error('Signature mismatch.');
   const ageSeconds = Math.abs(Date.now() / 1000 - Number(timestamp));
   if (ageSeconds > 300) throw new Error('Timestamp too old — possible replay.');
 }
