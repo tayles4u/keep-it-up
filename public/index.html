@@ -1,5 +1,3 @@
-
-
 <!DOCTYPE html>
 <html lang="de" data-theme="midnight">
 <head>
@@ -32,8 +30,8 @@
 <style>
 :root, [data-theme="midnight"]{
   --bg:#0A090D;--bg-1:#121016;--bg-2:#17141C;--bg-3:#1E1924;
-  --line:rgba(244,239,228,.06);--line-strong:rgba(244,239,228,.13);
-  --ink:#F1ECE3;--ink-dim:#9A90AC;--ink-faint:#5C5470;
+  --line:rgba(244,239,228,.06);--line-strong:rgba(244,239,228,.16);
+  --ink:#F1ECE3;--ink-dim:#A79DBA;--ink-faint:#6C6380;
   --gold:#F4B740;--gold-ink:#1C1404;--gold-dim:rgba(244,183,64,.14);
   --coral:#FF5D72;--coral-dim:rgba(255,93,114,.14);
   --violet:#8C6FF7;--violet-dim:rgba(140,111,247,.14);
@@ -141,6 +139,8 @@ body.overlay-mode .help-fab,body.overlay-mode #toast{display:none!important;}
 
 .topnav{position:sticky;top:0;z-index:100;display:flex;align-items:center;gap:26px;padding:14px 30px;background:rgba(10,9,13,.85);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);}
 .topnav .tn-brand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:14px;cursor:pointer;flex-shrink:0;}
+.tn-brand-text{display:flex;flex-direction:column;line-height:1.15;}
+.tn-version{font-size:9px;font-weight:600;color:var(--ink-faint);text-transform:none;letter-spacing:.02em;margin-top:1px;}
 .tn-links{display:flex;gap:6px;flex:1;}
 .tn-link{padding:8px 14px;border-radius:9px;font-size:12.5px;font-weight:700;color:var(--ink-faint);cursor:pointer;display:flex;align-items:center;gap:6px;text-transform:uppercase;letter-spacing:.02em;}
 .tn-link:hover{color:var(--ink);background:var(--bg-2);}
@@ -192,6 +192,17 @@ body.overlay-mode .help-fab,body.overlay-mode #toast{display:none!important;}
 .theme-swatch{display:flex;gap:2px;flex-shrink:0;}
 .theme-swatch i{width:9px;height:16px;border-radius:2px;}
 .theme-opt b{font-size:12.5px;font-weight:700;}
+.to-badge{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--gold);background:var(--gold-dim);padding:2px 6px;border-radius:6px;margin-left:auto;flex-shrink:0;}
+.ctb-edit{margin-left:auto;flex-shrink:0;width:22px;height:22px;border-radius:7px;display:flex;align-items:center;justify-content:center;color:var(--ink-faint);font-size:12px;transition:.15s;}
+.ctb-edit:hover{background:var(--bg-3);color:var(--ink);}
+.ctb-add{border:1px dashed var(--line-strong);}
+.ctb-row{display:flex;align-items:center;justify-content:space-between;padding:8px 2px;font-size:12.5px;font-weight:700;color:var(--ink-dim);}
+.ctb-row input[type=color]{width:44px;height:30px;border:1px solid var(--line-strong);border-radius:8px;background:none;cursor:pointer;padding:2px;}
+.ctb-row input[type=color]::-webkit-color-swatch-wrapper{padding:2px;}
+.ctb-row input[type=color]::-webkit-color-swatch{border:none;border-radius:6px;}
+.ctb-preview{margin-top:8px;border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:4px;border:1px solid var(--line-strong);transition:background .1s,color .1s;}
+.ctb-preview b{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:.02em;}
+.ctb-preview span{font-size:11px;opacity:.7;}
 
 #landing{min-height:100vh;background:var(--bg);}
 .hero-wrap{position:relative;overflow:hidden;}
@@ -615,7 +626,7 @@ html.overlay-mode,body.overlay-mode{background:transparent!important;}
     <span>• LIVE SONG REACTIONS</span><span>• YOUR CROWD SENDS THE TRACKS</span><span>• NO SKIPPING THE LINE — UNLESS YOU PAY FOR IT</span><span>• KEEP IT UP!</span>
   </div></div>
   <div class="topnav">
-    <div class="tn-brand" onclick="goLanding()"><div class="eq-mark"><i></i><i></i><i></i><i></i></div>Keep it up!</div>
+    <div class="tn-brand" onclick="goLanding()"><div class="eq-mark"><i></i><i></i><i></i><i></i></div><div class="tn-brand-text">Keep it up!<span class="tn-version"></span></div></div>
     <div class="tn-links"></div>
     <div class="tn-right">
       <div class="docs" style="cursor:pointer" onclick="showAuthScreen('login')">Log in</div>
@@ -717,7 +728,7 @@ html.overlay-mode,body.overlay-mode{background:transparent!important;}
 
 <div id="app" class="view">
   <div class="topnav">
-    <div class="tn-brand" onclick="goLanding()"><div class="eq-mark"><i></i><i></i><i></i><i></i></div>Keep it up!</div>
+    <div class="tn-brand" onclick="goLanding()"><div class="eq-mark"><i></i><i></i><i></i><i></i></div><div class="tn-brand-text">Keep it up!<span class="tn-version"></span></div></div>
     <div class="tn-links">
       <div class="tn-link nav-link" data-view="sessions-host" id="nl-sessions">Sessions</div>
       <div class="tn-link nav-link" data-view="finances-overview" id="nl-finances">Finances</div>
@@ -791,6 +802,7 @@ html.overlay-mode,body.overlay-mode{background:transparent!important;}
 
 <script>
 /* ===================== STATE / PERSISTENCE (connected to a real backend) ===================== */
+const APP_VERSION = '1.1.0'; // bump this on every deploy — shown small under the logo, top left, so you can confirm a deploy actually landed
 const API_BASE = (function(){ try{ return localStorage.getItem('kiu_api_base_override'); }catch(e){ return null; } })() || window.KIU_API_BASE || 'https://keepitup-api-4fky.onrender.com';
 const GOOGLE_CLIENT_ID = '655518852084-1qdd80e44621hr90bdlg0iphjvnho9si.apps.googleusercontent.com';
 const THEME_KEY = 'kiu_theme_v1';
@@ -802,11 +814,13 @@ const LASTSETTINGS_PREFIX = 'kiu_last_settings_'; // local-only convenience, not
 const WALLETS_PREFIX = 'kiu_wallets_'; // wallets aren't wired to the server yet — see README
 
 const THEMES = [
-  {id:'midnight', name:'Midnight', desc:'Gold · Coral · Violet · Mint'},
+  {id:'midnight', name:'Standard', desc:'Clean & iconic — gold, coral, violet, mint', isDefault:true},
   {id:'blackout', name:'Blackout', desc:'Mono grayscale'},
   {id:'afterhours', name:'Afterhours', desc:'Amber · Red · Magenta'},
   {id:'underground', name:'Underground', desc:'Acid green · Electric blue'}
 ];
+const CUSTOM_THEME_KEY = 'kiu_custom_theme_v1';
+const CUSTOM_VARS = ['--bg','--bg-1','--bg-2','--bg-3','--line','--line-strong','--ink','--ink-dim','--ink-faint','--gold','--gold-ink','--gold-dim','--coral','--coral-dim','--violet','--violet-dim','--mint','--mint-dim'];
 const THEME_COLORS = {
   midnight:['#F4B740','#FF5D72','#8C6FF7','#4ED69B'],
   blackout:['#E7E7E7','#D9536B','#7C8592','#6FBFA0'],
@@ -1390,12 +1404,100 @@ async function requestPasswordReset(){
 }
 
 /* ===================== THEME SWITCHER ===================== */
-function applyTheme(id){ document.documentElement.setAttribute('data-theme', id); localStorage.setItem(THEME_KEY, id); renderThemeList(); }
+/* -- tiny color-math helpers, used only to derive a full palette from the 3 colors
+      someone picks in the custom-theme builder (background, text, accent). -- */
+function hexToRgb(hex){ hex=String(hex||'#000000').replace('#',''); if(hex.length===3) hex=hex.split('').map(c=>c+c).join(''); const num=parseInt(hex,16)||0; return {r:(num>>16)&255,g:(num>>8)&255,b:num&255}; }
+function rgbToHex(c){ return '#'+['r','g','b'].map(k=>Math.max(0,Math.min(255,Math.round(c[k]))).toString(16).padStart(2,'0')).join(''); }
+function mixHex(hexA,hexB,t){ const a=hexToRgb(hexA), b=hexToRgb(hexB); return rgbToHex({r:a.r+(b.r-a.r)*t, g:a.g+(b.g-a.g)*t, b:a.b+(b.b-a.b)*t}); }
+function hexToRgba(hex,alpha){ const c=hexToRgb(hex); return `rgba(${c.r},${c.g},${c.b},${alpha})`; }
+function relLuminance(hex){ const c=hexToRgb(hex); const [R,G,B]=[c.r,c.g,c.b].map(v=>{ v/=255; return v<=0.03928 ? v/12.92 : Math.pow((v+0.055)/1.055,2.4); }); return 0.2126*R+0.7152*G+0.0722*B; }
+function rgbToHsl(c){ let {r,g,b}=c; r/=255; g/=255; b/=255; const max=Math.max(r,g,b), min=Math.min(r,g,b); let h,s,l=(max+min)/2; if(max===min){ h=s=0; } else { const d=max-min; s=l>0.5?d/(2-max-min):d/(max+min); switch(max){ case r: h=(g-b)/d+(g<b?6:0); break; case g: h=(b-r)/d+2; break; default: h=(r-g)/d+4; } h/=6; } return {h:h*360,s,l}; }
+function hslToRgb(hsl){ let {h,s,l}=hsl; h=((h%360)+360)%360/360; let r,g,b; if(s===0){ r=g=b=l; } else { const hue2rgb=(p,q,t)=>{ if(t<0)t+=1; if(t>1)t-=1; if(t<1/6) return p+(q-p)*6*t; if(t<1/2) return q; if(t<2/3) return p+(q-p)*(2/3-t)*6; return p; }; const q=l<0.5?l*(1+s):l+s-l*s; const p=2*l-q; r=hue2rgb(p,q,h+1/3); g=hue2rgb(p,q,h); b=hue2rgb(p,q,h-1/3); } return {r:r*255,g:g*255,b:b*255}; }
+function hueRotate(hex,deg){ const hsl=rgbToHsl(hexToRgb(hex)); hsl.h+=deg; return rgbToHex(hslToRgb(hsl)); }
+
+function deriveCustomVars({bg,ink,gold}){
+  const goldInk = relLuminance(gold) > 0.5 ? '#15121A' : '#FFFFFF';
+  const coral = hueRotate(gold,150), violet = hueRotate(gold,220), mint = hueRotate(gold,300);
+  return {
+    '--bg':bg, '--bg-1':mixHex(bg,ink,.045), '--bg-2':mixHex(bg,ink,.09), '--bg-3':mixHex(bg,ink,.135),
+    '--line':hexToRgba(ink,.07), '--line-strong':hexToRgba(ink,.16),
+    '--ink':ink, '--ink-dim':mixHex(ink,bg,.42), '--ink-faint':mixHex(ink,bg,.64),
+    '--gold':gold, '--gold-ink':goldInk, '--gold-dim':hexToRgba(gold,.14),
+    '--coral':coral, '--coral-dim':hexToRgba(coral,.14),
+    '--violet':violet, '--violet-dim':hexToRgba(violet,.14),
+    '--mint':mint, '--mint-dim':hexToRgba(mint,.14)
+  };
+}
+function applyCustomVars(vars){ Object.keys(vars).forEach(k=>document.documentElement.style.setProperty(k, vars[k])); }
+function clearCustomVars(){ CUSTOM_VARS.forEach(v=>document.documentElement.style.removeProperty(v)); }
+function loadSavedCustomTheme(){ try{ const raw=localStorage.getItem(CUSTOM_THEME_KEY); if(raw){ const v=JSON.parse(raw); if(v && v.bg && v.ink && v.gold) return v; } }catch(e){} return null; }
+
+function applyTheme(id){
+  if(id === 'custom'){
+    const saved = loadSavedCustomTheme();
+    if(!saved){ openCustomThemeBuilder(); return; }
+    document.documentElement.setAttribute('data-theme','custom');
+    applyCustomVars(deriveCustomVars(saved));
+  } else {
+    clearCustomVars();
+    document.documentElement.setAttribute('data-theme', id);
+  }
+  localStorage.setItem(THEME_KEY, id);
+  renderThemeList();
+}
 function renderThemeList(){
   const current = localStorage.getItem(THEME_KEY) || 'midnight';
   const el = document.getElementById('theme-list'); if(!el) return;
-  el.innerHTML = THEMES.map(t=>`<div class="theme-opt ${t.id===current?'sel':''}" onclick="applyTheme('${t.id}')"><div class="theme-swatch" data-p="${t.id}"></div><div><b>${t.name}</b><div style="font-size:10.5px;color:var(--ink-faint)">${t.desc}</div></div></div>`).join('');
+  const presetsHtml = THEMES.map(t=>`<div class="theme-opt ${t.id===current?'sel':''}" onclick="applyTheme('${t.id}')"><div class="theme-swatch" data-p="${t.id}"></div><div><b>${t.name}</b><div style="font-size:10.5px;color:var(--ink-faint)">${t.desc}</div></div>${t.isDefault?'<span class="to-badge">Default</span>':''}</div>`).join('');
+  const customSaved = loadSavedCustomTheme();
+  const customHtml = customSaved
+    ? `<div class="theme-opt ${current==='custom'?'sel':''}" onclick="applyTheme('custom')"><div class="theme-swatch"><i style="background:${customSaved.gold}"></i><i style="background:${customSaved.bg}"></i><i style="background:${customSaved.ink}"></i></div><div><b>Custom</b><div style="font-size:10.5px;color:var(--ink-faint)">Your own colors</div></div><span class="ctb-edit" onclick="event.stopPropagation();openCustomThemeBuilder()" title="Edit">✎</span></div>`
+    : `<div class="theme-opt ctb-add" onclick="openCustomThemeBuilder()"><div class="theme-swatch"><i style="background:var(--bg-3);border:1px dashed var(--line-strong)"></i></div><div><b>+ Custom theme</b><div style="font-size:10.5px;color:var(--ink-faint)">Pick your own colors</div></div></div>`;
+  el.innerHTML = presetsHtml + customHtml;
   el.querySelectorAll('[data-p]').forEach(sw=>{ sw.innerHTML = THEME_COLORS[sw.getAttribute('data-p')].map(c=>`<i style="background:${c}"></i>`).join(''); });
+}
+function getCustomThemeInputs(){ return loadSavedCustomTheme() || { bg:'#0A090D', ink:'#F1ECE3', gold:'#F4B740' }; }
+function openCustomThemeBuilder(){
+  document.querySelectorAll('.modal-overlay.ctb-modal').forEach(m=>m.remove());
+  closeAllPops(null);
+  const seed = getCustomThemeInputs();
+  const modalEl = document.createElement('div');
+  modalEl.className = 'modal-overlay ctb-modal';
+  modalEl.innerHTML = `
+    <div class="modal" style="width:380px">
+      <h3>Custom theme</h3>
+      <div class="msub">Pick your colors — everything else (cards, badges, borders) adapts automatically.</div>
+      <div class="ctb-row"><label>Background</label><input type="color" id="ctb-bg" value="${seed.bg}"></div>
+      <div class="ctb-row"><label>Text</label><input type="color" id="ctb-ink" value="${seed.ink}"></div>
+      <div class="ctb-row"><label>Accent</label><input type="color" id="ctb-gold" value="${seed.gold}"></div>
+      <div id="ctb-preview" class="ctb-preview"></div>
+      <div class="modal-actions" style="margin-top:18px">
+        <button class="btn btn-gold" style="flex:1" onclick="saveCustomTheme()">Save &amp; apply</button>
+        <button class="btn btn-ghost" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+      </div>
+    </div>`;
+  modalEl.addEventListener('click', e=>{ if(e.target===modalEl) modalEl.remove(); });
+  document.body.appendChild(modalEl);
+  ['ctb-bg','ctb-ink','ctb-gold'].forEach(id=>document.getElementById(id).addEventListener('input', updateCtbPreview));
+  updateCtbPreview();
+}
+function updateCtbPreview(){
+  const bg=document.getElementById('ctb-bg'), ink=document.getElementById('ctb-ink'), gold=document.getElementById('ctb-gold');
+  const el=document.getElementById('ctb-preview');
+  if(!bg || !ink || !gold || !el) return;
+  el.style.background = bg.value; el.style.color = ink.value;
+  el.innerHTML = `<b style="color:${gold.value}">Keep it up!</b><span>Live preview</span>`;
+}
+function saveCustomTheme(){
+  const bg=document.getElementById('ctb-bg').value, ink=document.getElementById('ctb-ink').value, gold=document.getElementById('ctb-gold').value;
+  const vals = { bg, ink, gold };
+  localStorage.setItem(CUSTOM_THEME_KEY, JSON.stringify(vals));
+  document.documentElement.setAttribute('data-theme','custom');
+  applyCustomVars(deriveCustomVars(vals));
+  localStorage.setItem(THEME_KEY, 'custom');
+  document.querySelectorAll('.modal-overlay.ctb-modal').forEach(m=>m.remove());
+  renderThemeList();
+  toast('Custom theme applied');
 }
 function closeAllPops(exceptId){
   ['theme-pop','lang-pop','team-pop'].forEach(id=>{ if(id!==exceptId){ const el=document.getElementById(id); if(el) el.classList.remove('open'); } });
@@ -3086,9 +3188,11 @@ function startPolling(){
 }
 
 (async function init(){
+  document.querySelectorAll('.tn-version').forEach(el => el.textContent = 'v' + APP_VERSION);
   document.documentElement.lang = getLang();
   const savedTheme = localStorage.getItem(THEME_KEY) || 'midnight';
   document.documentElement.setAttribute('data-theme', savedTheme);
+  if(savedTheme === 'custom'){ const c = loadSavedCustomTheme(); if(c) applyCustomVars(deriveCustomVars(c)); }
   renderThemeList();
   renderLangList();
 
