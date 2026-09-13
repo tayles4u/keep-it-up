@@ -821,7 +821,7 @@ html.overlay-mode,body.overlay-mode{background:transparent!important;}
 
 <script>
 /* ===================== STATE / PERSISTENCE (connected to a real backend) ===================== */
-const APP_VERSION = '1.7.0'; // bump this on every deploy — shown small under the logo, top left, so you can confirm a deploy actually landed
+const APP_VERSION = '1.8.0'; // bump this on every deploy — shown small under the logo, top left, so you can confirm a deploy actually landed
 const API_BASE = (function(){ try{ return localStorage.getItem('kiu_api_base_override'); }catch(e){ return null; } })() || window.KIU_API_BASE || 'https://keepitup-api-4fky.onrender.com';
 const GOOGLE_CLIENT_ID = '655518852084-1qdd80e44621hr90bdlg0iphjvnho9si.apps.googleusercontent.com';
 const THEME_KEY = 'kiu_theme_v1';
@@ -857,6 +857,7 @@ const I18N = {
     tab_host:'Host', tab_history:'History', tab_overview:'Overview', tab_transactions:'Transactions', tab_wallets:'Wallets',
     page_sessions:'Sessions', page_finances:'Finances', page_analytics:'Analytics',
     host_empty_title:'The stage is empty', host_empty_sub:'Name your reaction session and open the queue — fans can drop a link or a track the moment you go live.',
+    stripe_nudge:'You haven\'t connected payouts yet — fans can still pay for skips and entry, but that money will be held until you connect Stripe.', stripe_nudge_btn:'Connect payouts',
     sess_name_ph:'Session name', btn_go_live:'Go Live', permanent_link:'Your permanent link:',
     already_live:'Already on stage', queued_up:'queued up', back_to_stage:'Back to stage',
     history_empty_title:'No shows yet', history_empty_sub:"Sessions you've hosted will line up here once you wrap one.",
@@ -920,6 +921,7 @@ const I18N = {
     tab_host:'Host', tab_history:'Verlauf', tab_overview:'Übersicht', tab_transactions:'Transaktionen', tab_wallets:'Wallets',
     page_sessions:'Sessions', page_finances:'Finanzen', page_analytics:'Analytics',
     host_empty_title:'Die Bühne ist leer', host_empty_sub:'Benenne deine Reaction-Session und öffne die Queue — Fans können sofort einen Link oder Track schicken, sobald du live bist.',
+    stripe_nudge:'Du hast noch keine Auszahlungen verbunden — Fans können trotzdem für Skips und Eintritt bezahlen, aber das Geld wird gehalten, bis du Stripe verbindest.', stripe_nudge_btn:'Auszahlungen verbinden',
     sess_name_ph:'Session-Name', btn_go_live:'Live gehen', permanent_link:'Dein permanenter Link:',
     already_live:'Bereits auf der Bühne', queued_up:'in der Warteschlange', back_to_stage:'Zurück zur Bühne',
     history_empty_title:'Noch keine Shows', history_empty_sub:'Sessions, die du gehostet hast, tauchen hier auf, sobald du eine abschließt.',
@@ -1979,6 +1981,12 @@ function renderSessionsHost(){
   const el = document.getElementById('view-sessions-host');
   const subtabs = `<div class="subtabs"><div class="subtab active">${t('tab_host')}</div><div class="subtab nav-link" data-view="sessions-history">${t('tab_history')}</div></div>`;
   const linkLine = `<div class="code-inline">${t('permanent_link')} <span onclick="openShare()" style="text-decoration:underline;cursor:pointer;color:var(--gold)">${escapeHtml(joinUrl(getOrCreateAccountCode()))}</span></div>`;
+  const stripeNudge = (currentUser && !currentUser.stripePayoutsEnabled)
+    ? `<div class="join-note" style="background:var(--coral-dim);color:var(--coral);border-radius:10px;padding:10px 12px;margin:14px 0;text-align:left">
+         <div style="margin-bottom:8px">${t('stripe_nudge')}</div>
+         <button class="btn-xs" onclick="showView('finances-wallets')">${t('stripe_nudge_btn')}</button>
+       </div>`
+    : '';
   if(db.session && db.session.status==='live'){
     el.innerHTML = `
       <div class="page-head"><h1>${t('page_sessions')}</h1><button class="btn btn-ghost" onclick="openShare()">${t('btn_share')}</button></div>
@@ -1987,6 +1995,7 @@ function renderSessionsHost(){
         <div class="resume-card"><b>${escapeHtml(db.session.title)}</b><span>${t('already_live')} · ${db.session.queue.length} ${t('queued_up')}</span></div>
         <button class="btn btn-gold" onclick="showView('sessions-live')">${t('back_to_stage')}</button>
         ${linkLine}
+        ${stripeNudge}
       </div>`;
   } else {
     el.innerHTML = `
@@ -1998,6 +2007,7 @@ function renderSessionsHost(){
         <input id="new-sess-name" class="sess-name-input" type="text" placeholder="${t('sess_name_ph')}" maxlength="40">
         <button class="btn btn-gold" onclick="startSession()">${t('btn_go_live')}</button>
         ${linkLine}
+        ${stripeNudge}
       </div>`;
   }
 }
@@ -2924,6 +2934,7 @@ async function refreshStripeStatus(elId){
   if(!el) return;
   try{
     const data = await apiFetch('/api/stripe/status');
+    if(currentUser){ currentUser.stripeConnected = !!data.connected; currentUser.stripePayoutsEnabled = !!data.payoutsEnabled; } // keep the Go-Live nudge in sync without waiting for a full /api/me refresh
     const heldNote = data.heldAmount > 0
       ? `<div class="msub" style="margin-top:8px;margin-bottom:0">${money(data.heldAmount)} from fans is waiting for you — it'll land in your account automatically as soon as payouts are set up here.</div>`
       : '';
