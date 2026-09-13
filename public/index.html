@@ -1,5 +1,3 @@
-
-
 <!DOCTYPE html>
 <html lang="de" data-theme="midnight">
 <head>
@@ -818,7 +816,7 @@ html.overlay-mode,body.overlay-mode{background:transparent!important;}
 
 <script>
 /* ===================== STATE / PERSISTENCE (connected to a real backend) ===================== */
-const APP_VERSION = '1.2.0'; // bump this on every deploy — shown small under the logo, top left, so you can confirm a deploy actually landed
+const APP_VERSION = '1.3.0'; // bump this on every deploy — shown small under the logo, top left, so you can confirm a deploy actually landed
 const API_BASE = (function(){ try{ return localStorage.getItem('kiu_api_base_override'); }catch(e){ return null; } })() || window.KIU_API_BASE || 'https://keepitup-api-4fky.onrender.com';
 const GOOGLE_CLIENT_ID = '655518852084-1qdd80e44621hr90bdlg0iphjvnho9si.apps.googleusercontent.com';
 const THEME_KEY = 'kiu_theme_v1';
@@ -892,7 +890,7 @@ const I18N = {
     skip_sound:'Skip sound', skip_sound_hint:'Plays when someone pays to jump the line. Max 6 sec.',
     default_ding:'Default sound', reset_default:'Reset to default', unpin:'Unpin', pin:'Pin', new_badge:'New',
     j_name:'Your name', j_song:'Song link', j_desc:'Description', j_desc_ph:'Anything the host should know',
-    j_paste_link:'Paste a link', j_upload_file:'Upload file', j_file:'Audio file (mp3 or wav)', j_file_hint:'Max 8MB — a short clip works best.',
+    j_paste_link:'Paste a link', j_upload_file:'Upload file', j_file:'Audio file (mp3 or wav)', j_file_hint:'Max 30MB — a full song fits fine.',
     j_send:'Send it in', j_pay_join:'Pay & join', already_queued:'already queued for a reaction',
     not_live_title:"This streamer isn't live right now.", not_live_sub:'Check back once they open the queue — this link will drop you straight in.',
     closed_title:'The host has paused new submissions right now. Check back in a bit!',
@@ -956,7 +954,7 @@ const I18N = {
     skip_sound:'Skip-Sound', skip_sound_hint:'Spielt, wenn jemand für einen Skip bezahlt. Max. 6 Sek.',
     default_ding:'Standard-Sound', reset_default:'Zurücksetzen', unpin:'Lösen', pin:'Anpinnen', new_badge:'Neu',
     j_name:'Dein Name', j_song:'Song-Link', j_desc:'Beschreibung', j_desc_ph:'Was der Host wissen sollte',
-    j_paste_link:'Link einfügen', j_upload_file:'Datei hochladen', j_file:'Audiodatei (mp3 oder wav)', j_file_hint:'Max. 8MB — ein kurzer Ausschnitt funktioniert am besten.',
+    j_paste_link:'Link einfügen', j_upload_file:'Datei hochladen', j_file:'Audiodatei (mp3 oder wav)', j_file_hint:'Max. 30MB — ein ganzer Song passt problemlos.',
     j_send:'Absenden', j_pay_join:'Zahlen & beitreten', already_queued:'bereits in der Warteschlange',
     not_live_title:'Dieser Streamer ist gerade nicht live.', not_live_sub:'Schau später vorbei — der Link bringt dich direkt rein, sobald die Queue offen ist.',
     closed_title:'Der Host hat neue Einreichungen pausiert. Schau gleich nochmal vorbei!',
@@ -2980,8 +2978,8 @@ function handleJoinFileChosen(inputEl){
   const file = inputEl.files[0];
   const statusEl = document.getElementById('j-file-status');
   if(!file) return;
-  if(file.size > 6*1024*1024){
-    if(statusEl) statusEl.textContent = 'That file is too big — keep it under ~6MB.';
+  if(file.size > 30*1024*1024){
+    if(statusEl) statusEl.textContent = 'That file is too big — keep it under ~30MB.';
     pendingJoinFile = null;
     inputEl.value = '';
     return;
