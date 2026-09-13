@@ -271,20 +271,27 @@ function looksLikeStaleAccount(err) {
 async function createRecipientAccount(user) {
   // 'recipient' configuration = this account only ever receives transferred funds and gets paid out —
   // it never processes its own card charges, which keeps the onboarding form as short as possible.
+  // Stripe's v2 Accounts API still requires the 'card_payments' merchant capability to be requested
+  // alongside stripe_balance.stripe_transfers, even for a receive-only account — without it account
+  // creation fails with "stripe_balance.stripe_transfers capability cannot be requested without the
+  // configuration.merchant.capabilities.card_payments capability". This does NOT make the connected
+  // account process its own charges (all charges still run through the platform's own Checkout with
+  // transfer_data), it's just a capability Stripe requires to be present on the account.
   const account = await stripeRequestV2('POST', '/v2/core/accounts', {
     contact_email: user.email,
     display_name: user.name,
     dashboard: 'express',
     identity: { country: 'de' },
     configuration: {
-      recipient: { capabilities: { stripe_balance: { stripe_transfers: { requested: true } } } }
+      recipient: { capabilities: { stripe_balance: { stripe_transfers: { requested: true } } } },
+      merchant: { capabilities: { card_payments: { requested: true } } }
     },
     defaults: {
       currency: 'eur',
       responsibilities: { fees_collector: 'application', losses_collector: 'application' },
       locales: ['de-DE']
     },
-    include: ['configuration.recipient']
+    include: ['configuration.recipient', 'configuration.merchant']
   });
   db.prepare('UPDATE users SET stripe_account_id=?, stripe_payouts_enabled=0 WHERE id=?').run(account.id, user.id);
   return account.id;
