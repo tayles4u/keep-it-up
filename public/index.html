@@ -35,11 +35,19 @@
 :root, [data-theme="midnight"]{
   --bg:#0A090D;--bg-1:#121016;--bg-2:#17141C;--bg-3:#1E1924;
   --line:rgba(244,239,228,.06);--line-strong:rgba(244,239,228,.16);
-  --ink:#F1ECE3;--ink-dim:#A79DBA;--ink-faint:#6C6380;
+  --ink:#F1ECE3;--ink-dim:#A79DBA;--ink-faint:#72618F;
+  /* Accent family re-tuned to one consistent S/L band (was: gold S89/L60, coral
+     S100/L68, violet S89/L70, mint S62/L57 — coral ran hot/neon, mint ran flat next
+     to it). Gold was already right where it should be, so it's untouched; coral and
+     violet came down a notch toward it and mint came up, so all four now read as one
+     family instead of four different eras — same hues throughout, still unmistakably
+     the brand. Contrast against --bg re-checked afterward: gold 11.1, mint 11.1,
+     coral 5.6, violet 5.1 — all comfortably above the 4.5:1 bar this app relies on for
+     small accent text/icons. */
   --gold:#F4B740;--gold-ink:#1C1404;--gold-dim:rgba(244,183,64,.14);
-  --coral:#FF5D72;--coral-dim:rgba(255,93,114,.14);
-  --violet:#8C6FF7;--violet-dim:rgba(140,111,247,.14);
-  --mint:#4ED69B;--mint-dim:rgba(78,214,155,.14);
+  --coral:#EF4D62;--coral-dim:rgba(239,77,98,.14);
+  --violet:#896EED;--violet-dim:rgba(137,110,237,.14);
+  --mint:#3EDA9C;--mint-dim:rgba(62,218,156,.14);
 }
 [data-theme="blackout"]{
   --bg:#080808;--bg-1:#101010;--bg-2:#151515;--bg-3:#1C1C1C;
@@ -575,10 +583,7 @@ body.overlay-mode .help-fab,body.overlay-mode #toast{display:none!important;}
 .embed-wrap.sm.spotify iframe{height:152px;}
 .embed-wrap.soundcloud iframe{height:120px;}
 audio{width:100%;margin-top:16px;}
-.ticket{position:relative;display:flex;background:var(--bg-2);border:1px solid var(--line-strong);border-radius:14px;margin-bottom:10px;overflow:visible;transition:transform .2s cubic-bezier(.2,.8,.2,1),border-color .2s;}
-.ticket:hover{transform:translateX(3px);border-color:var(--ink-faint);}
-.ticket.first:hover{border-color:var(--gold);}
-@media (prefers-reduced-motion: reduce){ .ticket{transition:none;} .ticket:hover{transform:none;} }
+.ticket{position:relative;display:flex;background:var(--bg-2);border:1px solid var(--line-strong);border-radius:14px;margin-bottom:10px;overflow:visible;}
 .ticket::before,.ticket::after{content:"";position:absolute;width:14px;height:14px;background:var(--bg-1);border-radius:50%;left:52px;z-index:2;}
 .ticket::before{top:-7px;} .ticket::after{bottom:-7px;}
 .ticket .stub{width:60px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:15px;border-right:2px dashed var(--line-strong);color:var(--gold);}
@@ -909,7 +914,7 @@ html.overlay-mode,body.overlay-mode{background:transparent!important;}
 
 <script>
 /* ===================== STATE / PERSISTENCE (connected to a real backend) ===================== */
-const APP_VERSION = '1.13.0'; // bump this on every deploy — shown small under the logo, top left, so you can confirm a deploy actually landed
+const APP_VERSION = '1.14.0'; // bump this on every deploy — shown small under the logo, top left, so you can confirm a deploy actually landed
 const API_BASE = (function(){ try{ return localStorage.getItem('kiu_api_base_override'); }catch(e){ return null; } })() || window.KIU_API_BASE || 'https://keepitup-api-4fky.onrender.com';
 const GOOGLE_CLIENT_ID = '655518852084-1qdd80e44621hr90bdlg0iphjvnho9si.apps.googleusercontent.com';
 const THEME_KEY = 'kiu_theme_v1';
