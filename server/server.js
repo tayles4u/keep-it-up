@@ -959,6 +959,28 @@ route('POST', '/api/shows/:id/queue/:itemId/ban', async (req, res, params) => {
   sendJSON(res, 200, { ok: true });
 });
 
+route('POST', '/api/shows/:id/queue/reorder', async (req, res, params) => {
+  const user = getAuthUser(req);
+  if (!user) return sendJSON(res, 401, { error: 'Not signed in.' });
+  const show = db.prepare('SELECT * FROM shows WHERE id=? AND user_id=?').get(params.id, user.id);
+  if (!show) return sendJSON(res, 404, { error: 'Show not found.' });
+  const body = await readBody(req);
+  const order = Array.isArray(body.order) ? body.order : [];
+  // The host can only drag the still-waiting part of the queue (position >= 1 — whatever's at
+  // position 0 is already "now playing" and stays put), so only touch rows that are actually
+  // 'queued' right now and belong to this show — a stale/tampered id list can't move someone
+  // into another show's queue or resurrect a removed/played entry.
+  const current = db.prepare(`SELECT id FROM queue_items WHERE show_id=? AND status='queued' ORDER BY position ASC`).all(show.id);
+  if (!current.length) return sendJSON(res, 200, { ok: true });
+  const nowPlayingId = current[0].id;
+  const validIds = new Set(current.map(r => r.id));
+  const requestedOnDeck = order.filter(id => validIds.has(id) && id !== nowPlayingId);
+  const untouchedOnDeck = current.slice(1).map(r => r.id).filter(id => !requestedOnDeck.includes(id));
+  const newOrder = [nowPlayingId, ...requestedOnDeck, ...untouchedOnDeck];
+  newOrder.forEach((id, i) => { db.prepare(`UPDATE queue_items SET position=? WHERE id=?`).run(i, id); });
+  sendJSON(res, 200, { ok: true });
+});
+
 route('PATCH', '/api/shows/:id/settings', async (req, res, params) => {
   const user = getAuthUser(req);
   if (!user) return sendJSON(res, 401, { error: 'Not signed in.' });
