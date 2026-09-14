@@ -808,7 +808,7 @@ route('GET', '/api/shows/current', async (req, res) => {
   if (!show) return sendJSON(res, 200, { show: null, queue: [] });
   const queue = db.prepare(`SELECT * FROM queue_items WHERE show_id = ? AND status='queued' ORDER BY position ASC`).all(show.id);
   const earn = db.prepare(`SELECT COALESCE(SUM(amount),0) AS total FROM transactions WHERE show_id=? AND status!='payout'`).get(show.id).total;
-  sendJSON(res, 200, { show: Object.assign(showToJSON(show), { earnings: earn, hype: hypeLevelFor(show.id) }), queue: queue.map(queueToJSON) });
+  sendJSON(res, 200, { show: Object.assign(showToJSON(show), { earnings: earn, hype: hypeLevelFor(show.id) }), queue: queue.map((q, i) => queueToJSON(q, { omitFile: i !== 0 })) });
 });
 
 route('POST', '/api/shows/:id/end', async (req, res, params) => {
@@ -829,7 +829,7 @@ route('GET', '/api/shows/history', async (req, res) => {
     const earn = db.prepare(`SELECT COALESCE(SUM(amount),0) AS total FROM transactions WHERE show_id=? AND status!='payout'`).get(s.id).total;
     const songs = db.prepare(`SELECT * FROM queue_items WHERE show_id=? AND status='played' ORDER BY joined_at ASC`).all(s.id);
     return Object.assign(showToJSON(s), {
-      earnings: earn, songs: songs.map(queueToJSON),
+      earnings: earn, songs: songs.map(q => queueToJSON(q, { omitFile: true })),
       durationSec: s.ended_at ? Math.floor((s.ended_at - s.started_at) / 1000) : 0
     });
   });
@@ -874,7 +874,7 @@ route('POST', '/api/shows/:id/bracket/start', async (req, res, params) => {
   const queue = db.prepare(`SELECT * FROM queue_items WHERE show_id=? AND status='queued' ORDER BY position ASC`).all(show.id);
   if (queue.length < 2) return sendJSON(res, 409, { error: 'Need at least 2 tracks queued to start a bracket.' });
 
-  let entries = queue.map(queueToJSON);
+  let entries = queue.map(q => queueToJSON(q, { omitFile: true })); // real audio is re-attached live per request, see bracketWithAudio — never stored here
   for (let i = entries.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); const tmp = entries[i]; entries[i] = entries[j]; entries[j] = tmp; }
   const size = nextPowerOfTwo(entries.length);
   while (entries.length < size) entries.push(null);
@@ -886,7 +886,7 @@ route('POST', '/api/shows/:id/bracket/start', async (req, res, params) => {
 
   db.prepare(`UPDATE queue_items SET status='bracket' WHERE show_id=? AND status='queued'`).run(show.id);
   db.prepare(`UPDATE shows SET bracket_json=? WHERE id=?`).run(JSON.stringify(bracket), show.id);
-  sendJSON(res, 200, { bracket });
+  sendJSON(res, 200, { bracket: bracketWithAudio(bracket) });
 });
 
 route('POST', '/api/shows/:id/bracket/pick', async (req, res, params) => {
@@ -905,7 +905,7 @@ route('POST', '/api/shows/:id/bracket/pick', async (req, res, params) => {
   match.winner = chosen;
   advanceBracketIfRoundDone(bracket);
   db.prepare(`UPDATE shows SET bracket_json=? WHERE id=?`).run(JSON.stringify(bracket), show.id);
-  sendJSON(res, 200, { bracket });
+  sendJSON(res, 200, { bracket: bracketWithAudio(bracket) });
 });
 
 route('POST', '/api/shows/:id/bracket/cancel', async (req, res, params) => {
@@ -1330,17 +1330,49 @@ route('POST', '/api/stripe/webhook', async (req, res) => {
 });
 
 // ----- json helpers -----
+// `omitFile` strips the (potentially tens-of-MB) base64 audio blob and replaces it with a cheap
+// truthy/falsy marker — every caller in the frontend only ever branches on "is there a file?" for
+// anything but the single track that's actually cued up to play (see queueToJSON callers below).
+// Without this, any endpoint that returns more than one queue row at a time re-serializes every
+// uploaded file on every single poll — that's what was actually driving the OOM crashes.
+function queueToJSON(q, opts) {
+  const omit = opts && opts.omitFile;
+  return {
+    id: q.id, name: q.name, song: q.song, note: q.note, paidTotal: q.paid_total,
+    position: q.position, status: q.status, joinedAt: q.joined_at, coverUrl: q.cover_url,
+    fileData: omit ? (q.file_data ? 1 : null) : q.file_data,
+    fileName: q.file_name
+  };
+}
+// Bracket entries are persisted (in shows.bracket_json) without file data at all — see
+// bracket/start below — so a bracket with many rounds of entrants never bloats that column or the
+// cost of parsing it on every read. The one/two entries actually on screen (the live match, or the
+// champion once it's decided) get their real audio re-attached here, live, from queue_items.
+function attachEntryFile(entry) {
+  if (!entry) return entry;
+  const row = db.prepare(`SELECT file_data FROM queue_items WHERE id=?`).get(entry.id);
+  return row && row.file_data ? Object.assign({}, entry, { fileData: row.file_data }) : entry;
+}
+function bracketWithAudio(bracket) {
+  if (!bracket) return bracket;
+  if (bracket.champion) return Object.assign({}, bracket, { champion: attachEntryFile(bracket.champion) });
+  const match = currentBracketMatch(bracket);
+  if (!match) return bracket;
+  const roundIndex = bracket.roundIndex;
+  const matchIndex = bracket.rounds[roundIndex].indexOf(match);
+  const newRounds = bracket.rounds.slice();
+  newRounds[roundIndex] = newRounds[roundIndex].slice();
+  newRounds[roundIndex][matchIndex] = Object.assign({}, match, { a: attachEntryFile(match.a), b: attachEntryFile(match.b) });
+  return Object.assign({}, bracket, { rounds: newRounds });
+}
 function showToJSON(s) {
   return {
     id: s.id, title: s.title, status: s.status,
     settings: JSON.parse(s.settings_json),
     startedAt: s.started_at, endedAt: s.ended_at,
     totalParticipants: s.total_participants,
-    bracket: s.bracket_json ? JSON.parse(s.bracket_json) : null
+    bracket: s.bracket_json ? bracketWithAudio(JSON.parse(s.bracket_json)) : null
   };
-}
-function queueToJSON(q) {
-  return { id: q.id, name: q.name, song: q.song, note: q.note, paidTotal: q.paid_total, position: q.position, status: q.status, joinedAt: q.joined_at, coverUrl: q.cover_url, fileData: q.file_data, fileName: q.file_name };
 }
 
 route('GET', '/health', async (req, res) => { sendJSON(res, 200, { ok: true, time: Date.now() }); });
