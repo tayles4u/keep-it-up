@@ -94,7 +94,10 @@ input,textarea{font-family:inherit;}
 .badge-violet{color:var(--violet);} .badge-violet::before{background:var(--violet);}
 .plat-badge{font-size:9.5px;font-weight:700;padding:2px 6px;border:1px solid;border-radius:4px;text-transform:uppercase;letter-spacing:.03em;margin-left:6px;white-space:nowrap;}
 
-.btn{border-radius:10px;padding:11px 20px;font-size:13px;font-weight:700;border:1.5px solid transparent;transition:transform .12s,opacity .12s;text-transform:uppercase;letter-spacing:.03em;}
+.btn{position:relative;border-radius:10px;padding:11px 20px;font-size:13px;font-weight:700;border:1.5px solid transparent;transition:transform .12s,opacity .12s;text-transform:uppercase;letter-spacing:.03em;isolation:isolate;}
+.btn::after{content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;transition:opacity .25s ease;z-index:-1;background:radial-gradient(120px circle at var(--mx,50%) var(--my,50%), rgba(255,255,255,.32), transparent 70%);mix-blend-mode:overlay;}
+.btn-outline::after,.btn-ghost::after{background:radial-gradient(120px circle at var(--mx,50%) var(--my,50%), rgba(244,183,64,.24), transparent 70%);mix-blend-mode:normal;}
+.btn:hover::after{opacity:1;}
 .btn:hover{transform:translateY(-1px);}
 .btn:active{transform:translateY(0);}
 .btn:disabled{opacity:.35;cursor:not-allowed;transform:none;}
@@ -103,12 +106,7 @@ input,textarea{font-family:inherit;}
 .btn-coral{background:var(--coral);color:#1a0006;}
 .btn-ghost{background:var(--bg-2);color:var(--ink-dim);border-color:var(--line);}
 .btn-block{width:100%;text-align:center;display:block;}
-.btn-magnetic{position:relative;overflow:hidden;}
-.btn-magnetic .bm-spot{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .25s ease;background:radial-gradient(120px circle at var(--mx,50%) var(--my,50%), rgba(255,255,255,.35), transparent 70%);mix-blend-mode:overlay;}
-.btn-magnetic:hover .bm-spot{opacity:1;}
-.btn-magnetic.btn-outline .bm-spot{background:radial-gradient(120px circle at var(--mx,50%) var(--my,50%), rgba(244,183,64,.28), transparent 70%);mix-blend-mode:normal;}
-.btn-magnetic .bm-label{position:relative;}
-@media (prefers-reduced-motion: reduce){ .btn-magnetic .bm-spot{transition:none;} }
+@media (prefers-reduced-motion: reduce){ .btn::after{transition:none;} }
 .btn-xs{border-radius:8px;padding:6px 12px;font-size:10.5px;font-weight:700;border:1px solid var(--line-strong);background:var(--bg-3);color:var(--ink);text-transform:uppercase;letter-spacing:.03em;}
 .icon-btn{width:36px;height:36px;border-radius:10px;background:var(--bg-2);border:1px solid var(--line-strong);color:var(--ink-dim);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:.15s;}
 .icon-btn:hover{color:var(--ink);background:var(--bg-3);}
@@ -267,6 +265,20 @@ body.overlay-mode .help-fab,body.overlay-mode #toast{display:none!important;}
 
 .rundown-sheet{background:var(--bg-1);border:1px solid var(--line-strong);border-radius:14px;padding:6px 30px;margin-top:32px;}
 .rundown-item{display:grid;grid-template-columns:20px 1fr;gap:20px;padding:24px 0;}
+/* The sheet itself fades in via the generic .reveal system (see IntersectionObserver
+   init below); once it lands, replay the three cues in sequence like a rundown being
+   ticked off live, instead of all three items appearing at once. */
+.rundown-item{opacity:0;transform:translateY(14px);transition:opacity .5s ease,transform .5s ease;}
+.rundown-sheet.in .rundown-item{opacity:1;transform:translateY(0);}
+.rundown-sheet.in .rundown-item:nth-child(1){transition-delay:.05s;}
+.rundown-sheet.in .rundown-item:nth-child(2){transition-delay:.22s;}
+.rundown-sheet.in .rundown-item:nth-child(3){transition-delay:.39s;}
+.rundown-item .rd-line{transform-origin:top;transform:scaleY(0);transition:transform .35s ease;}
+.rundown-sheet.in .rundown-item:nth-child(1) .rd-line{transition-delay:.4s;transform:scaleY(1);}
+.rundown-sheet.in .rundown-item:nth-child(2) .rd-line{transition-delay:.57s;transform:scaleY(1);}
+@media (prefers-reduced-motion: reduce){
+  .rundown-item,.rundown-item .rd-line{transition:none!important;opacity:1!important;transform:none!important;}
+}
 .rd-marker{align-self:stretch;display:flex;flex-direction:column;align-items:center;}
 .rd-dot{width:11px;height:11px;border-radius:50%;background:var(--ink-faint);box-shadow:0 0 0 3px var(--bg-1),0 0 0 4px var(--line-strong);flex-shrink:0;margin-top:3px;}
 .rd-dot.live{background:var(--mint);box-shadow:0 0 0 3px var(--bg-1),0 0 0 4px rgba(78,214,155,.35);animation:rdPulse 1.6s ease infinite;}
@@ -368,6 +380,29 @@ body.overlay-mode .help-fab,body.overlay-mode #toast{display:none!important;}
 .host-panel-row{display:flex;flex-direction:column;gap:12px;width:100%;max-width:420px;margin-top:28px;}
 
 .card{background:var(--bg-1);border:1px solid var(--line);border-radius:var(--r-lg);padding:20px;}
+/* Cursor-tracked spotlight shared by every card-like hover surface in the app — one
+   soft radial highlight that follows the pointer, instead of a static glow. Since the
+   pseudo-element is exactly inset:0 with border-radius:inherit, it never needs
+   overflow:hidden on the parent (several of these — .queue-row especially — rely on
+   children intentionally overflowing their bounds for other animations). */
+.card,.queue-row,.wallet-row,.ov-tile,.mini-stat,.small-chart,.now-playing,.host-live-card,
+.resume-card,.admit-card,.br-side,.preview-mock,.rundown-sheet{position:relative;}
+.card::after,.queue-row::after,.wallet-row::after,.ov-tile::after,.mini-stat::after,
+.small-chart::after,.now-playing::after,.host-live-card::after,.resume-card::after,
+.admit-card::after,.br-side::after,.preview-mock::after,.rundown-sheet::after{
+  content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  opacity:0;transition:opacity .35s ease;
+  background:radial-gradient(240px circle at var(--mx,50%) var(--my,50%), rgba(244,183,64,.06), transparent 72%);
+}
+.card:hover::after,.queue-row:hover::after,.wallet-row:hover::after,.ov-tile:hover::after,
+.mini-stat:hover::after,.small-chart:hover::after,.now-playing:hover::after,.host-live-card:hover::after,
+.resume-card:hover::after,.admit-card:hover::after,.br-side:hover::after,.preview-mock:hover::after,
+.rundown-sheet:hover::after{opacity:1;}
+@media (prefers-reduced-motion: reduce){
+  .card::after,.queue-row::after,.wallet-row::after,.ov-tile::after,.mini-stat::after,
+  .small-chart::after,.now-playing::after,.host-live-card::after,.resume-card::after,
+  .admit-card::after,.br-side::after,.preview-mock::after,.rundown-sheet::after{transition:none;}
+}
 .bento{display:grid;grid-template-columns:1.3fr 1fr;grid-template-rows:auto auto;gap:14px;}
 .bento .b-main{grid-row:span 2;display:flex;flex-direction:column;justify-content:space-between;}
 .stat-h{display:flex;justify-content:space-between;align-items:flex-start;}
@@ -386,7 +421,8 @@ body.overlay-mode .help-fab,body.overlay-mode #toast{display:none!important;}
   .bars .b{width:16px;}
 }
 .bars .grp{display:flex;gap:4px;align-items:flex-end;flex:1;justify-content:center;height:100%;}
-.bars .b{width:22px;border-radius:5px 5px 0 0;min-height:2px;}
+.bars .b{width:22px;border-radius:5px 5px 0 0;min-height:2px;transition:height .8s cubic-bezier(.16,.9,.24,1);}
+@media (prefers-reduced-motion: reduce){ .bars .b{transition:none;} }
 .bars .b.earn{background:var(--gold);}
 .bars .b.pay{background:var(--violet);}
 .bar-labels{display:flex;gap:22px;margin-top:8px;}
@@ -539,7 +575,10 @@ body.overlay-mode .help-fab,body.overlay-mode #toast{display:none!important;}
 .embed-wrap.sm.spotify iframe{height:152px;}
 .embed-wrap.soundcloud iframe{height:120px;}
 audio{width:100%;margin-top:16px;}
-.ticket{position:relative;display:flex;background:var(--bg-2);border:1px solid var(--line-strong);border-radius:14px;margin-bottom:10px;overflow:visible;}
+.ticket{position:relative;display:flex;background:var(--bg-2);border:1px solid var(--line-strong);border-radius:14px;margin-bottom:10px;overflow:visible;transition:transform .2s cubic-bezier(.2,.8,.2,1),border-color .2s;}
+.ticket:hover{transform:translateX(3px);border-color:var(--ink-faint);}
+.ticket.first:hover{border-color:var(--gold);}
+@media (prefers-reduced-motion: reduce){ .ticket{transition:none;} .ticket:hover{transform:none;} }
 .ticket::before,.ticket::after{content:"";position:absolute;width:14px;height:14px;background:var(--bg-1);border-radius:50%;left:52px;z-index:2;}
 .ticket::before{top:-7px;} .ticket::after{bottom:-7px;}
 .ticket .stub{width:60px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:15px;border-right:2px dashed var(--line-strong);color:var(--gold);}
@@ -710,8 +749,8 @@ html.overlay-mode,body.overlay-mode{background:transparent!important;}
       <h1>Keep It <span class="hl">Up!</span></h1>
       <p class="sub">Fans send tracks — a Spotify link, a YouTube video, a SoundCloud demo, or their own mp3/wav straight from their phone. They queue up, they can pay to jump the line. You just react, live.</p>
       <div class="cta-row">
-        <button class="btn btn-gold btn-magnetic" onclick="goApp()"><span class="bm-spot"></span><span class="bm-label">Start hosting</span></button>
-        <button class="btn btn-outline btn-magnetic" onclick="goApp()"><span class="bm-spot"></span><span class="bm-label">Watch a demo</span></button>
+        <button class="btn btn-gold" onclick="goApp()">Start hosting</button>
+        <button class="btn btn-outline" onclick="goApp()">Watch a demo</button>
       </div>
     </div>
     <div class="ticket-stack" id="ticket-stack">
@@ -870,7 +909,7 @@ html.overlay-mode,body.overlay-mode{background:transparent!important;}
 
 <script>
 /* ===================== STATE / PERSISTENCE (connected to a real backend) ===================== */
-const APP_VERSION = '1.12.0'; // bump this on every deploy — shown small under the logo, top left, so you can confirm a deploy actually landed
+const APP_VERSION = '1.13.0'; // bump this on every deploy — shown small under the logo, top left, so you can confirm a deploy actually landed
 const API_BASE = (function(){ try{ return localStorage.getItem('kiu_api_base_override'); }catch(e){ return null; } })() || window.KIU_API_BASE || 'https://keepitup-api-4fky.onrender.com';
 const GOOGLE_CLIENT_ID = '655518852084-1qdd80e44621hr90bdlg0iphjvnho9si.apps.googleusercontent.com';
 const THEME_KEY = 'kiu_theme_v1';
@@ -1064,6 +1103,45 @@ function money(n){ return '€' + (Math.round((n||0)*100)/100).toFixed(2); }
 function fmtDate(ts){ const d=new Date(ts); return d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'2-digit'})+' '+d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}); }
 function fmtDur(sec){ sec=Math.max(0,Math.floor(sec)); const h=Math.floor(sec/3600), m=Math.floor((sec%3600)/60), s=sec%60; return (h>0?h+':':'')+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0'); }
 function escapeHtml(str){ return String(str==null?'':str).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+const prefersNoMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+// Counts big stat numbers (.sc-val) up from 0 to their real value instead of just
+// appearing — call right after setting innerHTML on a view that has any. Reads the
+// already-rendered text (money() output or a plain integer) so no markup changes
+// are needed at each call site.
+function animateStatValues(root){
+  const scope = root || document;
+  if(prefersNoMotion) return;
+  scope.querySelectorAll('.sc-val').forEach(el=>{
+    const raw = el.textContent.trim();
+    const m = raw.match(/^(€?)(-?\d+(?:\.\d+)?)$/);
+    if(!m) return;
+    const prefix = m[1];
+    const target = parseFloat(m[2]);
+    if(isNaN(target)) return;
+    const decimals = m[2].includes('.') ? 2 : 0;
+    const dur = 750;
+    const t0 = performance.now();
+    function step(now){
+      const p = Math.min(1, (now - t0) / dur);
+      const eased = 1 - Math.pow(1 - p, 3);
+      const val = target * eased;
+      el.textContent = prefix + (decimals ? val.toFixed(2) : Math.round(val));
+      if(p < 1) requestAnimationFrame(step); else el.textContent = raw;
+    }
+    requestAnimationFrame(step);
+  });
+}
+// Grows .bars .b columns up from 0 instead of popping in at full height — the bars
+// are rendered with their real height inline already, so this just replays it as
+// a transition on the next frame.
+function animateBars(root){
+  const scope = root || document;
+  if(prefersNoMotion) return;
+  const bars = scope.querySelectorAll('.bars .b');
+  bars.forEach(b=>{ b.dataset.h = b.style.height; b.style.height = '0%'; });
+  requestAnimationFrame(()=>{ requestAnimationFrame(()=>{ bars.forEach(b=>{ if(b.dataset.h) b.style.height = b.dataset.h; }); }); });
+}
 
 function csvEscape(str){ str = String(str==null?'':str); if(/[",\n]/.test(str)) return '"'+str.replace(/"/g,'""')+'"'; return str; }
 function downloadCSV(content, filename){
@@ -1775,6 +1853,8 @@ function renderAnalytics(){
       </div>
     </div>
     <div class="card" style="margin-top:14px"><div class="stat-h"><div><h3>${t('an_avg')}</h3><p>${t('an_avg_sub')}</p></div></div><div class="sc-val" style="font-size:24px;margin-top:8px">${money(avgEarnings)}</div></div>`;
+  animateStatValues(el);
+  animateBars(el);
 }
 
 /* ===================== PLATFORM ADMIN (you, not per-streamer teams — see /api/admin/*) ===================== */
@@ -2200,6 +2280,8 @@ function renderFinancesOverview(){
         <div class="chart-footer"><button class="active">${t('th_earned')}</button><button disabled>${t('btn_payout')}</button></div>
       </div>
     </div>`;
+  animateStatValues(el);
+  animateBars(el);
 }
 async function requestPayout(){
   try{
@@ -2891,6 +2973,7 @@ function openShowRecap(show){
     </div>`;
   modalEl.addEventListener('click', e=>{ if(e.target===modalEl) modalEl.remove(); });
   document.body.appendChild(modalEl);
+  animateStatValues(modalEl);
 }
 function openShowRecapById(historyId){
   const h = db.history.find(x=>x.id===historyId);
@@ -3429,25 +3512,29 @@ function startPolling(){
     } else {
       frRows.forEach(el=>{ el.classList.add('in'); const n=el.querySelector('.fnum'); if(n) n.textContent = n.getAttribute('data-final')||n.textContent; });
     }
-    if(!reduceMotion){
-      document.querySelectorAll('.feature-row').forEach(row=>{
-        row.addEventListener('mousemove', (e)=>{
-          const r = row.getBoundingClientRect();
-          row.style.setProperty('--mx', ((e.clientX - r.left) / r.width * 100) + '%');
-          row.style.setProperty('--my', ((e.clientY - r.top) / r.height * 100) + '%');
-        });
-      });
-    }
   }
 
   if(!reduceMotion){
-    document.querySelectorAll('.btn-magnetic').forEach(btn=>{
-      btn.addEventListener('mousemove', (e)=>{
-        const r = btn.getBoundingClientRect();
-        btn.style.setProperty('--mx', ((e.clientX - r.left) / r.width * 100) + '%');
-        btn.style.setProperty('--my', ((e.clientY - r.top) / r.height * 100) + '%');
+    // One delegated, rAF-throttled listener for every hoverable "surface" in the app —
+    // buttons, cards, queue/ticket rows, wallet rows, stat tiles — instead of binding
+    // per-element, so it keeps working after a view re-renders its innerHTML (which
+    // happens constantly here: renderLive(), patchSettings(), showView(), etc. all
+    // replace whole subtrees, which would silently orphan any listener attached directly
+    // to an element that later gets swapped out).
+    const SPOT_SEL = '.btn, .card, .queue-row, .wallet-row, .ov-tile, .mini-stat, .small-chart, .now-playing, .host-live-card, .resume-card, .admit-card, .br-side, .preview-mock, .rundown-sheet, .feature-row';
+    let spotRaf = null, spotEvt = null;
+    document.addEventListener('mousemove', (e)=>{
+      spotEvt = e;
+      if(spotRaf) return;
+      spotRaf = requestAnimationFrame(()=>{
+        spotRaf = null;
+        const el = spotEvt.target.closest && spotEvt.target.closest(SPOT_SEL);
+        if(!el) return;
+        const r = el.getBoundingClientRect();
+        el.style.setProperty('--mx', ((spotEvt.clientX - r.left) / r.width * 100) + '%');
+        el.style.setProperty('--my', ((spotEvt.clientY - r.top) / r.height * 100) + '%');
       });
-    });
+    }, { passive:true });
 
     const heroSplit = document.querySelector('.hero-split');
     const tickStack = document.getElementById('ticket-stack');
