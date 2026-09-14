@@ -47,6 +47,35 @@ setInterval(() => {
   for (const [key, bucket] of rateBuckets) { if (now > bucket.resetAt) rateBuckets.delete(key); }
 }, 10 * 60 * 1000);
 
+// ---------- fan "hype" taps (ephemeral, in-memory — not worth persisting to SQLite) ----------
+// Fans tapping the background on the join page build up a decaying hype level (0-100) per show,
+// which the overlay/host live view read and render as a capped particle burst. Level decays on its
+// own over time so it can never get "stuck" high, and per-tap + per-show rate limits keep a flood
+// of taps from translating into a flood of on-screen effects.
+const hypeStore = new Map(); // showId -> { level, lastUpdate }
+const HYPE_DECAY_PER_SEC = 4;   // points/sec — a full meter (100) empties in 25s of inactivity
+const HYPE_PER_TAP = 7;
+const HYPE_MAX = 100;
+function hypeLevelFor(showId) {
+  const s = hypeStore.get(showId);
+  if (!s) return 0;
+  const elapsedSec = (Date.now() - s.lastUpdate) / 1000;
+  const decayed = Math.max(0, s.level - elapsedSec * HYPE_DECAY_PER_SEC);
+  s.level = decayed; s.lastUpdate = Date.now();
+  return Math.round(decayed);
+}
+function addHypeTap(showId) {
+  const level = hypeLevelFor(showId); // applies decay first
+  const next = Math.min(HYPE_MAX, level + HYPE_PER_TAP);
+  hypeStore.set(showId, { level: next, lastUpdate: Date.now() });
+  return Math.round(next);
+}
+// Sweep hype entries for shows nobody has polled/tapped in a while.
+setInterval(() => {
+  const now = Date.now();
+  for (const [showId, s] of hypeStore) { if (now - s.lastUpdate > 30 * 60 * 1000) hypeStore.delete(showId); }
+}, 10 * 60 * 1000);
+
 // ---------- tiny helpers ----------
 function sendNoBody(res, status) {
   res.writeHead(status, {
@@ -779,7 +808,7 @@ route('GET', '/api/shows/current', async (req, res) => {
   if (!show) return sendJSON(res, 200, { show: null, queue: [] });
   const queue = db.prepare(`SELECT * FROM queue_items WHERE show_id = ? AND status='queued' ORDER BY position ASC`).all(show.id);
   const earn = db.prepare(`SELECT COALESCE(SUM(amount),0) AS total FROM transactions WHERE show_id=? AND status!='payout'`).get(show.id).total;
-  sendJSON(res, 200, { show: Object.assign(showToJSON(show), { earnings: earn }), queue: queue.map(queueToJSON) });
+  sendJSON(res, 200, { show: Object.assign(showToJSON(show), { earnings: earn, hype: hypeLevelFor(show.id) }), queue: queue.map(queueToJSON) });
 });
 
 route('POST', '/api/shows/:id/end', async (req, res, params) => {
@@ -1023,8 +1052,20 @@ route('GET', '/api/public/:joinCode', async (req, res, params) => {
     acceptingSubmissions: !!settings.acceptingSubmissions,
     entryFeeEnabled: !!settings.entryFeeEnabled, entryFee: settings.entryFee,
     skipsEnabled: !!settings.skipsEnabled, skipFee: settings.skipFee, jumpFee: settings.jumpFee != null ? settings.jumpFee : 15,
-    skippedCount, cap: settings.cap, mine
+    skippedCount, cap: settings.cap, mine, hype: hypeLevelFor(show.id)
   });
+});
+
+route('POST', '/api/public/:joinCode/tap', async (req, res, params) => {
+  const user = findUserByCodeOrUsername(params.joinCode);
+  if (!user) return sendJSON(res, 404, { error: 'Invalid link.' });
+  const show = db.prepare(`SELECT * FROM shows WHERE user_id=? AND status='live'`).get(user.id);
+  if (!show) return sendJSON(res, 409, { error: 'This streamer is not live right now.' });
+  // Per-fan cooldown (by IP — no account needed to tap) plus a tighter per-show ceiling so a burst
+  // of many fans tapping at once still can't push more than a handful of taps/sec into the meter.
+  if (rateLimited('tap:' + clientIp(req) + ':' + show.id, 1, 900)) return sendJSON(res, 429, { error: 'Slow down a little.' });
+  if (rateLimited('tap-show:' + show.id, 6, 1000)) return sendJSON(res, 200, { hype: hypeLevelFor(show.id) }); // absorbed silently — meter's already filling fast enough
+  sendJSON(res, 200, { hype: addHypeTap(show.id) });
 });
 
 route('POST', '/api/public/:joinCode/join', async (req, res, params) => {
