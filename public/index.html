@@ -503,7 +503,13 @@ body.overlay-mode .help-fab,body.overlay-mode #toast{display:none!important;}
 .ondeck-label h3{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-dim);}
 .ondeck-label span{font-size:11px;color:var(--ink-faint);}
 .queue-list{display:flex;flex-direction:column;gap:10px;}
-.queue-row{display:flex;align-items:center;gap:18px;background:var(--bg-1);border:1px solid var(--line-strong);border-radius:12px;padding:20px 22px;position:relative;z-index:3;overflow:visible;}
+.queue-row{display:flex;align-items:center;gap:18px;background:var(--bg-1);border:1px solid var(--line-strong);border-radius:12px;padding:20px 22px;position:relative;z-index:3;overflow:visible;transition:opacity .15s ease,border-color .15s ease;}
+.qr-grip{flex-shrink:0;width:14px;display:flex;align-items:center;justify-content:center;color:var(--ink-faint);opacity:0;transition:opacity .15s ease;cursor:grab;margin-left:-6px;}
+.queue-row:hover .qr-grip{opacity:1;}
+.queue-row.qr-dragging{opacity:.35;}
+.queue-row.qr-drag-over{border-top-color:var(--gold);}
+.queue-row.qr-drag-over-below{border-bottom-color:var(--gold);}
+@media (hover:none){ .qr-grip{opacity:.6;} }
 .qr-flash{position:absolute;inset:-1px;border-radius:12px;background:var(--gold);opacity:0;pointer-events:none;}
 .qr-ripple{position:absolute;inset:-1px;border-radius:12px;border:2px solid var(--gold);opacity:0;pointer-events:none;}
 .qr-new-badge{position:absolute;right:18px;top:50%;transform:translateY(-50%) scale(0);background:var(--mint);color:#04241A;font-size:10px;font-weight:800;padding:4px 9px;border-radius:5px;text-transform:uppercase;letter-spacing:.04em;pointer-events:none;}
@@ -925,7 +931,7 @@ html.overlay-mode,body.overlay-mode{background:transparent!important;}
 
 <script>
 /* ===================== STATE / PERSISTENCE (connected to a real backend) ===================== */
-const APP_VERSION = '1.15.0'; // bump this on every deploy — shown small under the logo, top left, so you can confirm a deploy actually landed
+const APP_VERSION = '1.16.0'; // bump this on every deploy — shown small under the logo, top left, so you can confirm a deploy actually landed
 const API_BASE = (function(){ try{ return localStorage.getItem('kiu_api_base_override'); }catch(e){ return null; } })() || window.KIU_API_BASE || 'https://keepitup-api-4fky.onrender.com';
 const GOOGLE_CLIENT_ID = '655518852084-1qdd80e44621hr90bdlg0iphjvnho9si.apps.googleusercontent.com';
 const THEME_KEY = 'kiu_theme_v1';
@@ -2722,7 +2728,8 @@ function renderLive(){
       ? `<div class="qr-pos qr-pos-gold" title="Paid to skip ahead"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 3 14h7l-1 8 11-14h-7l1-6z"/></svg></div>`
       : `<div class="qr-pos">${i+1}</div>`;
     return `
-    <div class="queue-row" data-id="${q.id}" data-paid-amount="${q.paidTotal||0}">
+    <div class="queue-row" data-id="${q.id}" data-paid-amount="${q.paidTotal||0}" draggable="true">
+      <div class="qr-grip" title="Drag to reorder"><svg width="10" height="16" viewBox="0 0 10 16" fill="currentColor"><circle cx="2" cy="2" r="1.4"/><circle cx="8" cy="2" r="1.4"/><circle cx="2" cy="8" r="1.4"/><circle cx="8" cy="8" r="1.4"/><circle cx="2" cy="14" r="1.4"/><circle cx="8" cy="14" r="1.4"/></svg></div>
       ${posBadge}
       <div class="qr-name">${escapeHtml(q.name)}</div>
       <div class="qr-menu-wrap">
@@ -2990,6 +2997,76 @@ async function banFromQueue(pid){
     toast('Banned from this show');
     renderLive();
   }catch(e){ toast(e.message); }
+}
+
+/* ===================== QUEUE DRAG-TO-REORDER (host on-deck list) ===================== */
+// Delegated on document (not bound per-row) because renderLive() fully replaces the queue-list
+// markup on almost every data change — per-element listeners would go stale immediately.
+let qrDragState = null; // { id, overId, overBelow }
+document.addEventListener('dragstart', function(e){
+  const row = e.target.closest('.queue-row');
+  if(!row){ return; }
+  if(e.target.closest('.qr-menu-wrap')){ e.preventDefault(); return; } // let the kebab menu's own click handle this
+  qrDragState = { id: row.dataset.id, overId: null, overBelow: false };
+  row.classList.add('qr-dragging');
+  try{ e.dataTransfer.setData('text/plain', row.dataset.id); }catch(err){}
+  e.dataTransfer.effectAllowed = 'move';
+});
+document.addEventListener('dragover', function(e){
+  if(!qrDragState) return;
+  const row = e.target.closest('.queue-row');
+  if(!row || row.dataset.id === qrDragState.id) return;
+  e.preventDefault();
+  const r = row.getBoundingClientRect();
+  const below = (e.clientY - r.top) > r.height/2;
+  document.querySelectorAll('.queue-row.qr-drag-over, .queue-row.qr-drag-over-below').forEach(el=>{
+    if(el !== row) el.classList.remove('qr-drag-over','qr-drag-over-below');
+  });
+  row.classList.toggle('qr-drag-over', !below);
+  row.classList.toggle('qr-drag-over-below', below);
+  qrDragState.overId = row.dataset.id;
+  qrDragState.overBelow = below;
+});
+document.addEventListener('drop', function(e){
+  if(!qrDragState) return;
+  if(e.target.closest('.queue-row')) e.preventDefault();
+  finishQueueDrag();
+});
+document.addEventListener('dragend', function(){ finishQueueDrag(); });
+function finishQueueDrag(){
+  if(!qrDragState) return;
+  const list = document.querySelector('.queue-list');
+  if(list && qrDragState.overId && qrDragState.overId !== qrDragState.id){
+    const ids = Array.from(list.querySelectorAll('.queue-row')).map(r=>r.dataset.id);
+    const fromIdx = ids.indexOf(qrDragState.id);
+    if(fromIdx !== -1){
+      ids.splice(fromIdx, 1);
+      let toIdx = ids.indexOf(qrDragState.overId);
+      if(toIdx !== -1){
+        ids.splice(qrDragState.overBelow ? toIdx+1 : toIdx, 0, qrDragState.id);
+        applyQueueReorder(ids);
+      }
+    }
+  }
+  document.querySelectorAll('.queue-row').forEach(el=>el.classList.remove('qr-dragging','qr-drag-over','qr-drag-over-below'));
+  qrDragState = null;
+}
+async function applyQueueReorder(onDeckIds){
+  const s = db.session; if(!s) return;
+  const nowUp = s.queue[0];
+  // Reorder local state immediately so the drag feels instant; the server call confirms in the background.
+  const byId = {}; s.queue.forEach(q=>{ byId[q.id]=q; });
+  const newQueue = [];
+  if(nowUp) newQueue.push(nowUp);
+  onDeckIds.forEach(id=>{ if(byId[id] && (!nowUp || id !== nowUp.id)) newQueue.push(byId[id]); });
+  s.queue = newQueue;
+  renderLive();
+  try{
+    await apiFetch('/api/shows/'+s.id+'/queue/reorder', { method:'POST', body:{ order: onDeckIds } });
+  }catch(e){
+    toast(e.message);
+    try{ await refreshCurrentShow(); renderLive(); }catch(err){}
+  }
 }
 async function endSession(){
   const s = db.session; if(!s) return;
