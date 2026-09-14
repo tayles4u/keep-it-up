@@ -174,7 +174,6 @@ body.overlay-mode .help-fab,body.overlay-mode #toast{display:none!important;}
 .acct-avatar-row{display:flex;justify-content:center;margin-bottom:18px;}
 .acct-avatar-wrap{position:relative;width:76px;height:76px;border-radius:50%;cursor:pointer;overflow:hidden;background:var(--bg-3);border:1.5px solid var(--line-strong);display:flex;align-items:center;justify-content:center;}
 .acct-avatar-wrap img{width:100%;height:100%;object-fit:cover;display:block;}
-.acct-avatar-wrap .av-initial{font-family:'Bebas Neue',sans-serif;font-size:30px;color:var(--ink);}
 .acct-avatar-edit{position:absolute;inset:0;background:rgba(0,0,0,.55);color:var(--ink);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;display:flex;align-items:center;justify-content:center;opacity:0;transition:.15s;text-align:center;padding:4px;}
 .acct-avatar-wrap:hover .acct-avatar-edit{opacity:1;}
 .acct-split-card{background:var(--bg-2);border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:9px;padding:16px;margin-top:18px;}
@@ -252,6 +251,21 @@ body.overlay-mode .help-fab,body.overlay-mode #toast{display:none!important;}
 .stack-ticket.t2{z-index:2;opacity:.8;}
 .stack-ticket.t3{z-index:3;}
 .stack-ticket.t3 .st-stub{background:var(--gold);color:var(--gold-ink);}
+
+/* ===== Stub, the mascot — a walking ticket stub, punch-holes and all ===== */
+.mascot-stub{display:inline-flex;flex-shrink:0;}
+.mascot-stub svg{display:block;width:100%;height:100%;}
+.mascot-stub .stub-eye{transform-box:fill-box;transform-origin:center;}
+.mascot-stub.idle svg{animation:stubBob 2.8s ease-in-out infinite;}
+.mascot-stub.idle .stub-eye{animation:stubBlink 4.8s ease-in-out infinite;}
+@keyframes stubBob{ 0%,100%{transform:translateY(0) rotate(var(--stub-tilt,0));} 50%{transform:translateY(-5px) rotate(var(--stub-tilt,0));} }
+@keyframes stubBlink{ 0%,88%,100%{transform:scaleY(1);} 92%,95%{transform:scaleY(.12);} }
+@media (prefers-reduced-motion: reduce){
+  .mascot-stub.idle svg{animation:none;}
+  .mascot-stub.idle .stub-eye{animation:none;}
+}
+.hero-mascot{position:absolute;left:14%;top:54%;width:84px;height:84px;--stub-tilt:-4deg;z-index:4;filter:drop-shadow(0 8px 14px rgba(0,0,0,.35));}
+@media (max-width:900px){ .hero-mascot{display:none;} }
 
 .feature-list{max-width:1320px;margin:20px auto 80px;padding:0 40px;}
 .wide-section{max-width:1320px;margin:0 auto 100px;padding:0 40px;display:grid;grid-template-columns:1fr 1fr;gap:70px;align-items:start;}
@@ -779,6 +793,18 @@ html.overlay-mode,body.overlay-mode{background:transparent!important;}
       <div class="stack-ticket t1"><div class="st-stub">4</div><div class="st-body"><b>Mara K.</b><span>synthwave demo v2</span></div></div>
       <div class="stack-ticket t2"><div class="st-stub">2</div><div class="st-body"><b>Deshawn</b><span>"Late Nights" — unreleased</span></div></div>
       <div class="stack-ticket t3"><div class="st-stub">1</div><div class="st-body"><b>TJ Duisburg</b><span>New Poker — reaction req.</span></div></div>
+      <div class="hero-mascot mascot-stub idle" aria-hidden="true">
+        <svg viewBox="0 0 100 100" fill="none">
+          <rect x="26" y="16" width="48" height="68" rx="9" fill="var(--coral)"/>
+          <circle cx="26" cy="50" r="5" fill="var(--bg-2)"/>
+          <circle cx="74" cy="50" r="5" fill="var(--bg-2)"/>
+          <line x1="34" y1="50" x2="66" y2="50" stroke="var(--bg-2)" stroke-width="2.4" stroke-dasharray="4 4"/>
+          <ellipse class="stub-eye" cx="43" cy="34" rx="2.3" ry="2.3" fill="var(--bg)"/>
+          <ellipse class="stub-eye" cx="57" cy="34" rx="2.3" ry="2.3" fill="var(--bg)"/>
+          <path d="M43 40q7 5 14 0" stroke="var(--bg)" stroke-width="2" stroke-linecap="round"/>
+          <path d="M33 84l4-9M42 84l3-9M58 84l-3-9M67 84l-4-9" stroke="var(--coral)" stroke-width="4" stroke-linecap="round"/>
+        </svg>
+      </div>
     </div>
   </div>
   </div>
@@ -931,7 +957,7 @@ html.overlay-mode,body.overlay-mode{background:transparent!important;}
 
 <script>
 /* ===================== STATE / PERSISTENCE (connected to a real backend) ===================== */
-const APP_VERSION = '1.16.0'; // bump this on every deploy — shown small under the logo, top left, so you can confirm a deploy actually landed
+const APP_VERSION = '1.17.0'; // bump this on every deploy — shown small under the logo, top left, so you can confirm a deploy actually landed
 const API_BASE = (function(){ try{ return localStorage.getItem('kiu_api_base_override'); }catch(e){ return null; } })() || window.KIU_API_BASE || 'https://keepitup-api-4fky.onrender.com';
 const GOOGLE_CLIENT_ID = '655518852084-1qdd80e44621hr90bdlg0iphjvnho9si.apps.googleusercontent.com';
 const THEME_KEY = 'kiu_theme_v1';
@@ -1125,6 +1151,26 @@ function money(n){ return '€' + (Math.round((n||0)*100)/100).toFixed(2); }
 function fmtDate(ts){ const d=new Date(ts); return d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'2-digit'})+' '+d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}); }
 function fmtDur(sec){ sec=Math.max(0,Math.floor(sec)); const h=Math.floor(sec/3600), m=Math.floor((sec%3600)/60), s=sec%60; return (h>0?h+':':'')+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0'); }
 function escapeHtml(str){ return String(str==null?'':str).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+// Stub — the mascot. Used as the default profile picture wherever someone hasn't uploaded their own,
+// plus a couple of spots where he's shown off just for brand personality (landing hero, Help).
+function mascotStub(opts){
+  opts = opts || {};
+  const idle = opts.idle !== false;
+  const size = opts.size || 28;
+  return `<span class="mascot-stub${idle?' idle':''}" style="width:${size}px;height:${size}px" aria-hidden="true">
+    <svg viewBox="0 0 100 100" fill="none">
+      <rect x="26" y="16" width="48" height="68" rx="9" fill="var(--coral)"/>
+      <circle cx="26" cy="50" r="5" fill="var(--bg-2)"/>
+      <circle cx="74" cy="50" r="5" fill="var(--bg-2)"/>
+      <line x1="34" y1="50" x2="66" y2="50" stroke="var(--bg-2)" stroke-width="2.4" stroke-dasharray="4 4"/>
+      <ellipse class="stub-eye" cx="43" cy="34" rx="2.3" ry="2.3" fill="var(--bg)"/>
+      <ellipse class="stub-eye" cx="57" cy="34" rx="2.3" ry="2.3" fill="var(--bg)"/>
+      <path d="M43 40q7 5 14 0" stroke="var(--bg)" stroke-width="2" stroke-linecap="round"/>
+      <path d="M33 84l4-9M42 84l3-9M58 84l-3-9M67 84l-4-9" stroke="var(--coral)" stroke-width="4" stroke-linecap="round"/>
+    </svg>
+  </span>`;
+}
 
 const prefersNoMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 // Counts big stat numbers (.sc-val) up from 0 to their real value instead of just
@@ -1359,13 +1405,13 @@ function renderTeamPop(){
   if(!currentUser){ el.innerHTML = ''; return; }
   const rows = [];
   rows.push(`<div class="theme-opt ${!actingFor?'sel':''}" onclick="switchActingFor(null)">
-    <div class="av" style="width:22px;height:22px;flex-shrink:0"></div>
+    <div class="av" style="width:22px;height:22px;flex-shrink:0;overflow:hidden">${currentUser.profileImage ? `<img src="${currentUser.profileImage}" alt="">` : mascotStub({size:22, idle:false})}</div>
     <div><b>${escapeHtml(currentUser.name)}</b><div style="font-size:11px;color:var(--ink-faint)">Your own account</div></div>
   </div>`);
   const teams = (teamData && teamData.teams) || [];
   teams.forEach(t=>{
     rows.push(`<div class="theme-opt ${actingFor && actingFor.id===t.id ? 'sel':''}" onclick='switchActingFor(${JSON.stringify(t)})'>
-      <div class="av" style="width:22px;height:22px;flex-shrink:0"></div>
+      <div class="av" style="width:22px;height:22px;flex-shrink:0;overflow:hidden">${mascotStub({size:22, idle:false})}</div>
       <div><b>${escapeHtml(t.name)}</b><div style="font-size:11px;color:var(--ink-faint)">${t.username ? '@'+escapeHtml(t.username) : 'Co-host'}</div></div>
     </div>`);
   });
@@ -3186,7 +3232,10 @@ function openHelp(){
   overlay.className='modal-overlay';
   overlay.innerHTML = `
     <div class="modal">
-      <h3>Need a hand?</h3>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:2px">
+        ${mascotStub({size:40})}
+        <div><h3 style="margin:0">Need a hand?</h3></div>
+      </div>
       <div class="msub">Quick answers for hosting a reaction session.</div>
       <div style="font-size:13px;line-height:1.6;color:var(--ink-dim)">
         <p style="margin-bottom:10px"><b style="color:var(--ink)">Starting out —</b> Sessions → Host, name your session, hit Go Live. Your link never changes, so share it once and forget it.</p>
@@ -3204,7 +3253,6 @@ function openHelp(){
 function openAccountSettings(){
   const acc = getCurrentAccount();
   if(!acc){ showAuthScreen('login'); return; }
-  const initial = (acc.name||'?').trim().charAt(0).toUpperCase() || '?';
   const keepPct = Math.round((1 - (acc.platformFeePct != null ? acc.platformFeePct : 0.10)) * 100);
   const feePct = 100 - keepPct;
   const overlayEl = document.createElement('div');
@@ -3216,7 +3264,7 @@ function openAccountSettings(){
 
       <div class="acct-avatar-row">
         <div class="acct-avatar-wrap" onclick="document.getElementById('acct-avatar-input').click()">
-          ${acc.profileImage ? `<img src="${acc.profileImage}" alt="">` : `<span class="av-initial">${escapeHtml(initial)}</span>`}
+          ${acc.profileImage ? `<img src="${acc.profileImage}" alt="">` : mascotStub({size:76, idle:false})}
           <div class="acct-avatar-edit">Change photo</div>
         </div>
         <input type="file" id="acct-avatar-input" accept="image/*" style="display:none" onchange="handleAvatarChosen(this)">
@@ -3309,7 +3357,7 @@ async function saveAccountName(){
 function updateTopnavAvatar(){
   const av = document.querySelector('.tn-user .av');
   if(!av) return;
-  av.innerHTML = currentUser && currentUser.profileImage ? `<img src="${currentUser.profileImage}" alt="">` : '';
+  av.innerHTML = currentUser && currentUser.profileImage ? `<img src="${currentUser.profileImage}" alt="">` : mascotStub({size:22, idle:false});
 }
 
 /* ===================== PUBLIC JOIN VIEW ===================== */
