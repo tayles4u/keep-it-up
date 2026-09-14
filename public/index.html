@@ -103,6 +103,12 @@ input,textarea{font-family:inherit;}
 .btn-coral{background:var(--coral);color:#1a0006;}
 .btn-ghost{background:var(--bg-2);color:var(--ink-dim);border-color:var(--line);}
 .btn-block{width:100%;text-align:center;display:block;}
+.btn-magnetic{position:relative;overflow:hidden;}
+.btn-magnetic .bm-spot{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .25s ease;background:radial-gradient(120px circle at var(--mx,50%) var(--my,50%), rgba(255,255,255,.35), transparent 70%);mix-blend-mode:overlay;}
+.btn-magnetic:hover .bm-spot{opacity:1;}
+.btn-magnetic.btn-outline .bm-spot{background:radial-gradient(120px circle at var(--mx,50%) var(--my,50%), rgba(244,183,64,.28), transparent 70%);mix-blend-mode:normal;}
+.btn-magnetic .bm-label{position:relative;}
+@media (prefers-reduced-motion: reduce){ .btn-magnetic .bm-spot{transition:none;} }
 .btn-xs{border-radius:8px;padding:6px 12px;font-size:10.5px;font-weight:700;border:1px solid var(--line-strong);background:var(--bg-3);color:var(--ink);text-transform:uppercase;letter-spacing:.03em;}
 .icon-btn{width:36px;height:36px;border-radius:10px;background:var(--bg-2);border:1px solid var(--line-strong);color:var(--ink-dim);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:.15s;}
 .icon-btn:hover{color:var(--ink);background:var(--bg-3);}
@@ -223,7 +229,8 @@ body.overlay-mode .help-fab,body.overlay-mode #toast{display:none!important;}
 .hero-left p.sub{margin-top:20px;color:var(--ink-dim);font-size:16.5px;line-height:1.55;max-width:480px;font-weight:500;}
 .hero-left .cta-row{display:flex;gap:12px;margin-top:32px;}
 
-.ticket-stack{position:relative;height:380px;}
+.ticket-stack{position:relative;height:380px;transition:transform .3s cubic-bezier(.2,.8,.2,1);}
+@media (prefers-reduced-motion: reduce){ .ticket-stack{transition:none;} }
 .stack-ticket{position:absolute;left:50%;top:40%;width:280px;background:var(--bg-1);border:1px solid var(--line-strong);border-radius:12px;display:flex;padding:0;box-shadow:0 14px 30px rgba(0,0,0,.35);animation:ticketFloat 7s cubic-bezier(.45,0,.55,1) infinite;will-change:transform;}
 @keyframes ticketFloat{ 0%,100%{ transform:translate(-50%,var(--ty,0)) rotate(var(--tr,0)); } 50%{ transform:translate(-50%,calc(var(--ty,0) - 10px)) rotate(var(--tr,0)); } }
 .stack-ticket.t1{--ty:-70%;--tr:-9deg;animation-delay:.4s;}
@@ -296,11 +303,22 @@ body.overlay-mode .help-fab,body.overlay-mode #toast{display:none!important;}
 .legal-page a{color:var(--gold);}
 .legal-page .legal-note{background:var(--bg-2);border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:9px;padding:14px 16px;font-size:13px;color:var(--ink-dim);margin-bottom:28px;}
 .feature-list .card{padding:0;overflow:hidden;}
-.feature-row{display:flex;align-items:center;gap:20px;padding:22px 26px;border-bottom:1px dashed var(--line-strong);}
+.feature-row{display:flex;align-items:center;gap:20px;padding:22px 26px;border-bottom:1px dashed var(--line-strong);position:relative;overflow:hidden;transition:padding-left .25s cubic-bezier(.2,.8,.2,1),background .25s;}
 .feature-row:last-child{border-bottom:none;}
-.feature-row .fnum{font-family:'IBM Plex Mono',monospace;color:var(--gold);font-size:18px;font-weight:600;width:36px;flex-shrink:0;}
-.feature-row h4{font-size:16px;font-weight:700;margin-bottom:4px;}
-.feature-row p{font-size:13px;color:var(--ink-dim);line-height:1.5;}
+.feature-row:hover{padding-left:34px;background:var(--bg-2);}
+.feature-row .fr-spot{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .3s ease;background:radial-gradient(160px circle at var(--mx,50%) var(--my,50%), rgba(244,183,64,.10), transparent 70%);}
+.feature-row:hover .fr-spot{opacity:1;}
+.feature-row .fnum{font-family:'IBM Plex Mono',monospace;color:var(--gold);font-size:18px;font-weight:600;width:36px;flex-shrink:0;position:relative;transition:transform .25s cubic-bezier(.34,1.56,.64,1);}
+.feature-row:hover .fnum{transform:scale(1.12);}
+.feature-row h4{font-size:16px;font-weight:700;margin-bottom:4px;position:relative;}
+.feature-row p{font-size:13px;color:var(--ink-dim);line-height:1.5;position:relative;}
+.reveal-fr{opacity:0;transform:translateX(-22px);transition:opacity .55s cubic-bezier(.2,.8,.2,1),transform .55s cubic-bezier(.2,.8,.2,1);}
+.reveal-fr.in{opacity:1;transform:translateX(0);}
+@media (prefers-reduced-motion: reduce){
+  .feature-row,.feature-row .fnum,.feature-row .fr-spot,.reveal-fr{transition:none!important;}
+  .reveal-fr{opacity:1;transform:none;}
+  .feature-row:hover{padding-left:26px;}
+}
 @media (max-width:900px){
   .hero-split{grid-template-columns:1fr;padding-top:40px;}
   .hero-left h1{font-size:50px;}
@@ -692,11 +710,11 @@ html.overlay-mode,body.overlay-mode{background:transparent!important;}
       <h1>Keep It <span class="hl">Up!</span></h1>
       <p class="sub">Fans send tracks — a Spotify link, a YouTube video, a SoundCloud demo, or their own mp3/wav straight from their phone. They queue up, they can pay to jump the line. You just react, live.</p>
       <div class="cta-row">
-        <button class="btn btn-gold" onclick="goApp()">Start hosting</button>
-        <button class="btn btn-outline" onclick="goApp()">Watch a demo</button>
+        <button class="btn btn-gold btn-magnetic" onclick="goApp()"><span class="bm-spot"></span><span class="bm-label">Start hosting</span></button>
+        <button class="btn btn-outline btn-magnetic" onclick="goApp()"><span class="bm-spot"></span><span class="bm-label">Watch a demo</span></button>
       </div>
     </div>
-    <div class="ticket-stack">
+    <div class="ticket-stack" id="ticket-stack">
       <div class="stack-ticket t1"><div class="st-stub">4</div><div class="st-body"><b>Mara K.</b><span>synthwave demo v2</span></div></div>
       <div class="stack-ticket t2"><div class="st-stub">2</div><div class="st-body"><b>Deshawn</b><span>"Late Nights" — unreleased</span></div></div>
       <div class="stack-ticket t3"><div class="st-stub">1</div><div class="st-body"><b>TJ Duisburg</b><span>New Poker — reaction req.</span></div></div>
@@ -705,10 +723,10 @@ html.overlay-mode,body.overlay-mode{background:transparent!important;}
   </div>
 
   <div class="feature-list">
-    <div class="card reveal">
-      <div class="feature-row"><div class="fnum">01</div><div><h4>Any link, any format</h4><p>Spotify, YouTube, SoundCloud, Dropbox — or a straight-up mp3/wav upload. Fans send it however they've got it.</p></div></div>
-      <div class="feature-row"><div class="fnum">02</div><div><h4>Pay to play</h4><p>Set your own skip fee. Fans can jump ahead — or go all in and take the top spot.</p></div></div>
-      <div class="feature-row"><div class="fnum">03</div><div><h4>One link, every show</h4><p>Your queue link never changes. It's live the moment you are — no new link to drop in your bio each time.</p></div></div>
+    <div class="card" id="feature-card">
+      <div class="feature-row reveal-fr" data-delay="0"><div class="fr-spot"></div><div class="fnum" data-final="01">00</div><div><h4>Any link, any format</h4><p>Spotify, YouTube, SoundCloud, Dropbox — or a straight-up mp3/wav upload. Fans send it however they've got it.</p></div></div>
+      <div class="feature-row reveal-fr" data-delay="1"><div class="fr-spot"></div><div class="fnum" data-final="02">00</div><div><h4>Pay to play</h4><p>Set your own skip fee. Fans can jump ahead — or go all in and take the top spot.</p></div></div>
+      <div class="feature-row reveal-fr" data-delay="2"><div class="fr-spot"></div><div class="fnum" data-final="03">00</div><div><h4>One link, every show</h4><p>Your queue link never changes. It's live the moment you are — no new link to drop in your bio each time.</p></div></div>
     </div>
   </div>
 
@@ -852,7 +870,7 @@ html.overlay-mode,body.overlay-mode{background:transparent!important;}
 
 <script>
 /* ===================== STATE / PERSISTENCE (connected to a real backend) ===================== */
-const APP_VERSION = '1.11.0'; // bump this on every deploy — shown small under the logo, top left, so you can confirm a deploy actually landed
+const APP_VERSION = '1.12.0'; // bump this on every deploy — shown small under the logo, top left, so you can confirm a deploy actually landed
 const API_BASE = (function(){ try{ return localStorage.getItem('kiu_api_base_override'); }catch(e){ return null; } })() || window.KIU_API_BASE || 'https://keepitup-api-4fky.onrender.com';
 const GOOGLE_CLIENT_ID = '655518852084-1qdd80e44621hr90bdlg0iphjvnho9si.apps.googleusercontent.com';
 const THEME_KEY = 'kiu_theme_v1';
@@ -3372,6 +3390,76 @@ function startPolling(){
     revealEls.forEach(el=>io.observe(el));
   } else {
     revealEls.forEach(el=>el.classList.add('in')); // no IO support — just show them
+  }
+
+  // Feature-row "krass" polish: staggered slide-in with a digit scramble on the
+  // step number, a cursor-tracked spotlight per row, magnetic hover glow on the
+  // hero CTAs, and a light cursor-parallax on the floating ticket stack.
+  const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const frRows = document.querySelectorAll('.reveal-fr');
+  function scrambleNum(el){
+    const final = el.getAttribute('data-final') || el.textContent;
+    if(reduceMotion){ el.textContent = final; return; }
+    const digits = '0123456789';
+    let tick = 0;
+    const total = 9;
+    const timer = setInterval(()=>{
+      tick++;
+      if(tick >= total){ el.textContent = final; clearInterval(timer); return; }
+      el.textContent = digits[Math.floor(Math.random()*10)] + digits[Math.floor(Math.random()*10)];
+    }, 45);
+  }
+  if(frRows.length){
+    if('IntersectionObserver' in window){
+      const frIo = new IntersectionObserver((entries)=>{
+        entries.forEach(entry=>{
+          if(entry.isIntersecting){
+            const row = entry.target;
+            const delay = parseInt(row.getAttribute('data-delay')||'0', 10) * 110;
+            setTimeout(()=>{
+              row.classList.add('in');
+              const numEl = row.querySelector('.fnum');
+              if(numEl) scrambleNum(numEl);
+            }, delay);
+            frIo.unobserve(row);
+          }
+        });
+      }, { threshold: 0.3 });
+      frRows.forEach(el=>frIo.observe(el));
+    } else {
+      frRows.forEach(el=>{ el.classList.add('in'); const n=el.querySelector('.fnum'); if(n) n.textContent = n.getAttribute('data-final')||n.textContent; });
+    }
+    if(!reduceMotion){
+      document.querySelectorAll('.feature-row').forEach(row=>{
+        row.addEventListener('mousemove', (e)=>{
+          const r = row.getBoundingClientRect();
+          row.style.setProperty('--mx', ((e.clientX - r.left) / r.width * 100) + '%');
+          row.style.setProperty('--my', ((e.clientY - r.top) / r.height * 100) + '%');
+        });
+      });
+    }
+  }
+
+  if(!reduceMotion){
+    document.querySelectorAll('.btn-magnetic').forEach(btn=>{
+      btn.addEventListener('mousemove', (e)=>{
+        const r = btn.getBoundingClientRect();
+        btn.style.setProperty('--mx', ((e.clientX - r.left) / r.width * 100) + '%');
+        btn.style.setProperty('--my', ((e.clientY - r.top) / r.height * 100) + '%');
+      });
+    });
+
+    const heroSplit = document.querySelector('.hero-split');
+    const tickStack = document.getElementById('ticket-stack');
+    if(heroSplit && tickStack && window.matchMedia('(min-width:901px)').matches){
+      heroSplit.addEventListener('mousemove', (e)=>{
+        const r = heroSplit.getBoundingClientRect();
+        const px = (e.clientX - r.left) / r.width - 0.5;
+        const py = (e.clientY - r.top) / r.height - 0.5;
+        tickStack.style.transform = `translate(${px*-14}px, ${py*-10}px)`;
+      });
+      heroSplit.addEventListener('mouseleave', ()=>{ tickStack.style.transform = ''; });
+    }
   }
 
   const demoSets = [
