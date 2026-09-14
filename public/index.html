@@ -380,7 +380,7 @@ body.overlay-mode .help-fab,body.overlay-mode #toast{display:none!important;}
 .host-hero .sess-name-input:focus{box-shadow:0 0 0 4px var(--gold-dim);}
 .go-live-btn{padding:16px 44px;font-size:14px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;border-radius:9px;margin-top:24px;}
 
-.host-live-card{position:relative;background:var(--bg-1);border:1px solid var(--line-strong);border-radius:14px;padding:38px 42px;text-align:center;max-width:420px;overflow:hidden;}
+.host-live-card{position:relative;z-index:3;background:var(--bg-1);border:1px solid var(--line-strong);border-radius:14px;padding:38px 42px;text-align:center;max-width:420px;overflow:hidden;}
 .host-live-badge{position:relative;display:inline-flex;align-items:center;gap:7px;background:transparent;border:1px solid var(--mint);color:var(--mint);font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;padding:5px 12px;border-radius:6px;margin-bottom:16px;}
 .host-live-card h2{position:relative;font-size:34px;line-height:1.05;margin-bottom:6px;word-break:break-word;}
 .host-live-meta{position:relative;color:var(--ink-dim);font-size:13px;margin-bottom:26px;}
@@ -482,7 +482,7 @@ body.overlay-mode .help-fab,body.overlay-mode #toast{display:none!important;}
 .pin-col.right{border-left:1px solid var(--line);}
 .stage-main{flex:1;min-width:0;max-width:860px;margin:0 auto;padding:34px 26px 70px;}
 
-.now-playing{background:var(--bg-1);border:1px solid var(--line-strong);border-radius:14px;padding:32px;position:relative;}
+.now-playing{background:var(--bg-1);border:1px solid var(--line-strong);border-radius:14px;padding:32px;position:relative;z-index:3;}
 .np-layout{display:flex;gap:28px;align-items:flex-start;}
 .np-main{flex:1;min-width:0;}
 .np-media{width:300px;flex-shrink:0;}
@@ -503,12 +503,23 @@ body.overlay-mode .help-fab,body.overlay-mode #toast{display:none!important;}
 .ondeck-label h3{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-dim);}
 .ondeck-label span{font-size:11px;color:var(--ink-faint);}
 .queue-list{display:flex;flex-direction:column;gap:10px;}
-.queue-row{display:flex;align-items:center;gap:18px;background:var(--bg-1);border:1px solid var(--line-strong);border-radius:12px;padding:20px 22px;position:relative;overflow:visible;}
+.queue-row{display:flex;align-items:center;gap:18px;background:var(--bg-1);border:1px solid var(--line-strong);border-radius:12px;padding:20px 22px;position:relative;z-index:3;overflow:visible;}
 .qr-flash{position:absolute;inset:-1px;border-radius:12px;background:var(--gold);opacity:0;pointer-events:none;}
 .qr-ripple{position:absolute;inset:-1px;border-radius:12px;border:2px solid var(--gold);opacity:0;pointer-events:none;}
 .qr-new-badge{position:absolute;right:18px;top:50%;transform:translateY(-50%) scale(0);background:var(--mint);color:#04241A;font-size:10px;font-weight:800;padding:4px 9px;border-radius:5px;text-transform:uppercase;letter-spacing:.04em;pointer-events:none;}
 .qr-spark{position:absolute;pointer-events:none;color:var(--gold);opacity:0;z-index:5;}
 .stage-vignette{position:fixed;inset:0;pointer-events:none;background:radial-gradient(circle at center, transparent 30%, var(--gold) 220%);opacity:0;z-index:300;}
+.hype-layer{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:2;}
+.hype-particle{position:absolute;bottom:-8%;opacity:0;animation:hypeRise var(--dur,2.6s) cubic-bezier(.25,.7,.4,1) forwards;filter:drop-shadow(0 2px 6px rgba(0,0,0,.35));}
+@keyframes hypeRise{
+  0%{transform:translate(0,0) scale(.55) rotate(0deg);opacity:0;}
+  14%{opacity:.9;}
+  78%{opacity:.75;}
+  100%{transform:translate(var(--drift,0px),-72vh) scale(1) rotate(var(--spin,8deg));opacity:0;}
+}
+@media (prefers-reduced-motion: reduce){
+  .hype-particle{animation:none;display:none;}
+}
 @keyframes qrRowIn{
   0%{transform:translateX(-56px) scale(.85) rotate(-2deg);opacity:0;}
   55%{transform:translateX(8px) scale(1.05) rotate(.5deg);opacity:1;}
@@ -684,12 +695,12 @@ input[type=file]{font-size:11px;color:var(--ink-dim);max-width:100%;}
 #overlay.active{min-height:100vh;display:flex;align-items:flex-end;justify-content:flex-start;padding:36px;background:transparent;}
 #legal.active{display:block;min-height:100vh;background:var(--bg);}
 html.overlay-mode,body.overlay-mode{background:transparent!important;}
-.ov-lower-third{background:rgba(8,7,11,.9);border-left:4px solid var(--gold);border-radius:0 10px 10px 0;padding:18px 26px;max-width:540px;box-shadow:0 8px 24px rgba(0,0,0,.5);backdrop-filter:blur(6px);}
+.ov-lower-third{position:relative;z-index:3;background:rgba(8,7,11,.9);border-left:4px solid var(--gold);border-radius:0 10px 10px 0;padding:18px 26px;max-width:540px;box-shadow:0 8px 24px rgba(0,0,0,.5);backdrop-filter:blur(6px);}
 .ov-label{font-size:11px;font-weight:800;letter-spacing:.09em;color:var(--gold);text-transform:uppercase;display:flex;align-items:center;gap:8px;margin-bottom:8px;}
 .ov-title{font-size:28px;font-weight:700;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,.7);word-break:break-word;font-family:'Bebas Neue',sans-serif;letter-spacing:.02em;line-height:1.05;}
 .ov-by{font-size:13.5px;color:rgba(255,255,255,.8);margin-top:6px;text-shadow:0 1px 4px rgba(0,0,0,.6);}
 .ov-next{font-size:11.5px;color:rgba(255,255,255,.6);margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.18);text-shadow:0 1px 4px rgba(0,0,0,.6);}
-.admit-card{width:420px;max-width:100%;background:var(--bg-1);border:1px solid var(--line-strong);border-radius:14px;padding:0;overflow:hidden;}
+.admit-card{width:420px;max-width:100%;background:var(--bg-1);border:1px solid var(--line-strong);border-radius:14px;padding:0;overflow:hidden;position:relative;z-index:3;}
 .admit-head{padding:26px 28px 18px;text-align:center;}
 .admit-logo{display:flex;align-items:center;justify-content:center;gap:9px;font-weight:800;font-size:13px;margin-bottom:18px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-faint);}
 .admit-num{font-family:'IBM Plex Mono',monospace;font-size:56px;font-weight:600;color:var(--gold);line-height:1;}
@@ -899,14 +910,14 @@ html.overlay-mode,body.overlay-mode{background:transparent!important;}
     <section id="view-admin" class="pageview" style="display:none"></section>
   </div>
 
-  <section id="view-sessions-live" class="pageview" style="display:none"></section>
+  <section id="view-sessions-live" class="pageview" style="display:none"><div class="hype-layer" id="live-hype-layer"></div><div id="live-content"></div></section>
 </div>
 
-<div id="join" class="view"></div>
+<div id="join" class="view"><div class="hype-layer" id="join-hype-layer"></div><div id="join-inner"></div></div>
 
 <div id="auth" class="view"></div>
 
-<div id="overlay" class="view"></div>
+<div id="overlay" class="view"><div class="hype-layer" id="overlay-hype-layer"></div><div id="overlay-inner"></div></div>
 
 <div id="toast"></div>
 <div class="stage-vignette" id="stage-vignette"></div>
@@ -914,7 +925,7 @@ html.overlay-mode,body.overlay-mode{background:transparent!important;}
 
 <script>
 /* ===================== STATE / PERSISTENCE (connected to a real backend) ===================== */
-const APP_VERSION = '1.14.0'; // bump this on every deploy — shown small under the logo, top left, so you can confirm a deploy actually landed
+const APP_VERSION = '1.15.0'; // bump this on every deploy — shown small under the logo, top left, so you can confirm a deploy actually landed
 const API_BASE = (function(){ try{ return localStorage.getItem('kiu_api_base_override'); }catch(e){ return null; } })() || window.KIU_API_BASE || 'https://keepitup-api-4fky.onrender.com';
 const GOOGLE_CLIENT_ID = '655518852084-1qdd80e44621hr90bdlg0iphjvnho9si.apps.googleusercontent.com';
 const THEME_KEY = 'kiu_theme_v1';
@@ -1147,6 +1158,65 @@ function animateBars(root){
   bars.forEach(b=>{ b.dataset.h = b.style.height; b.style.height = '0%'; });
   requestAnimationFrame(()=>{ requestAnimationFrame(()=>{ bars.forEach(b=>{ if(b.dataset.h) b.style.height = b.dataset.h; }); }); });
 }
+
+/* ===================== FAN HYPE TAPS (join-page background tap → particle burst on the live views) ===================== */
+// Fans tap the background on the join page → a couple of local particles for instant feedback, plus a
+// throttled ping to the server that nudges a per-show hype meter (server-side, decays on its own).
+// The overlay (OBS source) and the host's own live-session view both poll that meter and turn it into
+// a capped particle burst — capped hard so a room full of tapping fans can never turn into visual noise.
+const HYPE_MAX_ONSCREEN = 18; // per layer — never exceeded, regardless of how much hype is coming in
+const HYPE_EMOJI = ['🔥','🔥','🔥','✨','⚡'];
+function spawnHypeParticles(layerId, count){
+  if(prefersNoMotion || count <= 0) return;
+  const layer = document.getElementById(layerId);
+  if(!layer) return;
+  const room = HYPE_MAX_ONSCREEN - layer.childElementCount;
+  const n = Math.max(0, Math.min(count, room));
+  for(let i=0;i<n;i++){
+    const span = document.createElement('span');
+    span.className = 'hype-particle';
+    span.textContent = HYPE_EMOJI[Math.floor(Math.random()*HYPE_EMOJI.length)];
+    const left = 6 + Math.random()*88;
+    const drift = Math.round(Math.random()*70-35);
+    const dur = (2.1 + Math.random()*1.3).toFixed(2);
+    const spin = Math.round(Math.random()*24-12);
+    span.style.left = left+'%';
+    span.style.fontSize = (15 + Math.random()*15).toFixed(0)+'px';
+    span.style.setProperty('--drift', drift+'px');
+    span.style.setProperty('--dur', dur+'s');
+    span.style.setProperty('--spin', spin+'deg');
+    span.addEventListener('animationend', ()=> span.remove());
+    layer.appendChild(span);
+  }
+}
+// Per-show hype level last seen, so the overlay/live views only spawn *new* particles for a rising
+// meter rather than re-bursting the same level every single poll tick.
+let hypeSeenLevel = { join:0, overlay:0, live:0 };
+function reactToHypeLevel(kind, layerId, level){
+  const prev = hypeSeenLevel[kind] || 0;
+  hypeSeenLevel[kind] = level || 0;
+  if(!level) return;
+  const delta = Math.max(0, level - prev);
+  // A rising meter bursts a few particles proportional to the jump; an already-high, steady meter
+  // still trickles a couple in per tick so it reads as "hyped", not just as a one-off firework.
+  const count = delta > 0 ? Math.min(6, 1 + Math.round(delta/12)) : (level > 55 ? 1 : 0);
+  spawnHypeParticles(layerId, count);
+}
+let lastLocalTapAt = 0;
+let lastServerTapAt = 0;
+async function handleJoinTap(e){
+  if(e.target.closest('button, input, a, label, select, textarea, .admit-card')) return; // only bare background taps
+  const code = getJoinCode();
+  if(!code || !window.__lastJoinLiveState) return; // nothing to hype up if the show isn't live
+  const now = Date.now();
+  if(now - lastLocalTapAt < 220) return; // ignore accidental double-fires, but stay snappy
+  lastLocalTapAt = now;
+  spawnHypeParticles('join-hype-layer', 2 + Math.floor(Math.random()*2));
+  if(now - lastServerTapAt < 900) return; // matches the server's own per-fan cooldown — no point spamming it
+  lastServerTapAt = now;
+  try{ await apiFetch('/api/public/'+encodeURIComponent(code)+'/tap', { method:'POST', body:{} }); }catch(err){}
+}
+document.getElementById('join').addEventListener('click', handleJoinTap);
 
 function csvEscape(str){ str = String(str==null?'':str); if(/[",\n]/.test(str)) return '"'+str.replace(/"/g,'""')+'"'; return str; }
 function downloadCSV(content, filename){
@@ -2597,7 +2667,7 @@ function playSkipDrama(row, prevTop){
   }, 130);
 }
 function renderLive(){
-  const el = document.getElementById('view-sessions-live');
+  const el = document.getElementById('live-content');
   const s = db.session;
   if(!s){ el.innerHTML = `<div class="empty"><h2>No session live</h2><p>Start one from Sessions → Host.</p><button class="btn btn-gold" onclick="showView('sessions-host')">Go there</button></div>`; return; }
   const queue = s.queue;
@@ -3192,12 +3262,13 @@ function handleJoinFileChosen(inputEl){
 
 async function renderOverlay(){
   const code = getOverlayCode();
-  const el = document.getElementById('overlay');
+  const el = document.getElementById('overlay-inner');
   document.documentElement.classList.add('overlay-mode');
   document.body.classList.add('overlay-mode');
   let data;
   try{ data = await apiFetch('/api/public/'+encodeURIComponent(code)); }
   catch(e){ el.innerHTML=''; return; }
+  reactToHypeLevel('overlay', 'overlay-hype-layer', data.hype||0);
   if(!data.live || !data.nowPlaying){ el.innerHTML=''; return; }
   const now = data.nowPlaying;
   const nextCount = Math.max(0, (data.queueCount||1) - 1);
@@ -3225,12 +3296,13 @@ async function renderJoinSmart(){
     const nowLive = !!data.live;
     if(nowLive !== window.__lastJoinLiveState){ await renderJoin(); }
     window.__lastJoinLiveState = nowLive;
+    reactToHypeLevel('join', 'join-hype-layer', data.hype||0);
   }catch(e){}
 }
 
 async function renderJoin(){
   const code = getJoinCode();
-  const el = document.getElementById('join');
+  const el = document.getElementById('join-inner');
   const myId = sessionStorage.getItem(myParticipantKey(code));
   let data;
   try{
@@ -3241,6 +3313,7 @@ async function renderJoin(){
     return;
   }
   window.__lastJoinLiveState = !!data.live;
+  reactToHypeLevel('join', 'join-hype-layer', data.hype||0);
 
   if(!data.live){
     window.__joinFormActive = false;
@@ -3392,6 +3465,7 @@ function startPolling(){
       try{ await refreshCurrentShow(); }catch(e){ return; }
       if(JSON.stringify(db.session) !== before){ renderLive(); }
       checkLiveEvents();
+      reactToHypeLevel('live', 'live-hype-layer', db.session ? (db.session.hype||0) : 0);
     }
   }, 2500);
 }
