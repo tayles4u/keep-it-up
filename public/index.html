@@ -1196,7 +1196,7 @@ html.overlay-mode,body.overlay-mode{background:transparent!important;}
 
 <script>
 /* ===================== STATE / PERSISTENCE (connected to a real backend) ===================== */
-const APP_VERSION = '1.22.3'; // bump this on every deploy — shown small under the logo, top left, so you can confirm a deploy actually landed
+const APP_VERSION = '1.22.8'; // bump this on every deploy — shown small under the logo, top left, so you can confirm a deploy actually landed
 const API_BASE = (function(){ try{ return localStorage.getItem('kiu_api_base_override'); }catch(e){ return null; } })() || window.KIU_API_BASE || 'https://keepitup-api-4fky.onrender.com';
 const GOOGLE_CLIENT_ID = '655518852084-1qdd80e44621hr90bdlg0iphjvnho9si.apps.googleusercontent.com';
 const THEME_KEY = 'kiu_theme_v1';
@@ -2954,10 +2954,11 @@ function swPlayerHtml(src, compact){
     <span class="sw-time">0:00 / 0:00</span>
   </div>`;
 }
+function mediaUrl(p){ return p.fileUrl ? (/^https?:\/\//i.test(p.fileUrl) ? p.fileUrl : API_BASE + p.fileUrl) : p.fileData; }
 function renderMedia(p, compact){
   if(!compact){
     // Main stage — big cover fills the right-hand media column, player/link stacked underneath.
-    if(p.fileData){ return `${fillerCoverHtml('big')}${swPlayerHtml(p.fileData)}`; }
+    if(p.fileData){ return `${fillerCoverHtml('big')}${swPlayerHtml(mediaUrl(p))}`; }
     const url = p.song || '';
     if(!url) return fillerCoverHtml('big');
     const plat = detectPlatform(url);
@@ -2969,7 +2970,7 @@ function renderMedia(p, compact){
   }
   // Compact — small inline version, used for bracket match previews.
   const coverSize = 48;
-  if(p.fileData){ return `<div style="display:flex;gap:14px;align-items:center;margin-top:16px">${fillerCoverHtml(coverSize)}${swPlayerHtml(p.fileData,true)}</div>`; }
+  if(p.fileData){ return `<div style="display:flex;gap:14px;align-items:center;margin-top:16px">${fillerCoverHtml(coverSize)}${swPlayerHtml(mediaUrl(p),true)}</div>`; }
   const url = p.song || '';
   if(!url) return `<div style="margin-top:16px">${fillerCoverHtml(coverSize)}</div>`;
   const plat = detectPlatform(url);
