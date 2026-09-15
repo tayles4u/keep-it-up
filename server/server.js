@@ -828,9 +828,9 @@ route('GET', '/api/shows/current', async (req, res) => {
   if (!user) return sendJSON(res, 401, { error: 'Not signed in.' });
   const show = db.prepare(`SELECT * FROM shows WHERE user_id = ? AND status = 'live'`).get(user.id);
   if (!show) return sendJSON(res, 200, { show: null, queue: [] });
-  const queue = db.prepare(`SELECT * FROM queue_items WHERE show_id = ? AND status='queued' ORDER BY position ASC`).all(show.id);
+  const queue = db.prepare(`SELECT ${QUEUE_LIST_COLS} FROM queue_items WHERE show_id = ? AND status='queued' ORDER BY position ASC`).all(show.id);
   const earn = db.prepare(`SELECT COALESCE(SUM(amount),0) AS total FROM transactions WHERE show_id=? AND status!='payout'`).get(show.id).total;
-  sendJSON(res, 200, { show: Object.assign(showToJSON(show), { earnings: earn, hype: hypeLevelFor(show.id), reaction: currentReaction(show.id) }), queue: queue.map((q, i) => queueToJSON(q, { omitFile: i !== 0 })) });
+  sendJSON(res, 200, { show: Object.assign(showToJSON(show), { earnings: earn, hype: hypeLevelFor(show.id), reaction: currentReaction(show.id) }), queue: queue.map(q => queueToJSON(q)) });
 });
 
 route('POST', '/api/shows/:id/react', async (req, res, params) => {
@@ -862,9 +862,9 @@ route('GET', '/api/shows/history', async (req, res) => {
   const rows = db.prepare(`SELECT * FROM shows WHERE user_id = ? AND status='ended' ORDER BY ended_at DESC`).all(user.id);
   const withEarnings = rows.map(s => {
     const earn = db.prepare(`SELECT COALESCE(SUM(amount),0) AS total FROM transactions WHERE show_id=? AND status!='payout'`).get(s.id).total;
-    const songs = db.prepare(`SELECT * FROM queue_items WHERE show_id=? AND status='played' ORDER BY joined_at ASC`).all(s.id);
+    const songs = db.prepare(`SELECT ${QUEUE_LIST_COLS} FROM queue_items WHERE show_id=? AND status='played' ORDER BY joined_at ASC`).all(s.id);
     return Object.assign(showToJSON(s), {
-      earnings: earn, songs: songs.map(q => queueToJSON(q, { omitFile: true })),
+      earnings: earn, songs: songs.map(q => queueToJSON(q)),
       durationSec: s.ended_at ? Math.floor((s.ended_at - s.started_at) / 1000) : 0
     });
   });
@@ -906,10 +906,10 @@ route('POST', '/api/shows/:id/bracket/start', async (req, res, params) => {
     // previous bracket is done; archive its parked entries so they can't be confused with the new one
     db.prepare(`UPDATE queue_items SET status='bracket_done' WHERE show_id=? AND status='bracket'`).run(show.id);
   }
-  const queue = db.prepare(`SELECT * FROM queue_items WHERE show_id=? AND status='queued' ORDER BY position ASC`).all(show.id);
+  const queue = db.prepare(`SELECT ${QUEUE_LIST_COLS} FROM queue_items WHERE show_id=? AND status='queued' ORDER BY position ASC`).all(show.id);
   if (queue.length < 2) return sendJSON(res, 409, { error: 'Need at least 2 tracks queued to start a bracket.' });
 
-  let entries = queue.map(q => queueToJSON(q, { omitFile: true })); // real audio is re-attached live per request, see bracketWithAudio — never stored here
+  let entries = queue.map(q => queueToJSON(q)); // fileUrl already points at /api/media/:id — nothing to re-attach later
   for (let i = entries.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); const tmp = entries[i]; entries[i] = entries[j]; entries[j] = tmp; }
   const size = nextPowerOfTwo(entries.length);
   while (entries.length < size) entries.push(null);
@@ -951,7 +951,7 @@ route('POST', '/api/shows/:id/bracket/cancel', async (req, res, params) => {
   const bracket = show.bracket_json ? JSON.parse(show.bracket_json) : null;
   if (bracket && !bracket.champion) {
     // unfinished — give everyone still parked in it their spot back in the live queue
-    const parked = db.prepare(`SELECT * FROM queue_items WHERE show_id=? AND status='bracket' ORDER BY joined_at ASC`).all(show.id);
+    const parked = db.prepare(`SELECT id FROM queue_items WHERE show_id=? AND status='bracket' ORDER BY joined_at ASC`).all(show.id);
     const already = db.prepare(`SELECT COUNT(*) AS c FROM queue_items WHERE show_id=? AND status='queued'`).get(show.id).c;
     parked.forEach((item, i) => { db.prepare(`UPDATE queue_items SET status='queued', position=? WHERE id=?`).run(already + i, item.id); });
   } else {
@@ -1088,7 +1088,7 @@ route('GET', '/api/public/:joinCode', async (req, res, params) => {
   const show = db.prepare(`SELECT * FROM shows WHERE user_id=? AND status='live'`).get(user.id);
   if (!show) return sendJSON(res, 200, { live: false });
   const settings = JSON.parse(show.settings_json);
-  const queue = db.prepare(`SELECT * FROM queue_items WHERE show_id=? AND status='queued' ORDER BY position ASC`).all(show.id);
+  const queue = db.prepare(`SELECT ${QUEUE_LIST_COLS} FROM queue_items WHERE show_id=? AND status='queued' ORDER BY position ASC`).all(show.id);
   const nowPlaying = queue[0] ? queueToJSON(queue[0]) : null;
   const url = new URL(req.url, `http://${req.headers.host}`);
   const participantId = url.searchParams.get('participant');
@@ -1247,7 +1247,7 @@ route('POST', '/api/public/:joinCode/checkout', async (req, res, params) => {
   queuePaymentLocks.add(participantId);
 
   try {
-    const queue = db.prepare(`SELECT * FROM queue_items WHERE show_id=? AND status='queued' ORDER BY position ASC`).all(show.id);
+    const queue = db.prepare(`SELECT id, paid_total FROM queue_items WHERE show_id=? AND status='queued' ORDER BY position ASC`).all(show.id);
     const idx = queue.findIndex(q => q.id === participantId);
     if (idx === -1) return sendJSON(res, 404, { error: 'Not found.' });
     if (idx === 0) return sendJSON(res, 409, { error: "That song is already on stage — it can't be skipped." });
@@ -1369,7 +1369,7 @@ route('POST', '/api/stripe/webhook', async (req, res) => {
       const user = findUserByCodeOrUsername(joinCode);
       const show = user ? db.prepare(`SELECT * FROM shows WHERE user_id=? AND status='live'`).get(user.id) : null;
       if (user && show) {
-        const queue = db.prepare(`SELECT * FROM queue_items WHERE show_id=? AND status='queued' ORDER BY position ASC`).all(show.id);
+        const queue = db.prepare(`SELECT id, paid_total FROM queue_items WHERE show_id=? AND status='queued' ORDER BY position ASC`).all(show.id);
         const idx = queue.findIndex(q => q.id === participantId);
         if (idx > 0) {
           const cost = (session.amount_total || 0) / 100; // what the fan paid — drives queue ordering / paid_total
@@ -1387,28 +1387,37 @@ route('POST', '/api/stripe/webhook', async (req, res) => {
 });
 
 // ----- json helpers -----
-// `omitFile` strips the (potentially tens-of-MB) base64 audio blob and replaces it with a cheap
-// truthy/falsy marker — every caller in the frontend only ever branches on "is there a file?" for
-// anything but the single track that's actually cued up to play (see queueToJSON callers below).
-// Without this, any endpoint that returns more than one queue row at a time re-serializes every
-// uploaded file on every single poll — that's what was actually driving the OOM crashes.
-function queueToJSON(q, opts) {
-  const omit = opts && opts.omitFile;
+// The raw base64 audio blob (which can be tens of MB now that uploads go up to 120MB) is NEVER
+// embedded in a JSON response, for any queue row, including the currently-playing one. That used
+// to happen here for the "now playing" item on the two hottest polling endpoints
+// (GET /api/shows/current, polled by the host, and GET /api/public/:joinCode, polled independently
+// by every connected fan every ~2.5s) and was the actual driver of the OOM crashes: one big upload,
+// multiplied by every poll, multiplied by every concurrently connected viewer. Instead we send a
+// cheap boolean flag plus a stable fileUrl pointing at GET /api/media/:itemId, which decodes and
+// streams the audio on demand — only when a client's <audio> element actually loads it, and only
+// once per client since the URL is cacheable.
+// QUEUE_LIST_COLS is used by every query that can return more than one queue_items row at a time,
+// so the (potentially huge) file_data column itself is never even pulled out of SQLite for a list —
+// only a cheap `has_file` boolean computed in the query.
+const QUEUE_LIST_COLS = `id, show_id, name, song, note, paid_total, position, status, joined_at, cover_url, file_name, (file_data IS NOT NULL) AS has_file`;
+function queueToJSON(q) {
+  const hasFile = q.has_file != null ? !!q.has_file : !!q.file_data;
   return {
     id: q.id, name: q.name, song: q.song, note: q.note, paidTotal: q.paid_total,
     position: q.position, status: q.status, joinedAt: q.joined_at, coverUrl: q.cover_url,
-    fileData: omit ? (q.file_data ? 1 : null) : q.file_data,
+    fileData: hasFile ? 1 : null,
+    fileUrl: hasFile ? `/api/media/${q.id}` : null,
     fileName: q.file_name
   };
 }
-// Bracket entries are persisted (in shows.bracket_json) without file data at all — see
-// bracket/start below — so a bracket with many rounds of entrants never bloats that column or the
-// cost of parsing it on every read. The one/two entries actually on screen (the live match, or the
-// champion once it's decided) get their real audio re-attached here, live, from queue_items.
+// Bracket entries are persisted (in shows.bracket_json) already carrying their fileUrl (from
+// queueToJSON at bracket/start time) — that URL is stable and cheap, so unlike the old raw-blob
+// approach there's nothing left to "re-attach" here. This just guards against an entry saved by an
+// older server version that still has a raw fileData string instead of a fileUrl.
 function attachEntryFile(entry) {
   if (!entry) return entry;
-  const row = db.prepare(`SELECT file_data FROM queue_items WHERE id=?`).get(entry.id);
-  return row && row.file_data ? Object.assign({}, entry, { fileData: row.file_data }) : entry;
+  if (entry.fileUrl || !entry.fileData) return entry;
+  return Object.assign({}, entry, { fileData: 1, fileUrl: `/api/media/${entry.id}` });
 }
 function bracketWithAudio(bracket) {
   if (!bracket) return bracket;
@@ -1431,6 +1440,46 @@ function showToJSON(s) {
     bracket: s.bracket_json ? bracketWithAudio(JSON.parse(s.bracket_json)) : null
   };
 }
+
+// ----- on-demand media streaming -----
+// Uploaded audio is stored in the DB as a `data:<mime>;base64,<data>` string. This is the ONLY
+// place that ever decodes it back into bytes — every other endpoint just hands out this URL. That
+// turns "N connected fans re-download a huge blob every 2.5s poll" into "each browser fetches this
+// once and caches it" (Cache-Control below), which is what actually fixes the OOM.
+function parseDataUri(str) {
+  const m = /^data:([^;,]+)(?:;charset=[^;,]+)?;base64,([\s\S]*)$/.exec(str || '');
+  if (!m) return null;
+  return { mime: m[1], base64: m[2] };
+}
+route('GET', '/api/media/:itemId', async (req, res, params) => {
+  const row = db.prepare(`SELECT file_data FROM queue_items WHERE id=?`).get(params.itemId);
+  const parsed = row ? parseDataUri(row.file_data) : null;
+  if (!parsed) return sendJSON(res, 404, { error: 'Not found.' });
+  const buf = Buffer.from(parsed.base64, 'base64');
+  const total = buf.length;
+  const headers = {
+    'Content-Type': parsed.mime || 'application/octet-stream',
+    'Accept-Ranges': 'bytes',
+    'Cache-Control': 'public, max-age=31536000, immutable',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Acting-For',
+    'Access-Control-Allow-Methods': 'GET,OPTIONS'
+  };
+  const range = req.headers.range;
+  const m = range && /^bytes=(\d*)-(\d*)$/.exec(range);
+  if (m) {
+    const start = m[1] ? parseInt(m[1], 10) : 0;
+    let end = m[2] ? parseInt(m[2], 10) : total - 1;
+    if (Number.isNaN(start) || Number.isNaN(end) || start > end || start >= total) {
+      res.writeHead(416, Object.assign({ 'Content-Range': `bytes */${total}` }, headers));
+      return res.end();
+    }
+    end = Math.min(end, total - 1);
+    res.writeHead(206, Object.assign({ 'Content-Range': `bytes ${start}-${end}/${total}`, 'Content-Length': end - start + 1 }, headers));
+    return res.end(buf.subarray(start, end + 1));
+  }
+  res.writeHead(200, Object.assign({ 'Content-Length': total }, headers));
+  res.end(buf);
+});
 
 route('GET', '/health', async (req, res) => { sendJSON(res, 200, { ok: true, time: Date.now() }); });
 
