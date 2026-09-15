@@ -520,7 +520,7 @@ body.pin-resizing{cursor:col-resize;user-select:none;}
 body.pin-resizing .pin-resizer{cursor:col-resize;}
 @media (max-width:1000px){ .pin-resizer{display:none;} }
 
-.now-playing{background:transparent;border:none;border-radius:0;padding:32px 0;position:relative;z-index:3;}
+.now-playing{background:var(--bg-1);border:1px solid var(--line-strong);border-radius:14px;padding:32px;position:relative;z-index:3;}
 .np-layout{display:flex;gap:28px;align-items:flex-start;}
 .np-main{flex:1;min-width:0;}
 .np-media{width:300px;flex-shrink:0;}
@@ -533,7 +533,7 @@ body.pin-resizing .pin-resizer{cursor:col-resize;}
 .now-playing .np-note{font-size:13px;color:var(--ink-dim);margin-top:10px;font-style:italic;line-height:1.5;}
 .np-actions{display:flex;gap:10px;margin-top:22px;flex-wrap:wrap;}
 .np-empty{text-align:center;padding:20px 10px;}
-.np-empty .mic-orb{width:60px;height:60px;border-radius:50%;background:transparent;border:1px solid var(--line-strong);display:flex;align-items:center;justify-content:center;color:var(--gold);margin:0 auto 16px;}
+.np-empty .mic-orb{width:60px;height:60px;border-radius:50%;background:var(--bg-3);border:1px solid var(--line-strong);display:flex;align-items:center;justify-content:center;color:var(--gold);margin:0 auto 16px;}
 .np-empty h2{font-size:26px;}
 .np-empty p{color:var(--ink-dim);font-size:13px;max-width:400px;margin:8px auto 0;line-height:1.5;}
 
@@ -782,7 +782,7 @@ body.pin-resizing .pin-resizer{cursor:col-resize;}
 .qr-menu-item:hover{background:var(--bg-2);}
 .qr-menu-item.danger{color:var(--coral);}
 .np-empty{text-align:center;padding:20px 10px;}
-.np-empty .mic-orb{width:60px;height:60px;border-radius:50%;background:transparent;border:1px solid var(--line-strong);display:flex;align-items:center;justify-content:center;color:var(--gold);margin:0 auto 16px;}
+.np-empty .mic-orb{width:60px;height:60px;border-radius:50%;background:var(--bg-3);border:1px solid var(--line-strong);display:flex;align-items:center;justify-content:center;color:var(--gold);margin:0 auto 16px;}
 .np-empty h2{font-size:26px;}
 .np-empty p{color:var(--ink-dim);font-size:13px;max-width:400px;margin:8px auto 0;line-height:1.5;}
 .code-inline{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-faint);margin-top:14px;letter-spacing:.05em;text-align:center;}
@@ -3196,34 +3196,35 @@ function renderLive(){
   ['drawer-stats', 'drawer-controls'].forEach(id => { const n=document.getElementById(id); if(n) scrollKeep[id]=n.scrollTop; });
   document.querySelectorAll('.pin-col').forEach(n => { scrollKeep[n.className] = n.scrollTop; });
 
-  // Swiss pass: no card around this — the panel background is the surface. Big title does the
-  // hierarchy work instead of a badge+box; Next is the one filled block on the whole stage.
+  // Reverted to the original boxed "now playing" card on request — this stage view is what
+  // gets shown to the artist during the stream, so it stays in the pre-Swiss design.
   const nowPlayingHtml = nowUp ? `
-    <div class="sw-hero">
-      <div class="sw-hero-top">
-        <div class="sw-hero-main">
-          <div class="sw-meta" style="margin-bottom:10px">${t('on_now')}</div>
-          <h2 class="sw-track-title">${nowUp.fileData ? escapeHtml(nowUp.fileName) : (isUrl(nowUp.song) ? 'Now reacting' : escapeHtml(nowUp.song))}</h2>
-          <div class="sw-track-by">${t('sent_by')} ${escapeHtml(nowUp.name)}</div>
-          ${nowUp.note ? `<div class="sw-track-note">"${escapeHtml(nowUp.note)}"</div>` : ''}
+    <div class="now-playing">
+      <div class="np-layout">
+        <div class="np-main">
+          <div class="np-label"><span class="livepill">${t('on_now')}</span></div>
+          <h2 style="word-break:break-word">${nowUp.fileData ? escapeHtml(nowUp.fileName) : (isUrl(nowUp.song) ? 'Now reacting' : escapeHtml(nowUp.song))}</h2>
+          <div class="np-by">${t('sent_by')} ${escapeHtml(nowUp.name)}</div>
+          ${nowUp.note ? `<div class="np-note">"${escapeHtml(nowUp.note)}"</div>` : ''}
+          <div class="np-actions">
+            <button class="btn btn-gold" onclick="markPlayed('${nowUp.id}')">${t('next_track')}</button>
+            <div class="qr-menu-wrap">
+              <div class="qr-menu-btn" onclick="toggleRowMenu(event,'${nowUp.id}')" title="More"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="12" cy="19" r="1.9"/></svg></div>
+              ${openRowMenuId===nowUp.id ? `<div class="qr-menu">
+                <div class="qr-menu-item" onclick="removeFromQueue('${nowUp.id}')">${t('kick')}</div>
+                <div class="qr-menu-item danger" onclick="banFromQueue('${nowUp.id}')">${t('ban')}</div>
+              </div>` : ''}
+            </div>
+          </div>
         </div>
-        <div class="sw-hero-media">${renderMedia(nowUp,false)}</div>
-      </div>
-      <div class="sw-hero-actions">
-        <button class="btn btn-gold" onclick="markPlayed('${nowUp.id}')">${t('next_track')}</button>
-        <div class="qr-menu-wrap">
-          <button class="sw-more" onclick="toggleRowMenu(event,'${nowUp.id}')">${t('skip_remove')}</button>
-          ${openRowMenuId===nowUp.id ? `<div class="qr-menu">
-            <div class="qr-menu-item" onclick="removeFromQueue('${nowUp.id}')">${t('kick')}</div>
-            <div class="qr-menu-item danger" onclick="banFromQueue('${nowUp.id}')">${t('ban')}</div>
-          </div>` : ''}
-        </div>
+        <div class="np-media">${renderMedia(nowUp,false)}</div>
       </div>
     </div>` : `
-    <div class="sw-hero sw-hero-empty">
-      <h2 class="sw-track-title" style="color:var(--ink-dim)">${t('waiting_title')}</h2>
-      <p class="sw-track-by">${t('waiting_sub')}</p>
-      <div class="sw-eb-w" onclick="openShare()" style="margin-top:14px;display:inline-block">${t('share_your_link')}</div>
+    <div class="now-playing np-empty">
+      <div class="mic-orb"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 1a4 4 0 0 1 4 4v6a4 4 0 1 1-8 0V5a4 4 0 0 1 4-4z"/><path d="M5 11a7 7 0 0 0 14 0M12 19v3"/></svg></div>
+      <h2>${t('waiting_title')}</h2>
+      <p>${t('waiting_sub')}</p>
+      <div class="code-inline" onclick="openShare()" style="cursor:pointer;text-decoration:underline">${t('share_your_link')}</div>
     </div>`;
 
   const onDeckHtml = onDeck.length ? `<div class="queue-list">${onDeck.map((q,i)=>{
