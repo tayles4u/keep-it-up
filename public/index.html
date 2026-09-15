@@ -541,15 +541,15 @@ body.pin-resizing .pin-resizer{cursor:col-resize;}
 .ondeck-label h3{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-dim);}
 .ondeck-label span{font-size:11px;color:var(--ink-faint);}
 .queue-list{display:flex;flex-direction:column;gap:10px;}
-.queue-row{display:flex;align-items:center;gap:18px;background:transparent;border-top:1px solid var(--line);border-bottom:1px solid transparent;border-radius:0;padding:13px 2px;position:relative;z-index:3;overflow:visible;transition:opacity .15s ease,border-color .15s ease;}
+.queue-row{display:flex;align-items:center;gap:18px;background:var(--bg-1);border:1px solid var(--line-strong);border-radius:12px;padding:20px 22px;position:relative;z-index:3;overflow:visible;transition:opacity .15s ease,border-color .15s ease;}
 .qr-grip{flex-shrink:0;width:14px;display:flex;align-items:center;justify-content:center;color:var(--ink-faint);opacity:0;transition:opacity .15s ease;cursor:grab;margin-left:-6px;}
 .queue-row:hover .qr-grip{opacity:1;}
 .queue-row.qr-dragging{opacity:.35;}
 .queue-row.qr-drag-over{border-top-color:var(--gold);}
 .queue-row.qr-drag-over-below{border-bottom-color:var(--gold);}
 @media (hover:none){ .qr-grip{opacity:.6;} }
-.qr-flash{position:absolute;inset:-1px;border-radius:0;background:var(--gold);opacity:0;pointer-events:none;}
-.qr-ripple{position:absolute;inset:-1px;border-radius:0;border:2px solid var(--gold);opacity:0;pointer-events:none;}
+.qr-flash{position:absolute;inset:-1px;border-radius:12px;background:var(--gold);opacity:0;pointer-events:none;}
+.qr-ripple{position:absolute;inset:-1px;border-radius:12px;border:2px solid var(--gold);opacity:0;pointer-events:none;}
 .qr-new-badge{position:absolute;right:18px;top:50%;transform:translateY(-50%) scale(0);background:var(--mint);color:#04241A;font-size:10px;font-weight:800;padding:4px 9px;border-radius:5px;text-transform:uppercase;letter-spacing:.04em;pointer-events:none;}
 .qr-spark{position:absolute;pointer-events:none;color:var(--gold);opacity:0;z-index:5;}
 .stage-vignette{position:fixed;inset:0;pointer-events:none;background:radial-gradient(circle at center, transparent 30%, var(--gold) 220%);opacity:0;z-index:300;}
@@ -769,11 +769,11 @@ body.pin-resizing .pin-resizer{cursor:col-resize;}
 .anim-qr-vignette{animation:qrVignetteFlash .6s ease;}
 .anim-qr-shake{animation:qrScreenShake .4s ease;}
 .anim-qr-shudder{animation:qrShudder .25s ease;}
-.qr-pos{flex-shrink:0;width:34px;height:34px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:15px;color:var(--ink-faint);background:transparent;}
-.qr-pos.qr-pos-gold{background:var(--gold);color:var(--gold-ink);border-radius:3px;} /* kept solid — this genuinely means "paid to skip ahead", not decoration */
-.qr-pos svg{width:16px;height:16px;}
-.qr-name{flex:1;min-width:0;font-size:15px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.ondeck-empty{color:var(--ink-faint);font-size:12.5px;padding:12px 2px;text-align:left;border:none;border-radius:0;}
+.qr-pos{flex-shrink:0;width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:18px;color:var(--ink-faint);background:var(--bg-2);}
+.qr-pos.qr-pos-gold{background:var(--gold);color:var(--gold-ink);}
+.qr-pos svg{width:20px;height:20px;}
+.qr-name{flex:1;min-width:0;font-size:17px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ondeck-empty{color:var(--ink-faint);font-size:12.5px;padding:24px;text-align:center;border:1px dashed var(--line-strong);border-radius:12px;}
 .qr-menu-wrap{position:relative;flex-shrink:0;}
 .qr-menu-btn{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;color:var(--ink-faint);cursor:pointer;border:1px solid var(--line-strong);}
 .qr-menu-btn:hover{color:var(--ink);border-color:var(--ink-faint);}
