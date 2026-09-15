@@ -564,14 +564,22 @@ body.pin-resizing .pin-resizer{cursor:col-resize;}
    genuine top tier (9-10), same as qr-pos-gold marks a paid skip. All the "wow" lives in the stage pop,
    not in a rainbow button grid. */
 .eb-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:2px;}
-.eb-num{background:var(--bg-2);border:1px solid var(--line);border-radius:9px;padding:8px 2px;text-align:center;font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:13px;color:var(--ink-dim);cursor:pointer;transition:.12s;user-select:none;}
-.eb-num:hover{background:var(--bg-3);color:var(--ink);}
+/* Same magnetic cursor-spotlight + lift as every .btn in the app (see the delegated mousemove
+   listener that feeds --mx/--my into SPOT_SEL — .eb-num/.eb-emote are part of that selector). */
+.eb-num{position:relative;isolation:isolate;background:var(--bg-2);border:1px solid var(--line);border-radius:9px;padding:8px 2px;text-align:center;font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:13px;color:var(--ink-dim);cursor:pointer;transition:transform .12s,background .12s ease,color .12s ease;user-select:none;}
+.eb-num::after{content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;transition:opacity .25s ease;z-index:-1;background:radial-gradient(120px circle at var(--mx,50%) var(--my,50%), rgba(244,183,64,.24), transparent 70%);}
+.eb-num:hover{background:var(--bg-3);color:var(--ink);transform:translateY(-1px);}
+.eb-num:hover::after{opacity:1;}
 .eb-num:active{transform:scale(.92);}
 .eb-num.eb-gold{background:var(--gold);color:var(--gold-ink);border-color:transparent;font-weight:800;}
+.eb-num.eb-gold::after{background:radial-gradient(120px circle at var(--mx,50%) var(--my,50%), rgba(255,255,255,.32), transparent 70%);mix-blend-mode:overlay;}
 .eb-pillrow{display:flex;flex-wrap:wrap;gap:6px;background:var(--bg-3);border:1px solid var(--line);border-radius:12px;padding:5px;margin-top:8px;}
-.eb-emote{flex:1 1 auto;border-radius:9px;padding:8px 6px;text-align:center;font-size:10.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--ink-dim);cursor:pointer;transition:.12s;white-space:nowrap;}
-.eb-emote:hover{background:var(--bg-2);color:var(--ink);}
+.eb-emote{position:relative;isolation:isolate;flex:1 1 auto;border-radius:9px;padding:8px 6px;text-align:center;font-size:10.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--ink-dim);cursor:pointer;transition:transform .12s,background .12s ease,color .12s ease;white-space:nowrap;}
+.eb-emote::after{content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;transition:opacity .25s ease;z-index:-1;background:radial-gradient(120px circle at var(--mx,50%) var(--my,50%), rgba(244,183,64,.24), transparent 70%);}
+.eb-emote:hover{background:var(--bg-2);color:var(--ink);transform:translateY(-1px);}
+.eb-emote:hover::after{opacity:1;}
 .eb-emote:active{transform:scale(.92);}
+@media (prefers-reduced-motion: reduce){ .eb-num::after,.eb-emote::after{transition:none;} }
 
 /* The pop itself: no box, no tag line — just the word, hard-edge "printed" extrusion shadow instead
    of a blur/glow, so it reads as stamped/stickered rather than a generic soft AI gradient. Lame (1-2)
@@ -1085,7 +1093,7 @@ html.overlay-mode,body.overlay-mode{background:transparent!important;}
 
 <script>
 /* ===================== STATE / PERSISTENCE (connected to a real backend) ===================== */
-const APP_VERSION = '1.22.1'; // bump this on every deploy — shown small under the logo, top left, so you can confirm a deploy actually landed
+const APP_VERSION = '1.22.2'; // bump this on every deploy — shown small under the logo, top left, so you can confirm a deploy actually landed
 const API_BASE = (function(){ try{ return localStorage.getItem('kiu_api_base_override'); }catch(e){ return null; } })() || window.KIU_API_BASE || 'https://keepitup-api-4fky.onrender.com';
 const GOOGLE_CLIENT_ID = '655518852084-1qdd80e44621hr90bdlg0iphjvnho9si.apps.googleusercontent.com';
 const THEME_KEY = 'kiu_theme_v1';
@@ -4079,7 +4087,7 @@ function startPolling(){
     // happens constantly here: renderLive(), patchSettings(), showView(), etc. all
     // replace whole subtrees, which would silently orphan any listener attached directly
     // to an element that later gets swapped out).
-    const SPOT_SEL = '.btn, .card, .queue-row, .wallet-row, .ov-tile, .mini-stat, .small-chart, .now-playing, .host-live-card, .resume-card, .admit-card, .br-side, .preview-mock, .rundown-sheet, .feature-row';
+    const SPOT_SEL = '.btn, .card, .queue-row, .wallet-row, .ov-tile, .mini-stat, .small-chart, .now-playing, .host-live-card, .resume-card, .admit-card, .br-side, .preview-mock, .rundown-sheet, .feature-row, .eb-num, .eb-emote';
     let spotRaf = null, spotEvt = null;
     document.addEventListener('mousemove', (e)=>{
       spotEvt = e;
