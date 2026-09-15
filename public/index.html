@@ -507,6 +507,12 @@ body.overlay-mode .help-fab,body.overlay-mode #toast{display:none!important;}
 .pin-col.left{border-right:1px solid var(--line);}
 .pin-col.right{border-left:1px solid var(--line);}
 .stage-main{flex:1;min-width:0;max-width:860px;margin:0 auto;padding:34px 26px 70px;}
+.pin-resizer{flex-shrink:0;width:9px;cursor:col-resize;position:relative;-webkit-user-select:none;user-select:none;}
+.pin-resizer::after{content:'';position:absolute;top:0;bottom:0;left:50%;width:1px;transform:translateX(-50%);background:transparent;transition:background .15s ease;}
+.pin-resizer:hover::after,.pin-resizer.dragging::after{background:var(--gold);}
+body.pin-resizing{cursor:col-resize;user-select:none;}
+body.pin-resizing .pin-resizer{cursor:col-resize;}
+@media (max-width:1000px){ .pin-resizer{display:none;} }
 
 .now-playing{background:var(--bg-1);border:1px solid var(--line-strong);border-radius:14px;padding:32px;position:relative;z-index:3;}
 .np-layout{display:flex;gap:28px;align-items:flex-start;}
@@ -653,10 +659,10 @@ audio{width:100%;margin-top:16px;}
 @media (max-width:640px){ .br-match{flex-direction:column;} }
 
 
-.drawer-backdrop{position:fixed;inset:0;background:rgba(2,2,3,.55);z-index:400;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .22s ease,visibility 0s linear .22s;}
+.drawer-backdrop{position:fixed;top:65px;left:0;right:0;bottom:0;background:rgba(2,2,3,.55);z-index:400;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .22s ease,visibility 0s linear .22s;}
 .drawer-backdrop.open{opacity:1;visibility:visible;pointer-events:auto;transition:opacity .22s ease;}
 @media (prefers-reduced-motion: reduce){ .drawer-backdrop{transition:opacity .1s linear,visibility 0s linear .1s;} .drawer-backdrop.open{transition:opacity .1s linear;} }
-.drawer{position:fixed;top:0;right:0;height:100vh;width:340px;max-width:88vw;background:var(--bg-1);border-left:1px solid var(--line-strong);z-index:401;transform:translateX(100%);transition:transform .28s ease;padding:22px;overflow-y:auto;}
+.drawer{position:fixed;top:65px;right:0;height:calc(100vh - 65px);width:340px;max-width:88vw;background:var(--bg-1);border-left:1px solid var(--line-strong);z-index:401;transform:translateX(100%);transition:transform .28s ease;padding:22px;overflow-y:auto;}
 .drawer.open{transform:translateX(0);}
 @media (prefers-reduced-motion: reduce){ .drawer{transition:none;} }
 .drawer-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;gap:8px;}
@@ -973,7 +979,7 @@ html.overlay-mode,body.overlay-mode{background:transparent!important;}
 
 <script>
 /* ===================== STATE / PERSISTENCE (connected to a real backend) ===================== */
-const APP_VERSION = '1.19.2'; // bump this on every deploy — shown small under the logo, top left, so you can confirm a deploy actually landed
+const APP_VERSION = '1.21.0'; // bump this on every deploy — shown small under the logo, top left, so you can confirm a deploy actually landed
 const API_BASE = (function(){ try{ return localStorage.getItem('kiu_api_base_override'); }catch(e){ return null; } })() || window.KIU_API_BASE || 'https://keepitup-api-4fky.onrender.com';
 const GOOGLE_CLIENT_ID = '655518852084-1qdd80e44621hr90bdlg0iphjvnho9si.apps.googleusercontent.com';
 const THEME_KEY = 'kiu_theme_v1';
@@ -1872,6 +1878,44 @@ function getPins(){ try{ return JSON.parse(localStorage.getItem(PINS_KEY)) || {s
 function setPins(p){ localStorage.setItem(PINS_KEY, JSON.stringify(p)); }
 function togglePin(which){ const p=getPins(); p[which]=!p[which]; setPins(p); if(p[which]) closeDrawersInternal(); renderLive(); }
 function handlePanelIconClick(which){ const p=getPins(); if(p[which]) togglePin(which); else openDrawerPanel(which); }
+
+// Pinned Stats/Controls widths — when both are pinned at once, the host can drag the
+// inner edge of either one to trade space with the stage in the middle (which is a plain
+// flex:1 column, so it just shrinks/grows to whatever's left — no extra work needed there).
+const PIN_WIDTHS_KEY = 'kiu_pin_widths_v1';
+const PIN_W_MIN = 220, PIN_W_MAX = 480, PIN_W_DEFAULT = 300;
+function getPinWidths(){
+  try{ const saved = JSON.parse(localStorage.getItem(PIN_WIDTHS_KEY)) || {}; return { stats: saved.stats || PIN_W_DEFAULT, controls: saved.controls || PIN_W_DEFAULT }; }
+  catch(e){ return { stats: PIN_W_DEFAULT, controls: PIN_W_DEFAULT }; }
+}
+function setPinWidth(which, w){ const widths = getPinWidths(); widths[which] = w; localStorage.setItem(PIN_WIDTHS_KEY, JSON.stringify(widths)); }
+function startPinResize(e, which){
+  e.preventDefault();
+  const colSel = '.pin-col.' + (which==='stats' ? 'left' : 'right');
+  const col = document.querySelector(colSel);
+  if(!col) return;
+  const startX = e.clientX;
+  const startWidth = col.getBoundingClientRect().width;
+  const dir = which==='stats' ? 1 : -1; // stats' handle sits on its right edge (drag right = wider); controls' sits on its left edge (drag left = wider)
+  const resizer = e.currentTarget;
+  resizer.classList.add('dragging');
+  document.body.classList.add('pin-resizing');
+  const onMove = (ev) => {
+    const c = document.querySelector(colSel); if(!c) return;
+    const w = Math.max(PIN_W_MIN, Math.min(PIN_W_MAX, Math.round(startWidth + (ev.clientX - startX) * dir)));
+    c.style.width = w + 'px';
+  };
+  const onUp = () => {
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    document.body.classList.remove('pin-resizing');
+    resizer.classList.remove('dragging');
+    const c = document.querySelector(colSel);
+    if(c) setPinWidth(which, parseInt(c.style.width, 10) || PIN_W_DEFAULT);
+  };
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
 
 /* ===================== ROUTING ===================== */
 function joinUrl(code){
@@ -2796,6 +2840,7 @@ function renderLive(){
   const nowUp = queue[0];
   const onDeck = queue.slice(1);
   const pins = getPins();
+  const pinWidths = getPinWidths();
   const statsInner = statsPanelInner(s);
   const controlsInner = controlsPanelInner(s);
   const isBracket = s.settings.streamType==='bracket';
@@ -2878,9 +2923,9 @@ function renderLive(){
     </div>
 
     <div class="stage-body">
-      ${pins.stats ? `<div class="pin-col left"><div class="drawer-head"><b>${t('stats')}</b><button class="btn-xs" onclick="togglePin('stats')">${t('unpin')}</button></div>${statsInner}</div>` : ''}
+      ${pins.stats ? `<div class="pin-col left" style="width:${pinWidths.stats}px"><div class="drawer-head"><b>${t('stats')}</b><button class="btn-xs" onclick="togglePin('stats')">${t('unpin')}</button></div>${statsInner}</div><div class="pin-resizer" onmousedown="startPinResize(event,'stats')" title="Drag to resize"></div>` : ''}
       <div class="stage-main">${mainHtml}</div>
-      ${pins.controls ? `<div class="pin-col right"><div class="drawer-head"><b>${t('show_controls')}</b><button class="btn-xs" onclick="togglePin('controls')">${t('unpin')}</button></div>${controlsInner}</div>` : ''}
+      ${pins.controls ? `<div class="pin-resizer" onmousedown="startPinResize(event,'controls')" title="Drag to resize"></div><div class="pin-col right" style="width:${pinWidths.controls}px"><div class="drawer-head"><b>${t('show_controls')}</b><button class="btn-xs" onclick="togglePin('controls')">${t('unpin')}</button></div>${controlsInner}</div>` : ''}
     </div>
 
     <div class="drawer-backdrop" id="drawer-backdrop" onclick="closeDrawers()"></div>
