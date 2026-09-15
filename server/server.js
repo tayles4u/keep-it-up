@@ -8,7 +8,7 @@ const db = require('./db.js');
 const { hashPassword, verifyPassword, newToken, newId, newJoinCode, newTeamCode, hashToken } = require('./auth.js');
 
 const PORT = process.env.PORT || 8787;
-const MAX_BODY_BYTES = 42 * 1024 * 1024; // must stay above the frontend's 30MB song-file cap once base64-encoded (~+33%)
+const MAX_BODY_BYTES = 170 * 1024 * 1024; // must stay above the frontend's 120MB song-file cap once base64-encoded (~+33%)
 const CORS_ORIGINS = (process.env.CORS_ORIGIN || '*').split(',').map(s => s.trim()).filter(Boolean); // lock this down to your real frontend URL(s) once you're live
 function corsOriginFor(req) {
   if (CORS_ORIGINS.includes('*')) return '*';
