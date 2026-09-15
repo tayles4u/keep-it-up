@@ -1053,7 +1053,7 @@ html.overlay-mode,body.overlay-mode{background:transparent!important;}
       </div>
       <div class="footer-col">
         <div class="footer-col-title">Legal</div>
-        <a href="?legal=impressum">Impressum</a>
+        <span class="footer-soon-link">Impressum <span class="footer-soon">Soon</span></span>
         <a href="?legal=datenschutz">Datenschutz</a>
         <a href="?legal=agb">AGB</a>
       </div>
@@ -1842,6 +1842,10 @@ function showAuthScreen(mode){
   renderAuth();
 }
 function switchAuthMode(mode){ window.__authMode = mode; renderAuth(); }
+// Impressum isn't live yet — real business info (address, USt-ID, etc.) still needs to be
+// filled in below. Flip this to true once LEGAL_CONTENT.impressum.html has real data instead
+// of the [bracket] placeholders, and the "Soon" gate goes away automatically.
+const IMPRESSUM_READY = false;
 const LEGAL_CONTENT = {
   impressum: {
     title: 'Impressum',
@@ -1953,6 +1957,10 @@ const LEGAL_CONTENT = {
 };
 function renderLegal(page){
   const el = document.getElementById('legal');
+  if(page==='impressum' && !IMPRESSUM_READY){
+    el.innerHTML = `<div class="legal-page"><span class="legal-back" onclick="goLanding()">← Back to Keep it up!</span><h1>Impressum</h1><p style="color:var(--ink-dim)">Coming soon — this page isn't live yet.</p></div>`;
+    return;
+  }
   const content = LEGAL_CONTENT[page];
   if(!content){ el.innerHTML = `<div class="legal-page"><span class="legal-back" onclick="goLanding()">← Back to Keep it up!</span><h1>Not found</h1></div>`; return; }
   el.innerHTML = `<div class="legal-page"><span class="legal-back" onclick="goLanding()">← Back to Keep it up!</span><h1>${content.title}</h1>${content.html}</div>`;
