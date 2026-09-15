@@ -1,5 +1,6 @@
 
 
+
 <!DOCTYPE html>
 <html lang="de" data-theme="midnight">
 <head>
@@ -558,6 +559,38 @@ body.pin-resizing .pin-resizer{cursor:col-resize;}
 @media (prefers-reduced-motion: reduce){
   .hype-particle{animation:none;display:none;}
 }
+/* ===================== SOUNDBOARD (host stats panel → reaction text popped on the stage/overlay/join) ===================== */
+.soundboard-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:2px;}
+.sb-btn{background:var(--bg-2);border:1px solid var(--line);border-radius:9px;padding:8px 2px;text-align:center;font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:13px;color:var(--ink-dim);cursor:pointer;transition:.12s;user-select:none;}
+.sb-btn:hover{background:var(--bg-3);}
+.sb-btn:active{transform:scale(.92);}
+.sb-btn.sb-hi{color:var(--gold);border-color:var(--gold-dim);}
+.sb-emotes{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+.sb-emote{flex:1 1 auto;background:var(--bg-2);border:1px solid var(--line);border-radius:9px;padding:8px 6px;text-align:center;font-size:10.5px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;color:var(--ink-dim);cursor:pointer;transition:.12s;white-space:nowrap;}
+.sb-emote:hover{background:var(--bg-3);}
+.sb-emote:active{transform:scale(.92);}
+.sb-emote.sb-lame{color:var(--coral);}
+.sb-emote.sb-top{color:var(--gold);border-color:var(--gold-dim);}
+.reaction-pop{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);opacity:0;font-weight:900;text-transform:uppercase;white-space:nowrap;pointer-events:none;animation:reactionPop var(--rdur,1.4s) cubic-bezier(.22,.85,.3,1.35) forwards;}
+@keyframes reactionPop{
+  0%{opacity:0;transform:translate(-50%,-50%) scale(.35) rotate(var(--rrot,-3deg));}
+  14%{opacity:1;transform:translate(-50%,-50%) scale(1.08) rotate(1.5deg);}
+  24%{transform:translate(-50%,-50%) scale(.97) rotate(-1deg);}
+  80%{opacity:1;transform:translate(-50%,-50%) scale(1) rotate(0);}
+  100%{opacity:0;transform:translate(-50%,-58%) scale(.95) rotate(0);}
+}
+@keyframes reactionShake{
+  0%,100%{transform:translate(0,0);}
+  20%{transform:translate(-1.4%,1%);}
+  40%{transform:translate(1.4%,-1%);}
+  60%{transform:translate(-1%,-.6%);}
+  80%{transform:translate(1%,.6%);}
+}
+.reaction-shake{animation:reactionShake .4s ease;}
+@media (prefers-reduced-motion: reduce){
+  .reaction-pop{animation:none!important;display:none;}
+  .reaction-shake{animation:none!important;}
+}
 @keyframes qrRowIn{
   0%{transform:translateX(-56px) scale(.85) rotate(-2deg);opacity:0;}
   55%{transform:translateX(8px) scale(1.05) rotate(.5deg);opacity:1;}
@@ -979,7 +1012,7 @@ html.overlay-mode,body.overlay-mode{background:transparent!important;}
 
 <script>
 /* ===================== STATE / PERSISTENCE (connected to a real backend) ===================== */
-const APP_VERSION = '1.21.0'; // bump this on every deploy — shown small under the logo, top left, so you can confirm a deploy actually landed
+const APP_VERSION = '1.22.0'; // bump this on every deploy — shown small under the logo, top left, so you can confirm a deploy actually landed
 const API_BASE = (function(){ try{ return localStorage.getItem('kiu_api_base_override'); }catch(e){ return null; } })() || window.KIU_API_BASE || 'https://keepitup-api-4fky.onrender.com';
 const GOOGLE_CLIENT_ID = '655518852084-1qdd80e44621hr90bdlg0iphjvnho9si.apps.googleusercontent.com';
 const THEME_KEY = 'kiu_theme_v1';
@@ -1040,6 +1073,7 @@ const I18N = {
     earned:'Earned', earned_desc:'So far tonight',
     tip_title:'Tip', tip_body:"Shout out the skip fee every 5–10 min — otherwise you're leaving money on the table.",
     top_spender:'Top spender', most_paid:'Most paid', not_enough:'Not enough data yet.',
+    soundboard:'Soundboard', soundboard_desc:'Pops up big on stage + overlay',
     show_controls:'Show controls',
     ov_queue:'Queue', ov_cap:'Cap', ov_skipfee:'Skip fee', ov_entryfee:'Entry fee', ov_order:'Order', ov_skips:'Skips',
     open_w:'Open', closed_w:'Closed', unlimited_w:'Unlimited', on_w:'On', off_w:'Off',
@@ -1104,6 +1138,7 @@ const I18N = {
     earned:'Verdient', earned_desc:'Bisher heute Abend',
     tip_title:'Tipp', tip_body:'Erwähne die Skip-Gebühr alle 5–10 Minuten — sonst lässt du Geld liegen.',
     top_spender:'Top-Zahler', most_paid:'Meist bezahlt', not_enough:'Noch nicht genug Daten.',
+    soundboard:'Soundboard', soundboard_desc:'Erscheint groß auf Bühne + Overlay',
     show_controls:'Show-Einstellungen',
     ov_queue:'Queue', ov_cap:'Limit', ov_skipfee:'Skip-Gebühr', ov_entryfee:'Eintritt', ov_order:'Reihenfolge', ov_skips:'Skips',
     open_w:'Offen', closed_w:'Zu', unlimited_w:'Unbegrenzt', on_w:'An', off_w:'Aus',
@@ -1329,6 +1364,75 @@ function reactToHypeLevel(kind, layerId, level){
   // still trickles a couple in per tick so it reads as "hyped", not just as a one-off firework.
   const count = delta > 0 ? Math.min(6, 1 + Math.round(delta/12)) : (level > 55 ? 1 : 0);
   spawnHypeParticles(layerId, count);
+}
+
+/* ===================== HOST SOUNDBOARD (Stats panel rating/emote taps → big text pop on stage/overlay/join) =====================
+   A tier 1-10 drives reactionVisual() below: bigger, brighter, glowier and (from tier 8 up) a small
+   particle burst + a subtle screen shake the higher it goes — 1 reads as a shrug, 10 reads as unhinged. */
+function reactionVisual(tier){
+  const t = Math.max(1, Math.min(10, tier || 1));
+  const p = (t - 1) / 9; // 0..1
+  return {
+    size: Math.round(16 + p * 40),                                  // 16px (lame) .. 56px (ultra)
+    glow: Math.round(p * 26),                                       // text-shadow blur radius
+    color: t <= 2 ? 'var(--ink-faint)' : t <= 4 ? 'var(--ink-dim)' : t <= 7 ? 'var(--ink)' : 'var(--gold)',
+    dur: (1.1 + p * 0.9).toFixed(2) + 's',                          // 1.1s .. 2.0s on screen
+    shake: t >= 8,
+    particles: t >= 6 ? Math.round((t - 5) * 1.6) : 0,
+    rainbow: t >= 9
+  };
+}
+function spawnReactionPop(layerId, label, tier, shakeSelector){
+  const layer = document.getElementById(layerId);
+  if(!layer || !label) return;
+  const v = reactionVisual(tier);
+  const pop = document.createElement('div');
+  pop.className = 'reaction-pop';
+  pop.textContent = label;
+  pop.style.fontSize = v.size + 'px';
+  if(v.rainbow){
+    pop.style.backgroundImage = 'linear-gradient(90deg,#ff5f6d,#ffc371,#f4b740,#9dff5f,#5fd0ff,#c85fff)';
+    pop.style.webkitBackgroundClip = 'text';
+    pop.style.backgroundClip = 'text';
+    pop.style.color = 'transparent';
+  } else {
+    pop.style.color = v.color;
+    pop.style.textShadow = (v.glow ? `0 0 ${v.glow}px ${v.color}, ` : '') + '0 4px 14px rgba(0,0,0,.5)';
+  }
+  if(prefersNoMotion){ pop.style.animation = 'none'; pop.style.opacity = '1'; setTimeout(()=>pop.remove(), 1400); }
+  else {
+    pop.style.setProperty('--rdur', v.dur);
+    pop.style.setProperty('--rrot', (Math.random()*8-4).toFixed(1)+'deg');
+    pop.addEventListener('animationend', ()=>pop.remove());
+  }
+  layer.appendChild(pop);
+  if(v.particles > 0) spawnHypeParticles(layerId, Math.min(10, v.particles));
+  if(v.shake && shakeSelector && !prefersNoMotion){
+    const target = document.querySelector(shakeSelector);
+    if(target){
+      target.classList.remove('reaction-shake'); void target.offsetWidth;
+      target.classList.add('reaction-shake');
+      setTimeout(()=>target.classList.remove('reaction-shake'), 420);
+    }
+  }
+}
+// Per-view "last reaction id seen", so a reaction already animated locally by the host (see
+// fireReactionClick) doesn't pop a second time once the next poll echoes it back.
+let reactionSeenId = { join:null, overlay:null, live:null };
+function reactToReactionEvent(kind, layerId, shakeSelector, reaction){
+  if(!reaction || reactionSeenId[kind] === reaction.id) return;
+  reactionSeenId[kind] = reaction.id;
+  spawnReactionPop(layerId, reaction.label, reaction.tier, shakeSelector);
+}
+async function fireReactionClick(tier, label){
+  const s = db.session; if(!s) return;
+  // Instant local feedback on the host's own stage — no need to wait for the next poll tick.
+  reactionSeenId.live = 'pending';
+  spawnReactionPop('live-hype-layer', label, tier, '.stage-main');
+  try{
+    const res = await apiFetch('/api/shows/'+s.id+'/react', { method:'POST', body:{ label, tier } });
+    if(res && res.reaction) reactionSeenId.live = res.reaction.id; // mark as already-shown so the poll loop skips it
+  }catch(e){ toast(e.message); }
 }
 let lastLocalTapAt = 0;
 let lastServerTapAt = 0;
@@ -2649,8 +2753,28 @@ function statsPanelInner(s){
     <div class="small-chart">
       <div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:12px;text-transform:uppercase;color:var(--ink-dim)">${t('most_paid')}</b><span class="livepill">Live</span></div>
       ${topPayer && topPayer.paidTotal>0 ? `<div style="margin-top:12px;font-size:14px">${escapeHtml(topPayer.name)} <span class="mono" style="color:var(--gold);float:right">${money(topPayer.paidTotal)}</span></div>` : `<div class="not-enough">${t('not_enough')}</div>`}
+    </div>
+    <div class="sub-label">${t('soundboard')}</div>
+    <div class="small-chart" style="padding:12px">
+      <div style="font-size:10.5px;color:var(--ink-faint);margin-bottom:10px">${t('soundboard_desc')}</div>
+      <div class="soundboard-grid">
+        ${[1,2,3,4,5,6,7,8,9,10].map(n=>`<div class="sb-btn ${n>=8?'sb-hi':''}" onclick="fireReactionClick(${n},'${n}')" title="Rate it ${n}/10">${n}</div>`).join('')}
+      </div>
+      <div class="sb-emotes">
+        ${SOUNDBOARD_EMOTES.map(e=>`<div class="sb-emote ${e.tier<=2?'sb-lame':''}${e.tier>=9?'sb-top':''}" onclick="fireReactionClick(${e.tier},'${e.label.replace(/'/g,"\\'")}')">${escapeHtml(e.label)}</div>`).join('')}
+      </div>
     </div>`;
 }
+// Emote presets for the soundboard — tier drives how "lame" (low) vs "ultra cool" (high) the on-screen
+// pop animation looks; see reactionVisual(). Keep this list short — the grid is meant to stay compact.
+const SOUNDBOARD_EMOTES = [
+  { label:'NAHHH', tier:1 },
+  { label:'MEH', tier:3 },
+  { label:'OKAY', tier:5 },
+  { label:'KEEP IT UP', tier:7 },
+  { label:'DAMNNNN', tier:9 },
+  { label:'GOATED', tier:10 }
+];
 function soundRow(type, label, hint){
   const s = db.session; const settings = s.settings;
   const name = settings[type+'Name'];
@@ -3509,6 +3633,7 @@ async function renderOverlay(){
   try{ data = await apiFetch('/api/public/'+encodeURIComponent(code)); }
   catch(e){ el.innerHTML=''; return; }
   reactToHypeLevel('overlay', 'overlay-hype-layer', data.hype||0);
+  reactToReactionEvent('overlay', 'overlay-hype-layer', '#overlay-inner', data.reaction);
   if(!data.live || !data.nowPlaying){ el.innerHTML=''; return; }
   const now = data.nowPlaying;
   const nextCount = Math.max(0, (data.queueCount||1) - 1);
@@ -3537,6 +3662,7 @@ async function renderJoinSmart(){
     if(nowLive !== window.__lastJoinLiveState){ await renderJoin(); }
     window.__lastJoinLiveState = nowLive;
     reactToHypeLevel('join', 'join-hype-layer', data.hype||0);
+    reactToReactionEvent('join', 'join-hype-layer', '#join-inner', data.reaction);
   }catch(e){}
 }
 
@@ -3554,6 +3680,7 @@ async function renderJoin(){
   }
   window.__lastJoinLiveState = !!data.live;
   reactToHypeLevel('join', 'join-hype-layer', data.hype||0);
+  reactToReactionEvent('join', 'join-hype-layer', '#join-inner', data.reaction);
 
   if(!data.live){
     window.__joinFormActive = false;
@@ -3706,6 +3833,7 @@ function startPolling(){
       if(JSON.stringify(db.session) !== before){ renderLive(); }
       checkLiveEvents();
       reactToHypeLevel('live', 'live-hype-layer', db.session ? (db.session.hype||0) : 0);
+      reactToReactionEvent('live', 'live-hype-layer', '.stage-main', db.session ? db.session.reaction : null);
     }
   }, 2500);
 }
