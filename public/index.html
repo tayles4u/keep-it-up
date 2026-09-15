@@ -548,7 +548,10 @@ body.pin-resizing .pin-resizer{cursor:col-resize;}
 .qr-new-badge{position:absolute;right:18px;top:50%;transform:translateY(-50%) scale(0);background:var(--mint);color:#04241A;font-size:10px;font-weight:800;padding:4px 9px;border-radius:5px;text-transform:uppercase;letter-spacing:.04em;pointer-events:none;}
 .qr-spark{position:absolute;pointer-events:none;color:var(--gold);opacity:0;z-index:5;}
 .stage-vignette{position:fixed;inset:0;pointer-events:none;background:radial-gradient(circle at center, transparent 30%, var(--gold) 220%);opacity:0;z-index:300;}
-.hype-layer{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:2;}
+/* z-index:350 — sits above page content (.now-playing/.queue-row/.ov-lower-third/.admit-card are all
+   z-index:3, .stage-vignette is 300) so hype particles and Emoteboard reaction pops always render on
+   top of the "now reacting" card instead of behind it, while still staying under drawers/modals (400+). */
+.hype-layer{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:350;}
 .hype-particle{position:absolute;bottom:-8%;opacity:0;animation:hypeRise var(--dur,2.6s) cubic-bezier(.25,.7,.4,1) forwards;filter:drop-shadow(0 2px 6px rgba(0,0,0,.35));}
 @keyframes hypeRise{
   0%{transform:translate(0,0) scale(.55) rotate(0deg);opacity:0;}
@@ -1093,7 +1096,7 @@ html.overlay-mode,body.overlay-mode{background:transparent!important;}
 
 <script>
 /* ===================== STATE / PERSISTENCE (connected to a real backend) ===================== */
-const APP_VERSION = '1.22.2'; // bump this on every deploy — shown small under the logo, top left, so you can confirm a deploy actually landed
+const APP_VERSION = '1.22.3'; // bump this on every deploy — shown small under the logo, top left, so you can confirm a deploy actually landed
 const API_BASE = (function(){ try{ return localStorage.getItem('kiu_api_base_override'); }catch(e){ return null; } })() || window.KIU_API_BASE || 'https://keepitup-api-4fky.onrender.com';
 const GOOGLE_CLIENT_ID = '655518852084-1qdd80e44621hr90bdlg0iphjvnho9si.apps.googleusercontent.com';
 const THEME_KEY = 'kiu_theme_v1';
