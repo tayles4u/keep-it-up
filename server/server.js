@@ -76,6 +76,28 @@ setInterval(() => {
   for (const [showId, s] of hypeStore) { if (now - s.lastUpdate > 30 * 60 * 1000) hypeStore.delete(showId); }
 }, 10 * 60 * 1000);
 
+// ---------- host soundboard reactions (ephemeral, in-memory — same reasoning as hype above) ----------
+// The host taps a rating (1-10) or an emote on the Stats panel while reacting to the current song; the
+// overlay/live/join views all poll and flash it as a one-off animated on-screen text. Reactions expire
+// fast (REACTION_TTL_MS) so a client that only just started polling never replays an old one.
+const reactionStore = new Map(); // showId -> { id, label, tier, ts }
+const REACTION_TTL_MS = 6000;
+function currentReaction(showId) {
+  const r = reactionStore.get(showId);
+  if (!r || Date.now() - r.ts > REACTION_TTL_MS) return null;
+  return { id: r.id, label: r.label, tier: r.tier };
+}
+function fireReaction(showId, label, tier) {
+  const entry = { id: newId(), label, tier, ts: Date.now() };
+  reactionStore.set(showId, entry);
+  return { id: entry.id, label: entry.label, tier: entry.tier };
+}
+// Sweep reaction entries the same way hype entries are swept.
+setInterval(() => {
+  const now = Date.now();
+  for (const [showId, r] of reactionStore) { if (now - r.ts > 30 * 60 * 1000) reactionStore.delete(showId); }
+}, 10 * 60 * 1000);
+
 // ---------- tiny helpers ----------
 function sendNoBody(res, status) {
   res.writeHead(status, {
@@ -808,7 +830,20 @@ route('GET', '/api/shows/current', async (req, res) => {
   if (!show) return sendJSON(res, 200, { show: null, queue: [] });
   const queue = db.prepare(`SELECT * FROM queue_items WHERE show_id = ? AND status='queued' ORDER BY position ASC`).all(show.id);
   const earn = db.prepare(`SELECT COALESCE(SUM(amount),0) AS total FROM transactions WHERE show_id=? AND status!='payout'`).get(show.id).total;
-  sendJSON(res, 200, { show: Object.assign(showToJSON(show), { earnings: earn, hype: hypeLevelFor(show.id) }), queue: queue.map((q, i) => queueToJSON(q, { omitFile: i !== 0 })) });
+  sendJSON(res, 200, { show: Object.assign(showToJSON(show), { earnings: earn, hype: hypeLevelFor(show.id), reaction: currentReaction(show.id) }), queue: queue.map((q, i) => queueToJSON(q, { omitFile: i !== 0 })) });
+});
+
+route('POST', '/api/shows/:id/react', async (req, res, params) => {
+  const user = getAuthUser(req);
+  if (!user) return sendJSON(res, 401, { error: 'Not signed in.' });
+  const show = db.prepare(`SELECT * FROM shows WHERE id=? AND user_id=? AND status='live'`).get(params.id, user.id);
+  if (!show) return sendJSON(res, 404, { error: 'Show not found.' });
+  if (rateLimited('react:' + show.id, 3, 1000)) return sendJSON(res, 429, { error: 'Slow down a little.' });
+  const body = await readBody(req);
+  const label = String(body.label || '').trim().slice(0, 24);
+  const tier = Math.max(1, Math.min(10, parseInt(body.tier, 10) || 1));
+  if (!label) return sendJSON(res, 400, { error: 'Missing label.' });
+  sendJSON(res, 200, { ok: true, reaction: fireReaction(show.id, label, tier) });
 });
 
 route('POST', '/api/shows/:id/end', async (req, res, params) => {
@@ -1074,7 +1109,7 @@ route('GET', '/api/public/:joinCode', async (req, res, params) => {
     acceptingSubmissions: !!settings.acceptingSubmissions,
     entryFeeEnabled: !!settings.entryFeeEnabled, entryFee: settings.entryFee,
     skipsEnabled: !!settings.skipsEnabled, skipFee: settings.skipFee, jumpFee: settings.jumpFee != null ? settings.jumpFee : 15,
-    skippedCount, cap: settings.cap, mine, hype: hypeLevelFor(show.id)
+    skippedCount, cap: settings.cap, mine, hype: hypeLevelFor(show.id), reaction: currentReaction(show.id)
   });
 });
 
