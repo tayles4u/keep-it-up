@@ -1196,7 +1196,7 @@ html.overlay-mode,body.overlay-mode{background:transparent!important;}
 
 <script>
 /* ===================== STATE / PERSISTENCE (connected to a real backend) ===================== */
-const APP_VERSION = '1.22.10'; // bump this on every deploy — shown small under the logo, top left, so you can confirm a deploy actually landed
+const APP_VERSION = '1.22.11'; // bump this on every deploy — shown small under the logo, top left, so you can confirm a deploy actually landed
 const API_BASE = (function(){ try{ return localStorage.getItem('kiu_api_base_override'); }catch(e){ return null; } })() || window.KIU_API_BASE || 'https://keepitup-api-4fky.onrender.com';
 const GOOGLE_CLIENT_ID = '655518852084-1qdd80e44621hr90bdlg0iphjvnho9si.apps.googleusercontent.com';
 const THEME_KEY = 'kiu_theme_v1';
@@ -1250,7 +1250,7 @@ const I18N = {
     reacting_now:'Reacting now', on_now:'On now',
     waiting_title:'Waiting for the first track…', waiting_sub:'Your queue link is always live at the same address — drop it in your bio once and forget about it.',
     share_your_link:'Share your link',
-    mark_reacted:'Mark as reacted ✓', skip_remove:'Skip / remove', next_track:'Next', kick:'Kick', ban:'Ban',
+    mark_reacted:'Mark as reacted ✓', skip_remove:'Skip / remove', next_track:'Next', kick:'Kick', ban:'Ban', restore_last:'Restore',
     on_deck:'On deck', waiting_count:'waiting', nobody_else:'Nobody else in line yet.',
     preview:'Preview ▶', hide:'Hide', remove:'Remove',
     stats:'Stats', tonight:'Tonight', crowd:'Crowd', crowd_desc:"Everyone who's queued",
@@ -1315,7 +1315,7 @@ const I18N = {
     reacting_now:'Reagiert gerade auf', on_now:'Gerade live',
     waiting_title:'Warten auf den ersten Track…', waiting_sub:'Dein Queue-Link ist dauerhaft unter derselben Adresse live — einmal in die Bio, fertig.',
     share_your_link:'Link teilen',
-    mark_reacted:'Als reagiert markieren ✓', skip_remove:'Skip / entfernen', next_track:'Weiter', kick:'Entfernen', ban:'Bannen',
+    mark_reacted:'Als reagiert markieren ✓', skip_remove:'Skip / entfernen', next_track:'Weiter', kick:'Entfernen', ban:'Bannen', restore_last:'Wiederherstellen:',
     on_deck:'Als Nächstes', waiting_count:'warten', nobody_else:'Sonst niemand in der Reihe.',
     preview:'Vorschau ▶', hide:'Verbergen', remove:'Entfernen',
     stats:'Stats', tonight:'Heute Abend', crowd:'Crowd', crowd_desc:'Alle, die eingereiht haben',
@@ -1753,7 +1753,7 @@ function refreshUsernameDisplay(){
 }
 async function refreshCurrentShow(){
   const data = await apiFetch('/api/shows/current');
-  db.session = data.show ? Object.assign({}, data.show, { queue: data.queue || [] }) : null;
+  db.session = data.show ? Object.assign({}, data.show, { queue: data.queue || [], lastRemoved: data.lastRemoved || null }) : null;
 }
 async function refreshHistory(){
   const data = await apiFetch('/api/shows/history');
@@ -3267,6 +3267,7 @@ function renderLive(){
             <div class="qr-menu-wrap">
               <div class="qr-menu-btn" onclick="toggleRowMenu(event,'${nowUp.id}')" title="More"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="12" cy="19" r="1.9"/></svg></div>
               ${openRowMenuId===nowUp.id ? `<div class="qr-menu">
+                ${s.lastRemoved ? `<div class="qr-menu-item" onclick="restoreLastRemoved()">${t('restore_last')} ${escapeHtml(s.lastRemoved.name)}</div>` : ''}
                 <div class="qr-menu-item" onclick="removeFromQueue('${nowUp.id}')">${t('kick')}</div>
                 <div class="qr-menu-item danger" onclick="banFromQueue('${nowUp.id}')">${t('ban')}</div>
               </div>` : ''}
@@ -3296,6 +3297,7 @@ function renderLive(){
       <div class="qr-menu-wrap">
         <div class="qr-menu-btn" onclick="toggleRowMenu(event,'${q.id}')" title="More"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="12" cy="19" r="1.9"/></svg></div>
         ${openRowMenuId===q.id ? `<div class="qr-menu">
+          ${s.lastRemoved ? `<div class="qr-menu-item" onclick="restoreLastRemoved()">${t('restore_last')} ${escapeHtml(s.lastRemoved.name)}</div>` : ''}
           <div class="qr-menu-item" onclick="removeFromQueue('${q.id}')">${t('kick')}</div>
           <div class="qr-menu-item danger" onclick="banFromQueue('${q.id}')">${t('ban')}</div>
         </div>` : ''}
@@ -3557,6 +3559,16 @@ async function banFromQueue(pid){
     await apiFetch('/api/shows/'+s.id+'/queue/'+pid+'/ban', { method:'POST' });
     await refreshCurrentShow();
     toast('Banned from this show');
+    renderLive();
+  }catch(e){ toast(e.message); }
+}
+async function restoreLastRemoved(){
+  const s = db.session; if(!s) return;
+  openRowMenuId = null;
+  try{
+    const res = await apiFetch('/api/shows/'+s.id+'/queue/restore-last', { method:'POST' });
+    await refreshCurrentShow();
+    toast((res && res.name ? res.name : 'They') + ' are back in the queue.');
     renderLive();
   }catch(e){ toast(e.message); }
 }
