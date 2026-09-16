@@ -1116,6 +1116,18 @@ route('POST', '/api/payout', async (req, res) => {
 function findUserByCodeOrUsername(value) {
   return db.prepare('SELECT * FROM users WHERE join_code = ? OR username = ?').get(value, value);
 }
+// Always call this as the LAST synchronous step before the INSERT that uses its result — no
+// `await` in between. node:sqlite calls are synchronous, so as long as nothing yields the event
+// loop between this read and the INSERT, no other request can sneak a submission in between and
+// make this position stale. Fixes fans occasionally landing mid-queue instead of at the very end:
+// this used to be a plain COUNT(*) taken at the top of the handler, before the (potentially
+// multi-second) file upload and song-metadata lookup — anyone who joined during that wait got
+// silently skipped over. MAX(position)+1 instead of COUNT(*) also means it's correct even when
+// positions aren't a dense 0..N-1 run (e.g. after a kick/restore).
+function nextQueuePosition(showId) {
+  const row = db.prepare(`SELECT COALESCE(MAX(position), -1) AS m FROM queue_items WHERE show_id=? AND status='queued'`).get(showId);
+  return row.m + 1;
+}
 
 route('GET', '/api/public/:joinCode', async (req, res, params) => {
   const user = findUserByCodeOrUsername(params.joinCode);
@@ -1167,8 +1179,12 @@ route('POST', '/api/public/:joinCode/join', async (req, res, params) => {
   if (!show) return sendJSON(res, 409, { error: 'This streamer is not live right now.' });
   const settings = JSON.parse(show.settings_json);
   if (!settings.acceptingSubmissions) return sendJSON(res, 409, { error: 'Submissions are paused right now.' });
-  const count = db.prepare(`SELECT COUNT(*) AS c FROM queue_items WHERE show_id=? AND status='queued'`).get(show.id).c;
-  if (settings.cap && count >= settings.cap) return sendJSON(res, 409, { error: 'Queue is full.' });
+  // This is only an early, best-effort gate for the cap (UX — show the error before making someone
+  // wait through an upload/oEmbed lookup just to get rejected). The count that actually decides
+  // this fan's spot in line is recomputed fresh, synchronously, right before the INSERT below —
+  // see nextQueuePosition() — precisely so it can't go stale.
+  const earlyCount = db.prepare(`SELECT COUNT(*) AS c FROM queue_items WHERE show_id=? AND status='queued'`).get(show.id).c;
+  if (settings.cap && earlyCount >= settings.cap) return sendJSON(res, 409, { error: 'Queue is full.' });
 
   const body = await readBody(req);
   const name = String(body.name || '').trim();
@@ -1228,10 +1244,12 @@ route('POST', '/api/public/:joinCode/join', async (req, res, params) => {
     }
   }
 
-  // No entry fee for this show — join instantly.
+  // No entry fee for this show — join instantly. Position is computed fresh right here (see
+  // nextQueuePosition) rather than reusing the earlyCount from above, which could be minutes stale
+  // by now for a slow upload.
   const item = {
     id: newId(), show_id: show.id, name, song: song || null, note,
-    paid_total: entry, position: count, status: 'queued', joined_at: Date.now(),
+    paid_total: entry, position: nextQueuePosition(show.id), status: 'queued', joined_at: Date.now(),
     cover_url: coverUrl, file_data: fileData || null, file_name: fileData ? (fileName || 'uploaded file') : null,
     song_title: songTitle, embed_url: embedUrl
   };
@@ -1393,11 +1411,10 @@ route('POST', '/api/stripe/webhook', async (req, res) => {
           // application_fee_amount cut automatically (see the checkout session above), so the
           // streamer-facing transaction record should only carry their net share.
           const netAmount = hostUser ? Math.round((cost - cost * effectiveFeePct(hostUser)) * 100) / 100 : cost;
-          const count = db.prepare(`SELECT COUNT(*) AS c FROM queue_items WHERE show_id=? AND status='queued'`).get(show.id).c;
           const itemId = newId();
           db.prepare(`INSERT INTO queue_items (id,show_id,name,song,note,paid_total,position,status,joined_at,cover_url,file_data,file_name,song_title,embed_url)
                       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
-            .run(itemId, show.id, pending.name, pending.song, pending.note, cost, count, 'queued', Date.now(), pending.cover_url, pending.file_data, pending.file_name, pending.song_title, pending.embed_url);
+            .run(itemId, show.id, pending.name, pending.song, pending.note, cost, nextQueuePosition(show.id), 'queued', Date.now(), pending.cover_url, pending.file_data, pending.file_name, pending.song_title, pending.embed_url);
           db.prepare(`UPDATE shows SET total_participants = total_participants + 1 WHERE id=?`).run(show.id);
           db.prepare(`INSERT INTO transactions (id,user_id,show_id,type,amount,status,date,stripe_payment_intent_id) VALUES (?,?,?,?,?,?,?,?)`)
             .run(newId(), show.user_id, show.id, 'entry_fee', netAmount, isHeld ? 'held' : 'available', Date.now(), paymentIntentId);
