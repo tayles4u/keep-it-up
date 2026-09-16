@@ -1196,7 +1196,7 @@ html.overlay-mode,body.overlay-mode{background:transparent!important;}
 
 <script>
 /* ===================== STATE / PERSISTENCE (connected to a real backend) ===================== */
-const APP_VERSION = '1.22.12'; // bump this on every deploy — shown small under the logo, top left, so you can confirm a deploy actually landed
+const APP_VERSION = '1.22.13'; // bump this on every deploy — shown small under the logo, top left, so you can confirm a deploy actually landed
 const API_BASE = (function(){ try{ return localStorage.getItem('kiu_api_base_override'); }catch(e){ return null; } })() || window.KIU_API_BASE || 'https://keepitup-api-4fky.onrender.com';
 const GOOGLE_CLIENT_ID = '655518852084-1qdd80e44621hr90bdlg0iphjvnho9si.apps.googleusercontent.com';
 const THEME_KEY = 'kiu_theme_v1';
@@ -1273,7 +1273,7 @@ const I18N = {
     default_ding:'Default sound', reset_default:'Reset to default', unpin:'Unpin', pin:'Pin', new_badge:'New',
     j_name:'Your name', j_song:'Song link', j_desc:'Description', j_desc_ph:'Anything the host should know',
     j_paste_link:'Paste a link', j_upload_file:'Upload file', j_file:'Audio file (mp3 or wav)', j_file_hint:'Max 120MB — a full song fits fine.',
-    j_send:'Send it in', j_pay_join:'Pay & join', already_queued:'already queued for a reaction',
+    j_send:'Send it in', j_send_another:'Send another', j_pay_join:'Pay & join', already_queued:'already queued for a reaction',
     not_live_title:"This streamer isn't live right now.", not_live_sub:'Check back once they open the queue — this link will drop you straight in.',
     closed_title:'The host has paused new submissions right now. Check back in a bit!',
     full_title:'This queue is full right now.',
@@ -1338,7 +1338,7 @@ const I18N = {
     default_ding:'Standard-Sound', reset_default:'Zurücksetzen', unpin:'Lösen', pin:'Anpinnen', new_badge:'Neu',
     j_name:'Dein Name', j_song:'Song-Link', j_desc:'Beschreibung', j_desc_ph:'Was der Host wissen sollte',
     j_paste_link:'Link einfügen', j_upload_file:'Datei hochladen', j_file:'Audiodatei (mp3 oder wav)', j_file_hint:'Max. 120MB — ein ganzer Song passt problemlos.',
-    j_send:'Absenden', j_pay_join:'Zahlen & beitreten', already_queued:'bereits in der Warteschlange',
+    j_send:'Absenden', j_send_another:'Weiteren Song senden', j_pay_join:'Zahlen & beitreten', already_queued:'bereits in der Warteschlange',
     not_live_title:'Dieser Streamer ist gerade nicht live.', not_live_sub:'Schau später vorbei — der Link bringt dich direkt rein, sobald die Queue offen ist.',
     closed_title:'Der Host hat neue Einreichungen pausiert. Schau gleich nochmal vorbei!',
     full_title:'Die Queue ist gerade voll.',
@@ -3936,13 +3936,34 @@ async function renderOverlay(){
     </div>`;
 }
 
-function myParticipantKey(code){ return MY_ID_PREFIX+code; }
-function myDataKey(code){ return MY_ID_PREFIX+code+'_data'; }
+function myParticipantsKey(code){ return MY_ID_PREFIX+code; }
+// A fan can have more than one song waiting in the same show — submitting again no longer
+// requires their first pick to have already played. This is stored as a list of
+// {id, name, song, note, fileName}, one per submission, in this browser's session only. Old
+// sessions from before multi-submit stored a single bare participant-id string (plus a separate
+// "_data" key with the details) — read transparently and migrated into the new list shape.
+function getMySubmissions(code){
+  const raw = sessionStorage.getItem(myParticipantsKey(code));
+  if(!raw) return [];
+  try{
+    const parsed = JSON.parse(raw);
+    if(Array.isArray(parsed)) return parsed;
+  }catch(e){
+    let legacyData = {};
+    try{ legacyData = JSON.parse(sessionStorage.getItem(MY_ID_PREFIX+code+'_data')) || {}; }catch(e2){}
+    return [Object.assign({ id: raw }, legacyData)];
+  }
+  return [];
+}
+function addMySubmission(code, entry){
+  const list = getMySubmissions(code);
+  list.push(entry);
+  sessionStorage.setItem(myParticipantsKey(code), JSON.stringify(list));
+}
 
 async function renderJoinSmart(){
   const code = getJoinCode();
-  const myId = sessionStorage.getItem(myParticipantKey(code));
-  if(myId){ await renderJoin(); return; } // already joined — always refresh live position
+  if(getMySubmissions(code).length){ await renderJoin(); return; } // have something in — always refresh live position(s)
   if(!window.__joinFormActive){ await renderJoin(); return; } // nothing shown yet
   // form is being filled in right now — only check live status, don't wipe what they've typed
   try{
@@ -3958,10 +3979,11 @@ async function renderJoinSmart(){
 async function renderJoin(){
   const code = getJoinCode();
   const el = document.getElementById('join-inner');
-  const myId = sessionStorage.getItem(myParticipantKey(code));
+  const mySubsLocal = getMySubmissions(code);
+  const myIds = mySubsLocal.map(s=>s.id);
   let data;
   try{
-    data = await apiFetch('/api/public/'+encodeURIComponent(code) + (myId ? '?participant='+encodeURIComponent(myId) : ''));
+    data = await apiFetch('/api/public/'+encodeURIComponent(code) + (myIds.length ? '?participants='+encodeURIComponent(myIds.join(',')) : ''));
   }catch(e){
     window.__joinFormActive = false;
     el.innerHTML = `<div class="admit-card"><div class="admit-head"><div class="admit-logo"><div class="eq-mark"><i></i><i></i><i></i><i></i></div>Keep it up!</div><h2 style="text-align:center;font-size:20px">${t('not_live_title')}</h2><p class="jsub">${t('not_live_sub')}</p></div></div>`;
@@ -3977,21 +3999,56 @@ async function renderJoin(){
     return;
   }
 
-  const joined = myId && data.mine;
-  if(!joined){
-    if(!data.acceptingSubmissions){
+  // A fan can submit more than one song — the entries they already have waiting (mySubmissions,
+  // matched back up with what they locally remember about each one for display) are shown as their
+  // own cards, and the submission form stays available underneath so they can send another,
+  // instead of the old either/or where having one song in already hid the form entirely.
+  const localById = {}; mySubsLocal.forEach(s=>{ localById[s.id]=s; });
+  const mySubmissions = data.mySubmissions || [];
+  const cap = data.cap && data.queueCount >= data.cap;
+
+  const mineHtml = mySubmissions.map(mine=>{
+    const local = localById[mine.id] || {};
+    const pos = mine.position + 1;
+    const isFirst = mine.isFirst;
+    const alreadySkipped = !!mine.alreadySkipped;
+    const skipCost = data.skipFee;
+    const jumpCost = isFirst ? 0 : (data.jumpFee||0) + (data.skippedCount||0) * data.skipFee;
+    return `
+    <div class="admit-card" style="margin-bottom:14px">
+      <div class="admit-head">
+        <div class="admit-num ${isFirst?'p1':''}">#${pos}</div>
+        <div class="admit-label">${isFirst?t('reacting_to_you'):t('your_spot')}</div>
+      </div>
+      <div class="admit-body">
+        <h2 style="word-break:break-word;font-size:17px">${local.fileName ? escapeHtml(local.fileName) : (isUrl(local.song) ? 'Your submission' : escapeHtml(local.song||''))}${local.fileName ? '' : platformBadge(local.song)}</h2>
+        ${!local.fileName && isUrl(local.song) ? `<div class="jsub" style="word-break:break-all;font-size:11px">${escapeHtml(local.song)}</div>` : ''}
+        <div class="jsub">${t('sent_by')} ${escapeHtml(local.name||'')}</div>
+        ${data.skipsEnabled ? `
+        <div class="join-actions">
+          ${!isFirst && !alreadySkipped ? `<button class="btn btn-outline btn-block" onclick="paySkip('${code}','${mine.id}')">${t('jump_1')} ${money(skipCost)}</button>` : ''}
+          ${!isFirst ? `<button class="btn btn-gold btn-block" onclick="payJump('${code}','${mine.id}')">${t('take_1')} ${money(jumpCost)}</button>` : ''}
+        </div>` : `<p class="join-hint" style="margin-top:16px">${t('skips_off')}</p>`}
+      </div>
+    </div>`;
+  }).join('');
+
+  let formCardHtml = '';
+  if(!data.acceptingSubmissions){
+    if(!mySubmissions.length){
       window.__joinFormActive = false;
-      el.innerHTML = `<div class="admit-card"><div class="admit-head"><div class="admit-logo"><div class="eq-mark"><i></i><i></i><i></i><i></i></div>Keep it up!</div><h2 style="font-size:22px">${escapeHtml(data.title)}</h2><div class="jsub">${data.queueCount} ${t('already_queued')}</div></div><div class="admit-body"><p style="color:var(--coral);font-size:13px;text-align:center">${t('closed_title')}</p></div></div>`;
+      el.innerHTML = mineHtml + `<div class="admit-card"><div class="admit-head"><div class="admit-logo"><div class="eq-mark"><i></i><i></i><i></i><i></i></div>Keep it up!</div><h2 style="font-size:22px">${escapeHtml(data.title)}</h2><div class="jsub">${data.queueCount} ${t('already_queued')}</div></div><div class="admit-body"><p style="color:var(--coral);font-size:13px;text-align:center">${t('closed_title')}</p></div></div>`;
       return;
     }
+    window.__joinFormActive = false;
+  } else {
     window.__joinFormActive = true;
-    const full = data.cap && data.queueCount >= data.cap;
-    el.innerHTML = `
+    formCardHtml = `
       <div class="admit-card">
         <div class="admit-head"><div class="admit-logo"><div class="eq-mark"><i></i><i></i><i></i><i></i></div>Keep it up!</div><h2 style="font-size:22px">${escapeHtml(data.title)}</h2><div class="jsub">${data.queueCount} ${t('already_queued')}</div></div>
         <div class="admit-body">
-          ${full ? `<p style="color:var(--coral);font-size:13px;text-align:center">${t('full_title')}</p>` : `
-          <div class="join-field"><label>${t('j_name')} <span style="text-transform:none;font-weight:400;color:var(--coral)">*</span></label><input id="j-name" type="text" placeholder="e.g. TJ Duisburg" maxlength="30"></div>
+          ${cap ? `<p style="color:var(--coral);font-size:13px;text-align:center">${t('full_title')}</p>` : `
+          <div class="join-field"><label>${t('j_name')} <span style="text-transform:none;font-weight:400;color:var(--coral)">*</span></label><input id="j-name" type="text" placeholder="e.g. TJ Duisburg" maxlength="30" value="${escapeHtml((mySubsLocal[mySubsLocal.length-1]||{}).name||'')}"></div>
           <div class="join-field">
             <label>${t('j_song')} <span style="text-transform:none;font-weight:400;color:var(--coral)">*</span></label>
             <div class="seg-tabs" style="margin-bottom:10px">
@@ -4004,42 +4061,13 @@ async function renderJoin(){
           </div>
           <div class="join-field"><label>${t('j_desc')} <span style="text-transform:none;font-weight:400;color:var(--ink-faint)">(optional)</span></label><input id="j-note" type="text" placeholder="${t('j_desc_ph')}" maxlength="140"></div>
           ${data.entryFeeEnabled ? `<div class="join-note">This show charges an entry fee of ${money(data.entryFee)}.</div>` : ''}
-          <button class="btn btn-gold btn-block" onclick="submitJoin('${code}')">${data.entryFeeEnabled ? t('j_pay_join')+' ('+money(data.entryFee)+')' : t('j_send')}</button>
+          <button class="btn btn-gold btn-block" onclick="submitJoin('${code}')">${data.entryFeeEnabled ? t('j_pay_join')+' ('+money(data.entryFee)+')' : (mySubmissions.length ? t('j_send_another') : t('j_send'))}</button>
           `}
         </div>
       </div>`;
-    return;
   }
 
-  window.__joinFormActive = false;
-  const mine = data.mine;
-  const pos = mine.position + 1;
-  const isFirst = mine.isFirst;
-  const alreadySkipped = !!mine.alreadySkipped;
-  const skipCost = data.skipFee;
-  const jumpCost = isFirst ? 0 : (data.jumpFee||0) + (data.skippedCount||0) * data.skipFee;
-  let mySubmission = { name:'', song:'' };
-  try{ mySubmission = JSON.parse(sessionStorage.getItem(myDataKey(code))) || mySubmission; }catch(e){}
-
-  el.innerHTML = `
-    <div class="admit-card">
-      <div class="admit-head">
-        <div class="admit-logo"><div class="eq-mark"><i></i><i></i><i></i><i></i></div>Keep it up!</div>
-        <div class="admit-num ${isFirst?'p1':''}">#${pos}</div>
-        <div class="admit-label">${isFirst?t('reacting_to_you'):t('your_spot')}</div>
-      </div>
-      <div class="admit-perf"></div>
-      <div class="admit-body">
-        <h2 style="word-break:break-word">${mySubmission.fileName ? escapeHtml(mySubmission.fileName) : (mySubmission.songTitle ? escapeHtml(mySubmission.songTitle) : (isUrl(mySubmission.song) ? 'Your submission' : escapeHtml(mySubmission.song||'')))}${mySubmission.fileName ? '' : platformBadge(mySubmission.song)}</h2>
-        ${!mySubmission.fileName && isUrl(mySubmission.song) ? `<div class="jsub" style="word-break:break-all;font-size:11px">${escapeHtml(mySubmission.song)}</div>` : ''}
-        <div class="jsub">${t('sent_by')} ${escapeHtml(mySubmission.name)}</div>
-        ${data.skipsEnabled ? `
-        <div class="join-actions">
-          ${!isFirst && !alreadySkipped ? `<button class="btn btn-outline btn-block" onclick="paySkip('${code}')">${t('jump_1')} ${money(skipCost)}</button>` : ''}
-          ${!isFirst ? `<button class="btn btn-gold btn-block" onclick="payJump('${code}')">${t('take_1')} ${money(jumpCost)}</button>` : ''}
-        </div>` : `<p class="join-hint" style="margin-top:16px">${t('skips_off')}</p>`}
-      </div>
-    </div>`;
+  el.innerHTML = mineHtml + formCardHtml;
 }
 
 async function submitJoin(code){
@@ -4059,31 +4087,27 @@ async function submitJoin(code){
   }
   try{
     const data = await apiFetch('/api/public/'+encodeURIComponent(code)+'/join', { method:'POST', body:{ name, song, note, fileData, fileName } });
-    sessionStorage.setItem(myParticipantKey(code), data.participantId);
-    sessionStorage.setItem(myDataKey(code), JSON.stringify({ name, song, note, fileName: fileData ? fileName : null }));
-    window.__joinFormActive = false;
+    addMySubmission(code, { id: data.participantId, name, song, note, fileName: fileData ? fileName : null });
     pendingJoinFile = null;
     toast('Sent! You are in the queue.');
     renderJoin();
   }catch(e){ toast(e.message); }
 }
-async function paySkip(code){
-  const myId = sessionStorage.getItem(myParticipantKey(code));
+async function paySkip(code, participantId){
   const btn = event && event.target ? event.target.closest('button') : null;
   if(btn){ if(btn.disabled) return; btn.disabled = true; btn.textContent = 'Redirecting…'; }
   try{
-    const data = await apiFetch('/api/public/'+encodeURIComponent(code)+'/checkout', { method:'POST', body:{ participantId: myId, type:'skip' } });
+    const data = await apiFetch('/api/public/'+encodeURIComponent(code)+'/checkout', { method:'POST', body:{ participantId, type:'skip' } });
     if(data.url){ window.location.href = data.url; return; }
     toast('Skip paid — moved up 1 spot');
     renderJoin();
   }catch(e){ toast(e.message); renderJoin(); }
 }
-async function payJump(code){
-  const myId = sessionStorage.getItem(myParticipantKey(code));
+async function payJump(code, participantId){
   const btn = event && event.target ? event.target.closest('button') : null;
   if(btn){ if(btn.disabled) return; btn.disabled = true; btn.textContent = 'Redirecting…'; }
   try{
-    const data = await apiFetch('/api/public/'+encodeURIComponent(code)+'/checkout', { method:'POST', body:{ participantId: myId, type:'jump' } });
+    const data = await apiFetch('/api/public/'+encodeURIComponent(code)+'/checkout', { method:'POST', body:{ participantId, type:'jump' } });
     if(data.url){ window.location.href = data.url; return; }
     toast('Took #1 spot — '+money(data.cost)+' paid');
     renderJoin();
