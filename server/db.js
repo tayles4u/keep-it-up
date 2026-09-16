@@ -141,5 +141,12 @@ try { db.exec(`ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0`
 try { db.exec(`ALTER TABLE users ADD COLUMN admin_invite_code TEXT`); } catch (e) { /* column already exists — fine */ }
 try { db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_admin_invite_code ON users(admin_invite_code) WHERE admin_invite_code IS NOT NULL`); } catch (e) { /* index already exists — fine */ }
 try { db.exec(`ALTER TABLE users ADD COLUMN platform_fee_pct_override REAL`); } catch (e) { /* column already exists — fine */ }
+// Safe migrations for resolved song metadata (title + a working embed src fetched via oEmbed at
+// submission time — fixes SoundCloud short/mobile share links not resolving in the hand-built
+// widget URL, and shows a real song title instead of a generic "Now reacting" placeholder).
+try { db.exec(`ALTER TABLE queue_items ADD COLUMN song_title TEXT`); } catch (e) { /* column already exists — fine */ }
+try { db.exec(`ALTER TABLE queue_items ADD COLUMN embed_url TEXT`); } catch (e) { /* column already exists — fine */ }
+try { db.exec(`ALTER TABLE pending_submissions ADD COLUMN song_title TEXT`); } catch (e) { /* column already exists — fine */ }
+try { db.exec(`ALTER TABLE pending_submissions ADD COLUMN embed_url TEXT`); } catch (e) { /* column already exists — fine */ }
 
 module.exports = db;
