@@ -1196,7 +1196,7 @@ html.overlay-mode,body.overlay-mode{background:transparent!important;}
 
 <script>
 /* ===================== STATE / PERSISTENCE (connected to a real backend) ===================== */
-const APP_VERSION = '1.22.8'; // bump this on every deploy — shown small under the logo, top left, so you can confirm a deploy actually landed
+const APP_VERSION = '1.22.9'; // bump this on every deploy — shown small under the logo, top left, so you can confirm a deploy actually landed
 const API_BASE = (function(){ try{ return localStorage.getItem('kiu_api_base_override'); }catch(e){ return null; } })() || window.KIU_API_BASE || 'https://keepitup-api-4fky.onrender.com';
 const GOOGLE_CLIENT_ID = '655518852084-1qdd80e44621hr90bdlg0iphjvnho9si.apps.googleusercontent.com';
 const THEME_KEY = 'kiu_theme_v1';
@@ -2775,7 +2775,7 @@ function openSetlistModal(historyId){
   let inner = '';
   if(h.bracket){
     inner = `<div class="sub-label" style="margin-top:0">Bracket Wars result</div>`
-      + (h.bracket.champion ? `<div class="mini-stat"><div class="ms-top"><div><b>Champion</b><p>${escapeHtml(h.bracket.champion.name)}</p></div></div><div class="ms-val" style="font-size:15px">${h.bracket.champion.fileData ? escapeHtml(h.bracket.champion.fileName) : escapeHtml(h.bracket.champion.song||'')}</div></div>` : `<div class="not-enough">Bracket didn't finish.</div>`)
+      + (h.bracket.champion ? `<div class="mini-stat"><div class="ms-top"><div><b>Champion</b><p>${escapeHtml(h.bracket.champion.name)}</p></div></div><div class="ms-val" style="font-size:15px">${h.bracket.champion.fileData ? escapeHtml(h.bracket.champion.fileName) : escapeHtml(h.bracket.champion.songTitle || h.bracket.champion.song || '')}</div></div>` : `<div class="not-enough">Bracket didn't finish.</div>`)
       + bracketRoundsHtml(h.bracket);
   } else if(h.songs && h.songs.length){
     inner = h.songs.map((sng,i)=>`
@@ -2784,7 +2784,7 @@ function openSetlistModal(historyId){
         <div class="body">
           <div class="binfo">
             <b>${escapeHtml(sng.name)}</b>
-            <span>${sng.fileData ? escapeHtml(sng.fileName||'uploaded file') : escapeHtml(sng.song||'')}${sng.paidTotal>0 ? ' · '+money(sng.paidTotal)+' paid' : ''}</span>
+            <span>${sng.fileData ? escapeHtml(sng.fileName||'uploaded file') : escapeHtml(sng.songTitle || sng.song || '')}${sng.paidTotal>0 ? ' · '+money(sng.paidTotal)+' paid' : ''}</span>
           </div>
         </div>
       </div>`).join('');
@@ -2964,7 +2964,7 @@ function renderMedia(p, compact){
     const plat = detectPlatform(url);
     if(plat==='youtube'){ const id = youTubeId(url); if(id) return `<div class="embed-wrap"><iframe src="https://www.youtube.com/embed/${id}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>`; }
     if(plat==='spotify'){ return `${spotifyCoverHtml(p,'big')}<a href="${escapeHtml(url)}" target="_blank" class="btn btn-outline btn-block" style="margin-top:10px">Open on Spotify</a>`; }
-    if(plat==='soundcloud'){ return `<div class="embed-wrap soundcloud"><iframe src="https://w.soundcloud.com/player/?url=${encodeURIComponent(url)}&color=%23ff5500&auto_play=false&show_artwork=true&visual=true"></iframe></div>`; }
+    if(plat==='soundcloud'){ return `<div class="embed-wrap soundcloud"><iframe src="${escapeHtml(p.embedUrl || ('https://w.soundcloud.com/player/?url='+encodeURIComponent(url)+'&color=%23ff5500&auto_play=false&show_artwork=true&visual=true'))}" allow="autoplay"></iframe></div>`; }
     if(plat==='dropbox'){ return `${fillerCoverHtml('big')}${swPlayerHtml(dropboxDirect(url))}`; }
     return `${fillerCoverHtml('big')}<a href="${escapeHtml(url)}" target="_blank" class="btn btn-outline btn-block" style="margin-top:10px">Open link</a>`;
   }
@@ -2976,7 +2976,7 @@ function renderMedia(p, compact){
   const plat = detectPlatform(url);
   if(plat==='youtube'){ const id = youTubeId(url); if(id) return `<div class="embed-wrap sm"><iframe src="https://www.youtube.com/embed/${id}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>`; }
   if(plat==='spotify'){ return `<div style="display:flex;gap:14px;align-items:center;margin-top:16px">${spotifyCoverHtml(p,coverSize)}<a href="${escapeHtml(url)}" target="_blank" class="btn btn-outline" style="display:inline-block;flex:1;text-align:center">Open on Spotify</a></div>`; }
-  if(plat==='soundcloud'){ return `<div class="embed-wrap sm soundcloud"><iframe src="https://w.soundcloud.com/player/?url=${encodeURIComponent(url)}&color=%23ff5500&auto_play=false&show_artwork=true&visual=true"></iframe></div>`; }
+  if(plat==='soundcloud'){ return `<div class="embed-wrap sm soundcloud"><iframe src="${escapeHtml(p.embedUrl || ('https://w.soundcloud.com/player/?url='+encodeURIComponent(url)+'&color=%23ff5500&auto_play=false&show_artwork=true&visual=true'))}" allow="autoplay"></iframe></div>`; }
   if(plat==='dropbox'){ return `<div style="display:flex;gap:14px;align-items:center;margin-top:16px">${fillerCoverHtml(coverSize)}${swPlayerHtml(dropboxDirect(url),true)}</div>`; }
   return `<div style="display:flex;gap:14px;align-items:center;margin-top:14px">${fillerCoverHtml(coverSize)}<a href="${escapeHtml(url)}" target="_blank" class="btn btn-outline" style="display:inline-block">Open link</a></div>`;
 }
@@ -3259,7 +3259,7 @@ function renderLive(){
       <div class="np-layout">
         <div class="np-main">
           <div class="np-label"><span class="livepill">${t('on_now')}</span></div>
-          <h2 style="word-break:break-word">${nowUp.fileData ? escapeHtml(nowUp.fileName) : (isUrl(nowUp.song) ? 'Now reacting' : escapeHtml(nowUp.song))}</h2>
+          <h2 style="word-break:break-word">${nowUp.fileData ? escapeHtml(nowUp.fileName) : (nowUp.songTitle ? escapeHtml(nowUp.songTitle) : (isUrl(nowUp.song) ? 'Now reacting' : escapeHtml(nowUp.song)))}</h2>
           <div class="np-by">${t('sent_by')} ${escapeHtml(nowUp.name)}</div>
           ${nowUp.note ? `<div class="np-note">"${escapeHtml(nowUp.note)}"</div>` : ''}
           <div class="np-actions">
@@ -3443,7 +3443,7 @@ async function cancelBracket(){
 }
 function bracketEntryLabel(p, compact){
   if(!p) return t('br_bye');
-  return p.fileData ? escapeHtml(p.fileName) : escapeHtml(p.song);
+  return p.fileData ? escapeHtml(p.fileName) : escapeHtml(p.songTitle || p.song);
 }
 function bracketRoundsHtml(bracket){
   return bracket.rounds.map((round,ri)=>`
@@ -3491,7 +3491,7 @@ function bracketStageHtml(s){
     return `
       <div class="now-playing">
         <div class="np-label"><span class="livepill">${t('br_champion')}</span></div>
-        <h2 style="word-break:break-word">${c.fileData ? escapeHtml(c.fileName) : (isUrl(c.song) ? 'Your submission' : escapeHtml(c.song))}${!c.fileData ? platformBadge(c.song) : ''}</h2>
+        <h2 style="word-break:break-word">${c.fileData ? escapeHtml(c.fileName) : (c.songTitle ? escapeHtml(c.songTitle) : (isUrl(c.song) ? 'Your submission' : escapeHtml(c.song)))}${!c.fileData ? platformBadge(c.song) : ''}</h2>
         ${!c.fileData && isUrl(c.song) ? `<div class="np-by" style="word-break:break-all;font-size:11px;opacity:.7">${escapeHtml(c.song)}</div>` : ''}
         <div class="np-by">${t('sent_by')} ${escapeHtml(c.name)}</div>
         ${renderMedia(c,false)}
@@ -3914,7 +3914,7 @@ async function renderOverlay(){
   if(!data.live || !data.nowPlaying){ el.innerHTML=''; return; }
   const now = data.nowPlaying;
   const nextCount = Math.max(0, (data.queueCount||1) - 1);
-  const title = isUrl(now.song) ? 'Fan submission' : now.song;
+  const title = now.fileData ? (now.fileName || 'Fan submission') : (now.songTitle || (isUrl(now.song) ? 'Fan submission' : now.song));
   el.innerHTML = `
     <div class="ov-lower-third">
       <div class="ov-label"><span class="livedot"></span>Now Reacting</div>
@@ -4018,7 +4018,7 @@ async function renderJoin(){
       </div>
       <div class="admit-perf"></div>
       <div class="admit-body">
-        <h2 style="word-break:break-word">${mySubmission.fileName ? escapeHtml(mySubmission.fileName) : (isUrl(mySubmission.song) ? 'Your submission' : escapeHtml(mySubmission.song||''))}${mySubmission.fileName ? '' : platformBadge(mySubmission.song)}</h2>
+        <h2 style="word-break:break-word">${mySubmission.fileName ? escapeHtml(mySubmission.fileName) : (mySubmission.songTitle ? escapeHtml(mySubmission.songTitle) : (isUrl(mySubmission.song) ? 'Your submission' : escapeHtml(mySubmission.song||'')))}${mySubmission.fileName ? '' : platformBadge(mySubmission.song)}</h2>
         ${!mySubmission.fileName && isUrl(mySubmission.song) ? `<div class="jsub" style="word-break:break-all;font-size:11px">${escapeHtml(mySubmission.song)}</div>` : ''}
         <div class="jsub">${t('sent_by')} ${escapeHtml(mySubmission.name)}</div>
         ${data.skipsEnabled ? `
