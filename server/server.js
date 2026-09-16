@@ -205,7 +205,10 @@ function getAuthUser(req) {
   if (!real) return null;
   const actingFor = String(req.headers['x-acting-for'] || '').trim();
   if (!actingFor || actingFor === real.id) return real;
-  if (!isTeamMember(actingFor, real.id)) return real;
+  // Platform admins can act as ANY streamer this way too (not just teams they're actually on) —
+  // this is what lets the admin panel's "Manage" button open someone's live show to help out or
+  // end it. Still gated by real.is_admin from getRealAuthUser, which X-Acting-For can never spoof.
+  if (!isTeamMember(actingFor, real.id) && !real.is_admin) return real;
   const owner = db.prepare('SELECT * FROM users WHERE id = ?').get(actingFor);
   return owner || real;
 }
