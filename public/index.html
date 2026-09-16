@@ -681,11 +681,11 @@ body.pin-resizing .pin-resizer{cursor:col-resize;}
    of a blur/glow, so it reads as stamped/stickered rather than a generic soft AI gradient. Lame (1-2)
    is exactly as legible as Mid (bright ink, not faint) — it's smaller and has its own little "shrug"
    wiggle instead of Mid's full elastic bounce, never just a weak fade. */
-.reaction-tag{position:absolute;left:50%;top:44%;text-align:center;transform:translate(-50%,-50%);pointer-events:none;}
-.rc-word{display:block;font-family:'Bebas Neue',sans-serif;letter-spacing:.01em;white-space:nowrap;line-height:1;}
+.reaction-tag{position:absolute;left:50%;top:44%;max-width:92vw;text-align:center;transform:translate(-50%,-50%);pointer-events:none;}
+.rc-word{display:block;font-family:'Bebas Neue',sans-serif;letter-spacing:.01em;white-space:normal;overflow-wrap:break-word;line-height:1;}
 .rc-burst{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%) scale(0) rotate(0deg);border-radius:50%;pointer-events:none;}
 
-.band-lame .rc-word{font-size:15vmin;color:var(--ink);text-shadow:.4vmin .4vmin 0 var(--bg-2),.7vmin .7vmin 0 var(--bg-3);}
+.band-lame .rc-word{font-size:clamp(6vmin,11vmin,13vw);color:var(--ink);text-shadow:.4vmin .4vmin 0 var(--bg-2),.7vmin .7vmin 0 var(--bg-3);}
 .reaction-tag.band-lame{animation:rcPosLame 2.5s ease forwards;}
 @keyframes rcPosLame{
   0%{opacity:0;transform:translate(-50%,-50%) scale(.6) rotate(-8deg);}
@@ -696,7 +696,7 @@ body.pin-resizing .pin-resizer{cursor:col-resize;}
   100%{opacity:0;transform:translate(-50%,-34%) scale(.95) rotate(0);}
 }
 
-.band-mid .rc-word{font-size:19vmin;color:var(--ink);text-shadow:.4vmin .4vmin 0 var(--bg-3),.8vmin .8vmin 0 var(--bg-2);}
+.band-mid .rc-word{font-size:clamp(7vmin,14vmin,16vw);color:var(--ink);text-shadow:.4vmin .4vmin 0 var(--bg-3),.8vmin .8vmin 0 var(--bg-2);}
 .reaction-tag.band-mid{animation:rcPosMid 2.8s cubic-bezier(.34,1.56,.64,1) forwards;}
 @keyframes rcPosMid{
   0%{opacity:0;transform:translate(-50%,-50%) scale(.3) rotate(-6deg);}
@@ -707,7 +707,7 @@ body.pin-resizing .pin-resizer{cursor:col-resize;}
   100%{opacity:0;transform:translate(-50%,-52%) scale(.96) rotate(0);}
 }
 
-.band-hot .rc-word{font-size:24vmin;color:var(--coral);-webkit-text-stroke:.35vmin #2b0006;paint-order:stroke fill;
+.band-hot .rc-word{font-size:clamp(9vmin,18vmin,20vw);color:var(--coral);-webkit-text-stroke:.35vmin #2b0006;paint-order:stroke fill;
   text-shadow:.5vmin .5vmin 0 #2b0006,1vmin 1vmin 0 var(--coral-dim);}
 .reaction-tag.band-hot{animation:rcPosHot 3s cubic-bezier(.34,1.56,.64,1) forwards;}
 @keyframes rcPosHot{
@@ -726,7 +726,7 @@ body.pin-resizing .pin-resizer{cursor:col-resize;}
   100%{opacity:0;transform:translate(-50%,-50%) scale(1.5) rotate(50deg);}
 }
 
-.band-ultra .rc-word{font-size:30vmin;color:var(--gold);-webkit-text-stroke:.45vmin #1C1404;paint-order:stroke fill;
+.band-ultra .rc-word{font-size:clamp(11vmin,22vmin,24vw);color:var(--gold);-webkit-text-stroke:.45vmin #1C1404;paint-order:stroke fill;
   text-shadow:.6vmin .6vmin 0 #1C1404,1.2vmin 1.2vmin 0 var(--gold-dim),1.7vmin 1.7vmin 0 rgba(0,0,0,.25);}
 .reaction-tag.band-ultra{animation:rcPosUltra 3.4s cubic-bezier(.34,1.56,.64,1) forwards;}
 @keyframes rcPosUltra{
@@ -1196,7 +1196,7 @@ html.overlay-mode,body.overlay-mode{background:transparent!important;}
 
 <script>
 /* ===================== STATE / PERSISTENCE (connected to a real backend) ===================== */
-const APP_VERSION = '1.22.9'; // bump this on every deploy — shown small under the logo, top left, so you can confirm a deploy actually landed
+const APP_VERSION = '1.22.10'; // bump this on every deploy — shown small under the logo, top left, so you can confirm a deploy actually landed
 const API_BASE = (function(){ try{ return localStorage.getItem('kiu_api_base_override'); }catch(e){ return null; } })() || window.KIU_API_BASE || 'https://keepitup-api-4fky.onrender.com';
 const GOOGLE_CLIENT_ID = '655518852084-1qdd80e44621hr90bdlg0iphjvnho9si.apps.googleusercontent.com';
 const THEME_KEY = 'kiu_theme_v1';
