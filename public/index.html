@@ -633,6 +633,9 @@ body.pin-resizing .pin-resizer{cursor:col-resize;}
 .sw-eb-words{margin-top:16px;display:flex;flex-direction:column;gap:8px;align-items:flex-start;}
 .sw-eb-w{font-size:11.5px;font-weight:700;letter-spacing:.02em;color:var(--ink-dim);cursor:pointer;text-transform:uppercase;border-bottom:1px solid transparent;}
 .sw-eb-w:hover{color:var(--ink);border-bottom-color:var(--ink);}
+.sw-eb-custom{display:flex;gap:10px;align-items:center;margin-top:14px;}
+.sw-eb-custom input{flex:1;min-width:0;background:transparent;border:none;border-bottom:1.5px solid var(--line-strong);padding:4px 0;font-size:12.5px;color:var(--ink);}
+.sw-eb-custom input:focus{outline:none;border-bottom-color:var(--gold);}
 .sw-player{display:flex;align-items:center;gap:12px;margin-top:14px;}
 .sw-player.compact{margin-top:0;flex:1;}
 .sw-play{background:none;border:none;color:var(--ink);cursor:pointer;padding:4px;display:flex;flex-shrink:0;}
@@ -1196,7 +1199,7 @@ html.overlay-mode,body.overlay-mode{background:transparent!important;}
 
 <script>
 /* ===================== STATE / PERSISTENCE (connected to a real backend) ===================== */
-const APP_VERSION = '1.22.14'; // bump this on every deploy — shown small under the logo, top left, so you can confirm a deploy actually landed
+const APP_VERSION = '1.22.16'; // bump this on every deploy — shown small under the logo, top left, so you can confirm a deploy actually landed
 const API_BASE = (function(){ try{ return localStorage.getItem('kiu_api_base_override'); }catch(e){ return null; } })() || window.KIU_API_BASE || 'https://keepitup-api-4fky.onrender.com';
 const GOOGLE_CLIENT_ID = '655518852084-1qdd80e44621hr90bdlg0iphjvnho9si.apps.googleusercontent.com';
 const THEME_KEY = 'kiu_theme_v1';
@@ -1257,7 +1260,7 @@ const I18N = {
     earned:'Earned', earned_desc:'So far tonight',
     tip_title:'Tip', tip_body:"Shout out the skip fee every 5–10 min — otherwise you're leaving money on the table.",
     top_spender:'Top spender', most_paid:'Most paid', not_enough:'Not enough data yet.',
-    emoteboard:'Emoteboard', emoteboard_desc:'Pops up big on stage + overlay',
+    emoteboard:'Emoteboard', emoteboard_desc:'Pops up big on stage + overlay', eb_custom_ph:'Type your own…', eb_custom_send:'Send',
     show_controls:'Show controls',
     ov_queue:'Queue', ov_cap:'Cap', ov_skipfee:'Skip fee', ov_entryfee:'Entry fee', ov_order:'Order', ov_skips:'Skips',
     open_w:'Open', closed_w:'Closed', unlimited_w:'Unlimited', on_w:'On', off_w:'Off',
@@ -1322,7 +1325,7 @@ const I18N = {
     earned:'Verdient', earned_desc:'Bisher heute Abend',
     tip_title:'Tipp', tip_body:'Erwähne die Skip-Gebühr alle 5–10 Minuten — sonst lässt du Geld liegen.',
     top_spender:'Top-Zahler', most_paid:'Meist bezahlt', not_enough:'Noch nicht genug Daten.',
-    emoteboard:'Emoteboard', emoteboard_desc:'Erscheint groß auf Bühne + Overlay',
+    emoteboard:'Emoteboard', emoteboard_desc:'Erscheint groß auf Bühne + Overlay', eb_custom_ph:'Eigenen Text eingeben…', eb_custom_send:'Senden',
     show_controls:'Show-Einstellungen',
     ov_queue:'Queue', ov_cap:'Limit', ov_skipfee:'Skip-Gebühr', ov_entryfee:'Eintritt', ov_order:'Reihenfolge', ov_skips:'Skips',
     open_w:'Offen', closed_w:'Zu', unlimited_w:'Unbegrenzt', on_w:'An', off_w:'Aus',
@@ -1792,7 +1795,9 @@ async function refreshTeamData(){
   try{ teamData = await apiFetch('/api/team'); }
   catch(e){ teamData = null; return; }
   // If we were acting as someone whose team we're no longer part of (they removed us), drop it.
-  if(actingFor && !teamData.teams.some(t=>t.id===actingFor.id)){ actingFor = null; saveActingFor(); }
+  // Platform admins are exempt: they can act as any streamer via the admin panel's "Manage"
+  // button, not just teams they're actually on, so that streamer won't show up in teamData.teams.
+  if(actingFor && !(currentUser && currentUser.isAdmin) && !teamData.teams.some(t=>t.id===actingFor.id)){ actingFor = null; saveActingFor(); }
 }
 async function switchActingFor(owner){ // owner: {id,name,username} to act as, or null/undefined for yourself
   actingFor = owner || null;
@@ -1801,6 +1806,13 @@ async function switchActingFor(owner){ // owner: {id,name,username} to act as, o
   refreshUsernameDisplay();
   try{ await refreshCurrentShow(); }catch(e){}
   showView(db.session && db.session.status==='live' ? 'sessions-live' : 'sessions-host');
+}
+// Platform-admin shortcut from the admin panel: act as this streamer (reuses the same team
+// "acting for" mechanism co-hosts use) so the admin can see their queue, help out, or end a stuck
+// show. Server-side, server.js getAuthUser allows this specifically for admins, for any streamer —
+// not just teams the admin happens to be a real member of.
+function adminManageStreamer(owner){
+  switchActingFor(owner);
 }
 function renderTeamPop(){
   const el = document.getElementById('team-pop-list'); if(!el) return;
@@ -2652,6 +2664,7 @@ function renderAdmin(){
           <button class="btn-xs" onclick="adminSaveStreamerFee('${s.id}')">Save</button>
         </div>
       </td>
+      <td><button class="btn-xs" onclick='adminManageStreamer(${JSON.stringify({id:s.id,name:s.name,username:s.username})})'>${s.isLive ? 'Help / End show' : 'Manage'}</button></td>
     </tr>`).join('');
 
   el.innerHTML = `
@@ -2676,7 +2689,7 @@ function renderAdmin(){
           <option value="fee_asc" ${adminSort==='fee_asc'?'selected':''}>Lowest split first</option>
         </select>
       </div>
-      ${rows.length ? `<div class="table-scroll"><table class="table"><thead><tr><th>Name</th><th>Link</th><th>Email</th><th>Status</th><th>Payouts</th><th>Split</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>` : `<div class="not-enough">No streamers match.</div>`}
+      ${rows.length ? `<div class="table-scroll"><table class="table"><thead><tr><th>Name</th><th>Link</th><th>Email</th><th>Status</th><th>Payouts</th><th>Split</th><th>Show</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>` : `<div class="not-enough">No streamers match.</div>`}
     </div>`;
 }
 
@@ -3037,7 +3050,19 @@ function statsPanelInner(s){
     </div>
     <div class="sw-eb-words">
       ${EMOTEBOARD_EMOTES.map(e=>`<span class="sw-eb-w" onclick="fireReactionClick(${e.tier},'${e.label.replace(/'/g,"\\'")}')">${escapeHtml(e.label)}</span>`).join('')}
+    </div>
+    <div class="sw-eb-custom">
+      <input id="eb-custom-input" type="text" maxlength="24" placeholder="${t('eb_custom_ph')}" onkeydown="if(event.key==='Enter'){fireCustomReaction();}">
+      <span class="sw-eb-w" onclick="fireCustomReaction()">${t('eb_custom_send')}</span>
     </div>`;
+}
+function fireCustomReaction(){
+  const input = document.getElementById('eb-custom-input');
+  if(!input) return;
+  const label = input.value.trim();
+  if(!label) return;
+  fireReactionClick(8, label); // fixed "hot" intensity — plenty punchy without a whole tier picker just for typed-in text
+  input.value = '';
 }
 // Emote presets for the emoteboard — tier drives how "lame" (low) vs "ultra cool" (high) the on-screen
 // pop animation looks; see bandFor()/spawnReactionWord(). Keep this list short — the row is meant to stay compact.
