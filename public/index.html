@@ -1196,7 +1196,7 @@ html.overlay-mode,body.overlay-mode{background:transparent!important;}
 
 <script>
 /* ===================== STATE / PERSISTENCE (connected to a real backend) ===================== */
-const APP_VERSION = '1.22.13'; // bump this on every deploy — shown small under the logo, top left, so you can confirm a deploy actually landed
+const APP_VERSION = '1.22.14'; // bump this on every deploy — shown small under the logo, top left, so you can confirm a deploy actually landed
 const API_BASE = (function(){ try{ return localStorage.getItem('kiu_api_base_override'); }catch(e){ return null; } })() || window.KIU_API_BASE || 'https://keepitup-api-4fky.onrender.com';
 const GOOGLE_CLIENT_ID = '655518852084-1qdd80e44621hr90bdlg0iphjvnho9si.apps.googleusercontent.com';
 const THEME_KEY = 'kiu_theme_v1';
@@ -3062,7 +3062,7 @@ function soundRow(type, label, hint){
           ${name ? `<button class="btn-xs" onclick="resetSound('${type}')">${t('reset_default')}</button>` : ''}
         </div>
       </div>
-      <input type="file" accept="audio/*" onchange="handleSoundUpload('${type}', this)">
+      <input type="file" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.oga,.flac,.wma,.opus,.aiff,.aif" onchange="handleSoundUpload('${type}', this)">
     </div>`;
 }
 let accState = { queue:true, pricing:false, audio:false };
@@ -3894,6 +3894,20 @@ window.__lastJoinLiveState = null;
 let joinMode = 'link';
 let pendingJoinFile = null; // { dataUrl, name } once a fan picks a file
 function setJoinMode(mode){ joinMode = mode; pendingJoinFile = null; renderJoin(); }
+// Some phones' file/media pickers hand back an audio file with a missing or wrong MIME type (e.g.
+// "application/octet-stream") if the OS didn't recognize it — the file itself is fine, but the
+// data: URL FileReader produces then doesn't start with "audio/", and the server rejects it as
+// "doesn't look like a valid audio file". This patches the data: URL's declared type from the
+// filename extension so a perfectly good mp3/wav never gets bounced over a mislabeled MIME type.
+const AUDIO_EXT_MIME = { mp3:'audio/mpeg', wav:'audio/wav', m4a:'audio/mp4', aac:'audio/aac', ogg:'audio/ogg', oga:'audio/ogg', flac:'audio/flac', wma:'audio/x-ms-wma', opus:'audio/opus', aiff:'audio/aiff', aif:'audio/aiff', weba:'audio/webm' };
+function normalizeAudioDataUrl(dataUrl, filename){
+  if(/^data:audio\//i.test(dataUrl)) return dataUrl;
+  const ext = String(filename||'').split('.').pop().toLowerCase();
+  const mime = AUDIO_EXT_MIME[ext];
+  if(!mime) return dataUrl; // unrecognized extension — leave it for the server's own check to reject clearly
+  const comma = dataUrl.indexOf(',');
+  return comma===-1 ? dataUrl : 'data:'+mime+';base64,'+dataUrl.slice(comma+1);
+}
 function handleJoinFileChosen(inputEl){
   const file = inputEl.files[0];
   const statusEl = document.getElementById('j-file-status');
@@ -3906,7 +3920,7 @@ function handleJoinFileChosen(inputEl){
   }
   const reader = new FileReader();
   reader.onload = function(){
-    pendingJoinFile = { dataUrl: reader.result, name: file.name };
+    pendingJoinFile = { dataUrl: normalizeAudioDataUrl(reader.result, file.name), name: file.name };
     if(statusEl) statusEl.textContent = 'Ready: ' + file.name;
   };
   reader.onerror = function(){ if(statusEl) statusEl.textContent = 'Could not read that file.'; pendingJoinFile = null; };
@@ -4056,7 +4070,7 @@ async function renderJoin(){
               <button type="button" class="seg-btn ${joinMode==='file'?'active':''}" onclick="setJoinMode('file')">${t('j_upload_file')}</button>
             </div>
             ${joinMode==='file'
-              ? `<input id="j-file" type="file" accept="audio/*" onchange="handleJoinFileChosen(this)"><div class="join-note" id="j-file-status" style="margin-top:6px">${t('j_file_hint')}</div>`
+              ? `<input id="j-file" type="file" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.oga,.flac,.wma,.opus,.aiff,.aif" onchange="handleJoinFileChosen(this)"><div class="join-note" id="j-file-status" style="margin-top:6px">${t('j_file_hint')}</div>`
               : `<input id="j-song" type="text" placeholder="Spotify, YouTube, SoundCloud, Dropbox…">`}
           </div>
           <div class="join-field"><label>${t('j_desc')} <span style="text-transform:none;font-weight:400;color:var(--ink-faint)">(optional)</span></label><input id="j-note" type="text" placeholder="${t('j_desc_ph')}" maxlength="140"></div>
