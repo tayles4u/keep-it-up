@@ -844,7 +844,8 @@ route('GET', '/api/shows/current', async (req, res) => {
   if (!show) return sendJSON(res, 200, { show: null, queue: [] });
   const queue = db.prepare(`SELECT ${QUEUE_LIST_COLS} FROM queue_items WHERE show_id = ? AND status='queued' ORDER BY position ASC`).all(show.id);
   const earn = db.prepare(`SELECT COALESCE(SUM(amount),0) AS total FROM transactions WHERE show_id=? AND status!='payout'`).get(show.id).total;
-  sendJSON(res, 200, { show: Object.assign(showToJSON(show), { earnings: earn, hype: hypeLevelFor(show.id), reaction: currentReaction(show.id) }), queue: queue.map(q => queueToJSON(q)) });
+  const lastRemoved = db.prepare(`SELECT id, name FROM queue_items WHERE show_id=? AND status='removed' AND removed_at IS NOT NULL ORDER BY removed_at DESC LIMIT 1`).get(show.id);
+  sendJSON(res, 200, { show: Object.assign(showToJSON(show), { earnings: earn, hype: hypeLevelFor(show.id), reaction: currentReaction(show.id) }), queue: queue.map(q => queueToJSON(q)), lastRemoved: lastRemoved || null });
 });
 
 route('POST', '/api/shows/:id/react', async (req, res, params) => {
@@ -991,8 +992,28 @@ route('DELETE', '/api/shows/:id/queue/:itemId', async (req, res, params) => {
   if (!user) return sendJSON(res, 401, { error: 'Not signed in.' });
   const show = db.prepare('SELECT * FROM shows WHERE id=? AND user_id=?').get(params.id, user.id);
   if (!show) return sendJSON(res, 404, { error: 'Show not found.' });
-  db.prepare(`UPDATE queue_items SET status='removed' WHERE id=? AND show_id=?`).run(params.itemId, show.id);
+  // removed_at (as opposed to a plain status flip) is what makes this specific kick undoable via
+  // "restore last removed" — the ban route below deliberately does NOT set it, so a ban can never
+  // be undone through this shortcut.
+  db.prepare(`UPDATE queue_items SET status='removed', removed_at=? WHERE id=? AND show_id=?`).run(Date.now(), params.itemId, show.id);
   sendJSON(res, 200, { ok: true });
+});
+
+// Undo for the single most recent plain kick (not a ban) on this show — brings that person back to
+// the very front of the on-deck line. Deliberately only a one-deep undo stack: it always targets
+// whichever kick has the newest removed_at, so kicking someone else since then simply moves the
+// undo target forward rather than needing a full history.
+route('POST', '/api/shows/:id/queue/restore-last', async (req, res, params) => {
+  const user = getAuthUser(req);
+  if (!user) return sendJSON(res, 401, { error: 'Not signed in.' });
+  const show = db.prepare('SELECT * FROM shows WHERE id=? AND user_id=?').get(params.id, user.id);
+  if (!show) return sendJSON(res, 404, { error: 'Show not found.' });
+  const item = db.prepare(`SELECT * FROM queue_items WHERE show_id=? AND status='removed' AND removed_at IS NOT NULL ORDER BY removed_at DESC LIMIT 1`).get(show.id);
+  if (!item) return sendJSON(res, 409, { error: 'Nothing to restore.' });
+  const minPos = db.prepare(`SELECT MIN(position) AS m FROM queue_items WHERE show_id=? AND status='queued'`).get(show.id).m;
+  const newPos = minPos == null ? 0 : minPos - 1;
+  db.prepare(`UPDATE queue_items SET status='queued', position=?, removed_at=NULL WHERE id=?`).run(newPos, item.id);
+  sendJSON(res, 200, { ok: true, name: item.name });
 });
 
 route('POST', '/api/shows/:id/queue/:itemId/ban', async (req, res, params) => {
