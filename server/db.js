@@ -148,5 +148,8 @@ try { db.exec(`ALTER TABLE queue_items ADD COLUMN song_title TEXT`); } catch (e)
 try { db.exec(`ALTER TABLE queue_items ADD COLUMN embed_url TEXT`); } catch (e) { /* column already exists — fine */ }
 try { db.exec(`ALTER TABLE pending_submissions ADD COLUMN song_title TEXT`); } catch (e) { /* column already exists — fine */ }
 try { db.exec(`ALTER TABLE pending_submissions ADD COLUMN embed_url TEXT`); } catch (e) { /* column already exists — fine */ }
+// Safe migration for the "restore last kicked person" undo button — only a plain kick sets this
+// (not a ban), so restoring can never be used to sneak a banned name back into the queue.
+try { db.exec(`ALTER TABLE queue_items ADD COLUMN removed_at INTEGER`); } catch (e) { /* column already exists — fine */ }
 
 module.exports = db;
