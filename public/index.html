@@ -1199,7 +1199,7 @@ html.overlay-mode,body.overlay-mode{background:transparent!important;}
 
 <script>
 /* ===================== STATE / PERSISTENCE (connected to a real backend) ===================== */
-const APP_VERSION = '1.22.16'; // bump this on every deploy — shown small under the logo, top left, so you can confirm a deploy actually landed
+const APP_VERSION = '1.22.17'; // bump this on every deploy — shown small under the logo, top left, so you can confirm a deploy actually landed
 const API_BASE = (function(){ try{ return localStorage.getItem('kiu_api_base_override'); }catch(e){ return null; } })() || window.KIU_API_BASE || 'https://keepitup-api-4fky.onrender.com';
 const GOOGLE_CLIENT_ID = '655518852084-1qdd80e44621hr90bdlg0iphjvnho9si.apps.googleusercontent.com';
 const THEME_KEY = 'kiu_theme_v1';
@@ -4233,8 +4233,7 @@ function startPolling(){
   document.getElementById('landing').classList.add('active');
   startPolling();
   // If there's a saved session token, quietly check it's still valid so a returning host
-  // isn't asked to sign in again — but we don't auto-jump into the app (see earlier fix:
-  // the landing page should always show first).
+  // isn't asked to sign in again.
   await refreshCurrentUser();
 
   const stripeParams = new URLSearchParams(location.search);
@@ -4256,6 +4255,11 @@ function startPolling(){
     } else {
       showAuthScreen('login'); // sign in first, then enterAppAfterAuth() redeems it
     }
+  } else if(currentUser){
+    // A valid saved session and no special link — jump straight back into the app instead of
+    // stranding a returning, still-logged-in host on the marketing landing page (that read as
+    // "I got logged out" on every page refresh, even though the token was still fine).
+    await goApp();
   }
 })();
 
