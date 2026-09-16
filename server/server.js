@@ -1138,25 +1138,32 @@ route('GET', '/api/public/:joinCode', async (req, res, params) => {
   const queue = db.prepare(`SELECT ${QUEUE_LIST_COLS} FROM queue_items WHERE show_id=? AND status='queued' ORDER BY position ASC`).all(show.id);
   const nowPlaying = queue[0] ? queueToJSON(queue[0]) : null;
   const url = new URL(req.url, `http://${req.headers.host}`);
-  const participantId = url.searchParams.get('participant');
+  // A fan can have more than one song waiting at once (see /join — submitting no longer requires
+  // the previous entry to have played first), so this accepts a comma-separated list of the
+  // browser's own participant ids as well as the older single-id param, for old cached frontends
+  // mid-rollout.
+  const participantIds = String(url.searchParams.get('participants') || url.searchParams.get('participant') || '')
+    .split(',').map(s => s.trim()).filter(Boolean);
   let skippedCount = 0;
   for (let i = 1; i < queue.length; i++) {
-    if (queue[i].id === participantId) continue;
+    if (participantIds.includes(queue[i].id)) continue;
     if (queue[i].paid_total > 0) skippedCount++; else break;
   }
-  let mine = null;
-  if (participantId) {
-    const idx = queue.findIndex(q => q.id === participantId);
-    if (idx !== -1) {
-      mine = { position: idx, isFirst: idx === 0, paidTotal: queue[idx].paid_total, alreadySkipped: idx >= 1 && queue[idx].paid_total > 0 };
-    }
-  }
+  const mySubmissions = participantIds
+    .map(pid => {
+      const idx = queue.findIndex(q => q.id === pid);
+      if (idx === -1) return null;
+      return { id: pid, position: idx, isFirst: idx === 0, paidTotal: queue[idx].paid_total, alreadySkipped: idx >= 1 && queue[idx].paid_total > 0 };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.position - b.position);
   sendJSON(res, 200, {
     live: true, title: show.title, queueCount: queue.length, nowPlaying,
     acceptingSubmissions: !!settings.acceptingSubmissions,
     entryFeeEnabled: !!settings.entryFeeEnabled, entryFee: settings.entryFee,
     skipsEnabled: !!settings.skipsEnabled, skipFee: settings.skipFee, jumpFee: settings.jumpFee != null ? settings.jumpFee : 15,
-    skippedCount, cap: settings.cap, mine, hype: hypeLevelFor(show.id), reaction: currentReaction(show.id)
+    skippedCount, cap: settings.cap, mySubmissions, mine: mySubmissions[0] || null,
+    hype: hypeLevelFor(show.id), reaction: currentReaction(show.id)
   });
 });
 
