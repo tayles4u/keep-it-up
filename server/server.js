@@ -458,16 +458,30 @@ route('GET', '/api/stripe/status', async (req, res) => {
 });
 
 // ----- auth -----
-async function fetchCoverUrl(song) {
+// Best-effort song metadata via each platform's oEmbed API — never blocks a submission if it fails
+// or times out. For SoundCloud this is what actually fixes playback: fans often share the
+// on.soundcloud.com short link (or a mobile app share link), which the hand-built widget URL can't
+// resolve directly, but SoundCloud's own oEmbed endpoint resolves it server-side and hands back a
+// ready-to-use embed src — plus the real track title/artist, so the UI can show that instead of a
+// generic "Now reacting" placeholder.
+async function fetchSongMeta(song) {
   try {
-    if (!/open\.spotify\.com\/(?:[a-z]+(?:-[a-z]+)?\/)?(track|album|episode|show)\//i.test(song)) return null;
-    const res = await fetch('https://open.spotify.com/oembed?url=' + encodeURIComponent(song), {
-      signal: AbortSignal.timeout(4000)
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.thumbnail_url || null;
-  } catch (e) { return null; }
+    if (/open\.spotify\.com\/(?:[a-z]+(?:-[a-z]+)?\/)?(track|album|episode|show)\//i.test(song)) {
+      const res = await fetch('https://open.spotify.com/oembed?url=' + encodeURIComponent(song), { signal: AbortSignal.timeout(4000) });
+      if (!res.ok) return {};
+      const data = await res.json();
+      return { coverUrl: data.thumbnail_url || null, title: data.title || null };
+    }
+    if (/soundcloud\.com\//i.test(song)) {
+      const res = await fetch('https://soundcloud.com/oembed?format=json&url=' + encodeURIComponent(song), { signal: AbortSignal.timeout(4000) });
+      if (!res.ok) return {};
+      const data = await res.json();
+      const m = /src="([^"]+)"/.exec(data.html || '');
+      const title = data.title ? (data.author_name ? `${data.title} — ${data.author_name}` : data.title) : null;
+      return { coverUrl: data.thumbnail_url || null, title, embedUrl: m ? m[1].replace(/&amp;/g, '&') : null };
+    }
+  } catch (e) { /* best-effort only */ }
+  return {};
 }
 
 async function verifyGoogleIdToken(idToken) {
@@ -1149,7 +1163,10 @@ route('POST', '/api/public/:joinCode/join', async (req, res, params) => {
   if (fileData && !/^data:audio\//i.test(fileData)) return sendJSON(res, 400, { error: 'That file doesn\'t look like a valid audio file.' });
 
   const entry = settings.entryFeeEnabled ? Number(settings.entryFee || 0) : 0;
-  const coverUrl = song ? await fetchCoverUrl(song) : null;
+  const songMeta = song ? await fetchSongMeta(song) : {};
+  const coverUrl = songMeta.coverUrl || null;
+  const songTitle = songMeta.title || null;
+  const embedUrl = songMeta.embedUrl || null;
 
   if (entry > 0) {
     if (!STRIPE_SECRET_KEY) {
@@ -1161,9 +1178,9 @@ route('POST', '/api/public/:joinCode/join', async (req, res, params) => {
     // swept over to them automatically (see sweepHeldTransactions).
     const hostConnected = !!user.stripe_account_id && !!user.stripe_payouts_enabled;
     const pendingId = newId();
-    db.prepare(`INSERT INTO pending_submissions (id,show_id,name,song,note,cover_url,file_data,file_name,created_at)
-                VALUES (?,?,?,?,?,?,?,?,?)`)
-      .run(pendingId, show.id, name, song || null, note, coverUrl, fileData || null, fileData ? (fileName || 'uploaded file') : null, Date.now());
+    db.prepare(`INSERT INTO pending_submissions (id,show_id,name,song,note,cover_url,file_data,file_name,created_at,song_title,embed_url)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?)`)
+      .run(pendingId, show.id, name, song || null, note, coverUrl, fileData || null, fileData ? (fileName || 'uploaded file') : null, Date.now(), songTitle, embedUrl);
     try {
       const origin = requestOrigin(req);
       const sessionParams = {
@@ -1194,11 +1211,12 @@ route('POST', '/api/public/:joinCode/join', async (req, res, params) => {
   const item = {
     id: newId(), show_id: show.id, name, song: song || null, note,
     paid_total: entry, position: count, status: 'queued', joined_at: Date.now(),
-    cover_url: coverUrl, file_data: fileData || null, file_name: fileData ? (fileName || 'uploaded file') : null
+    cover_url: coverUrl, file_data: fileData || null, file_name: fileData ? (fileName || 'uploaded file') : null,
+    song_title: songTitle, embed_url: embedUrl
   };
-  db.prepare(`INSERT INTO queue_items (id,show_id,name,song,note,paid_total,position,status,joined_at,cover_url,file_data,file_name)
-              VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`)
-    .run(item.id, item.show_id, item.name, item.song, item.note, item.paid_total, item.position, item.status, item.joined_at, item.cover_url, item.file_data, item.file_name);
+  db.prepare(`INSERT INTO queue_items (id,show_id,name,song,note,paid_total,position,status,joined_at,cover_url,file_data,file_name,song_title,embed_url)
+              VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+    .run(item.id, item.show_id, item.name, item.song, item.note, item.paid_total, item.position, item.status, item.joined_at, item.cover_url, item.file_data, item.file_name, item.song_title, item.embed_url);
   db.prepare(`UPDATE shows SET total_participants = total_participants + 1 WHERE id=?`).run(show.id);
   if (entry > 0) {
     db.prepare(`INSERT INTO transactions (id,user_id,show_id,type,amount,status,date) VALUES (?,?,?,?,?,?,?)`)
@@ -1356,9 +1374,9 @@ route('POST', '/api/stripe/webhook', async (req, res) => {
           const netAmount = hostUser ? Math.round((cost - cost * effectiveFeePct(hostUser)) * 100) / 100 : cost;
           const count = db.prepare(`SELECT COUNT(*) AS c FROM queue_items WHERE show_id=? AND status='queued'`).get(show.id).c;
           const itemId = newId();
-          db.prepare(`INSERT INTO queue_items (id,show_id,name,song,note,paid_total,position,status,joined_at,cover_url,file_data,file_name)
-                      VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`)
-            .run(itemId, show.id, pending.name, pending.song, pending.note, cost, count, 'queued', Date.now(), pending.cover_url, pending.file_data, pending.file_name);
+          db.prepare(`INSERT INTO queue_items (id,show_id,name,song,note,paid_total,position,status,joined_at,cover_url,file_data,file_name,song_title,embed_url)
+                      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+            .run(itemId, show.id, pending.name, pending.song, pending.note, cost, count, 'queued', Date.now(), pending.cover_url, pending.file_data, pending.file_name, pending.song_title, pending.embed_url);
           db.prepare(`UPDATE shows SET total_participants = total_participants + 1 WHERE id=?`).run(show.id);
           db.prepare(`INSERT INTO transactions (id,user_id,show_id,type,amount,status,date,stripe_payment_intent_id) VALUES (?,?,?,?,?,?,?,?)`)
             .run(newId(), show.user_id, show.id, 'entry_fee', netAmount, isHeld ? 'held' : 'available', Date.now(), paymentIntentId);
@@ -1399,7 +1417,7 @@ route('POST', '/api/stripe/webhook', async (req, res) => {
 // QUEUE_LIST_COLS is used by every query that can return more than one queue_items row at a time,
 // so the (potentially huge) file_data column itself is never even pulled out of SQLite for a list —
 // only a cheap `has_file` boolean computed in the query.
-const QUEUE_LIST_COLS = `id, show_id, name, song, note, paid_total, position, status, joined_at, cover_url, file_name, (file_data IS NOT NULL) AS has_file`;
+const QUEUE_LIST_COLS = `id, show_id, name, song, note, paid_total, position, status, joined_at, cover_url, file_name, song_title, embed_url, (file_data IS NOT NULL) AS has_file`;
 function queueToJSON(q) {
   const hasFile = q.has_file != null ? !!q.has_file : !!q.file_data;
   return {
@@ -1407,7 +1425,9 @@ function queueToJSON(q) {
     position: q.position, status: q.status, joinedAt: q.joined_at, coverUrl: q.cover_url,
     fileData: hasFile ? 1 : null,
     fileUrl: hasFile ? `/api/media/${q.id}` : null,
-    fileName: q.file_name
+    fileName: q.file_name,
+    songTitle: q.song_title || null,
+    embedUrl: q.embed_url || null
   };
 }
 // Bracket entries are persisted (in shows.bracket_json) already carrying their fileUrl (from
